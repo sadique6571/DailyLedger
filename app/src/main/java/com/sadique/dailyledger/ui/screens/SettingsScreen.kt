@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,15 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.auth.UserProfile
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.export.ExportManager
 import com.sadique.dailyledger.export.ExportPeriod
 import com.sadique.dailyledger.notifications.ExportNotifications
-import com.sadique.dailyledger.security.SecureSecretStore
 import com.sadique.dailyledger.sync.*
 import com.sadique.dailyledger.ui.MainViewModel
 import com.sadique.dailyledger.weather.WeatherService
@@ -48,9 +44,7 @@ fun SettingsScreen(
     biometric: Boolean,
     driveEnabled: Boolean,
     lastSync: Long,
-    cloudEnabled: Boolean,
-    lastCloudSync: Long,
-    cloudStatus: String,
+    driveStatus: String,
     weatherEnabled: Boolean,
     weatherCity: String,
     weatherTemperature: String,
@@ -61,7 +55,6 @@ fun SettingsScreen(
     onTheme: (String) -> Unit,
     onBiometric: (Boolean) -> Unit,
     onDriveEnabled: (Boolean) -> Unit,
-    onCloudEnabled: (Boolean) -> Unit,
     onWeatherEnabled: (Boolean) -> Unit,
     onTransactionSounds: (Boolean) -> Unit,
     onLogout: () -> Unit,
@@ -79,9 +72,6 @@ fun SettingsScreen(
             dismissButton = { TextButton(onClick = { aiConsent = false }) { Text("Cancel") } },
         )
     }
-    val secrets = remember(user.id) { SecureSecretStore(context, user.id) }
-    var passphrase by remember { mutableStateOf("") }
-    var passphraseReady by remember(user.id) { mutableStateOf(secrets.hasPassphrase()) }
     var message by remember { mutableStateOf<String?>(null) }
     var exportResult by remember { mutableStateOf<String?>(null) }
     var exportPeriod by remember { mutableStateOf(ExportPeriod.CURRENT_MONTH) }
@@ -96,36 +86,9 @@ fun SettingsScreen(
     var cityInput by remember(weatherCity) { mutableStateOf(weatherCity) }
     val settingsStore = remember { SettingsStore(context.applicationContext) }
     val savings by vm.savings.collectAsState()
-    var backupReady by remember(user.id) { mutableStateOf(false) }
+    val backupReady = driveEnabled && lastSync > 0L
     var backupDetails by remember { mutableStateOf(false) }
     var cityEditor by remember { mutableStateOf(false) }
-    LaunchedEffect(user.id, lastCloudSync, cloudStatus) {
-        val state = settingsStore.cloudState(user.id)
-        backupReady = state.ready && state.revision.isNotBlank()
-    }
-
-    fun cloud(action: String) {
-        if (busy) return
-        busy = true; message = null
-        scope.launch {
-            try {
-                val backup = CloudBackup(context, user.id)
-                message = when (action) {
-                    "RESTORE" -> backup.restore()
-                    "REPLACE" -> backup.replaceWithLocal()
-                    "DELETE" -> backup.deleteBackup()
-                    else -> backup.sync()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                message = backupError(e)
-                SettingsStore(context).cloudStatus(user.id, message.orEmpty())
-            } finally {
-                busy = false
-            }
-        }
-    }
     fun export(pdf: Boolean) {
         if (busy) return
         busy = true
@@ -169,13 +132,11 @@ fun SettingsScreen(
         try {
             if (action == "RESTORE") {
                 DriveSync(context, vm.ownerId).restore(token)
-                SyncScheduler.syncNow(context)
-                message = "Google Drive backup restored."
+                message = "Google Drive backup restored to this phone."
             } else {
-                DriveSync(context, vm.ownerId).upload(token)
-                message = "An encrypted copy was saved to Google Drive."
+                DriveSync(context, vm.ownerId).upload(token, allowReplace = true)
+                message = "Backup saved to your Google Drive account."
             }
-            onDriveEnabled(true)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -190,7 +151,11 @@ fun SettingsScreen(
         else { busy = false; message = "Google Drive access was not granted. Your data is unchanged." }
     }
     fun drive(action: String) {
-        val email = user.googleEmail ?: return
+        val email = user.googleEmail ?: user.email
+        if (email.isBlank()) {
+            message = "Add a Google account to this phone before using Google Drive backup."
+            return
+        }
         if (busy) return
         busy = true; pendingDriveAction = action; message = null
         scope.launch {
@@ -225,38 +190,29 @@ fun SettingsScreen(
 
     confirmation?.let { action ->
         val restore = action.endsWith("RESTORE")
-        val delete = action == "CLOUD_DELETE"
         AlertDialog(
             onDismissRequest = { confirmation = null },
             title = {
                 Text(
-                    when {
-                        delete -> "Delete cloud backup?"
-                        restore -> "Restore backup?"
-                        else -> "Replace existing backup?"
-                    }
+                    if (restore) "Restore Google Drive backup?" else "Back up to Google Drive?"
                 )
             },
             text = {
                 Text(
-                    when {
-                        delete -> "This deletes the current cloud backup. Older retained copies may remain under the storage retention policy. Records already on this phone are kept, and automatic backup will be turned off."
-                        restore -> "This replaces this account's records on this phone with the selected backup. Export any changes you want to keep first."
-                        else -> "This saves this phone's records over the existing backup for this account. Changes from another phone will be replaced."
-                    }
+                    if (restore)
+                        "This replaces the records for ${user.email} on this phone with the backup in the selected Google account. Export any changes you want to keep first."
+                    else
+                        "This uploads this phone's full ledger to the selected Google account and replaces its previous Daily Ledger backup."
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     confirmation = null
                     when (action) {
-                        "CLOUD_RESTORE" -> cloud("RESTORE")
-                        "CLOUD_REPLACE" -> cloud("REPLACE")
-                        "CLOUD_DELETE" -> cloud("DELETE")
                         "DRIVE_RESTORE" -> drive("RESTORE")
                         "DRIVE_UPLOAD" -> drive("UPLOAD")
                     }
-                }) { Text(if (delete) "Delete backup" else if (restore) "Restore" else "Save this phone's data") }
+                }) { Text(if (restore) "Restore" else "Back up now") }
             },
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancel") } },
         )
@@ -266,7 +222,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { resetStage = 0 },
             title = { Text(if (resetStage == 1) "Reset local data?" else "Final confirmation") },
-            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. Cloud backup is kept separate and can be restored later if needed." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
+            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. A Google Drive backup is kept separately and can be restored later." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
             confirmButton = {
                 TextButton(onClick = {
                     if (resetStage == 1) {
@@ -309,40 +265,12 @@ fun SettingsScreen(
             }
         }
 
-        AccountBackupCard(cloudEnabled, backupReady, if (lastCloudSync > 0) formatTime(lastCloudSync) else "Not yet checked",
-            cloudStatus, busy, onCloudEnabled, { confirmation = "CLOUD_RESTORE" }, { cloud("SYNC") }, { backupDetails = !backupDetails })
-        SectionCard("Backup encryption passphrase", "Free Firebase Spark backup is encrypted on this phone before upload.") {
-            Text("Use at least 6 characters and keep this passphrase safe. You will need the same passphrase to restore on another phone. This passphrase is also used for optional Google Drive copies.", style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(
-                passphrase,
-                { passphrase = it },
-                label = { Text("Backup passphrase") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !busy && !(backupReady && passphraseReady),
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-            Button(onClick = {
-                try {
-                    secrets.savePassphrase(passphrase)
-                    passphrase = ""
-                    passphraseReady = true
-                    message = "Backup passphrase saved securely on this phone."
-                } catch (e: Exception) {
-                    message = e.message ?: "Could not save the backup passphrase."
-                }
-            }, enabled = passphrase.length >= 6 && !busy && !(backupReady && passphraseReady)) { Text("Save passphrase") }
-            Text(if (passphraseReady) "A passphrase is saved on this phone." else "Save a passphrase before the first cloud backup.", style = MaterialTheme.typography.bodySmall)
-            if (backupReady && passphraseReady) {
-                Text("Passphrase changes are locked while a cloud backup exists so its restore key is not accidentally replaced. Delete that backup first only if you understand that it removes the remote copy.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
-        }
-        if (backupDetails) SectionCard("Backup details", "Free Firebase Spark Firestore · encrypted payload · up to 900 KB") {
-            Text("Backups are encrypted on this phone with your saved passphrase before upload. Firebase stores the ciphertext only; keep your passphrase because it cannot be recovered by the app owner.", style = MaterialTheme.typography.bodySmall)
-            Text("Restore and manual backup stay available even when automatic backup is turned off.", style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { confirmation = "CLOUD_REPLACE" }, enabled = !busy) { Text("Replace backup with this phone's data") }
-            TextButton(onClick = { confirmation = "CLOUD_DELETE" }, enabled = !busy) { Text("Delete cloud backup", color = MaterialTheme.colorScheme.error) }
+        AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
+            driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails })
+        if (backupDetails) SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
+            Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
+            Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
+            Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
         }
 
         PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
@@ -375,23 +303,6 @@ fun SettingsScreen(
                         Text("Import profile ${index + 1} (${profile.records} records)")
                     }
                 }
-            }
-        }
-
-        if (user.googleEmail != null) {
-            SectionCard("Google Drive copy", "Optional extra backup for ${user.googleEmail}.") {
-                Text(
-                    "This optional copy is encrypted with the same backup passphrase set above.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { confirmation = "DRIVE_UPLOAD" }, enabled = passphraseReady && !busy) { Text("Save copy") }
-                    OutlinedButton(onClick = { confirmation = "DRIVE_RESTORE" }, enabled = passphraseReady && !busy) { Text("Restore copy") }
-                }
-                Text(
-                    if (driveEnabled && lastSync > 0) "Last Drive operation: ${formatTime(lastSync)}" else "No Drive copy completed on this phone yet.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
             }
         }
 
@@ -461,10 +372,10 @@ fun SettingsScreen(
 
         SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
             Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
-            Text("Data stays on this phone unless you choose a cloud backup or export.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Data stays on this phone unless you enable Google Drive backup or export.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        SectionCard("Local data reset", "Permanent reset only on this phone. Cloud backup can still be restored later.") {
+        SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
             OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
         }
 

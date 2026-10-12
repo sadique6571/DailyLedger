@@ -7,8 +7,8 @@ Implemented in this project copy:
 - Manual-city current weather (no GPS permission) using Open-Meteo and cached refresh.
 - Retro-soft transaction sounds with Settings toggle.
 - Modernized AI Auto Fill review cards.
-- Backup status controls including Back up now, Restore, Replace and Delete Cloud Backup.
+- Google Drive backup status controls including Back up now and Restore.
 - Fresh-install **Backup found -> Restore / Skip** flow; no automatic destructive restore.
 - Refined summary cards, section cards and existing theme support.
 
-Server/security work is also included in this copy: Firebase AI Logic migration, KMS-backed encrypted V2 backup fixes, stale-key recovery, stricter rules, App Check enforcement and CI test updates. See `ARCHITECTURE.md`, `KMS-SETUP.md` and `TESTING.md`.
+Server/security work is also included in this copy: Firebase AI Logic migration, App Check enforcement and CI test updates. Drive backup uses readable account-bound JSON; Firestore rules are read-only for legacy backups. See `ARCHITECTURE.md`, `GOOGLE-SETUP.md` and `TESTING.md`.

@@ -1,17 +1,20 @@
 # Firebase integration status
 
-The Android app uses Firebase Authentication, Firestore, Firebase AI Logic and Play Integrity App Check. Firebase AI Logic is already wired to the Gemini Developer API in source; the owner still needs to activate it in Firebase Console and configure App Check. See `FIREBASE-AI-SETUP.md`.
+The Android app uses Firebase Authentication and Firebase AI Logic. Firestore is not used for ledger backup; current backups are stored in each user's Google Drive app-data folder. SQLCipher continues to encrypt the Room database on the device.
 
-## Backup
+## Backup migration
 
-New cloud snapshots use encrypted Firestore format v4: AES-256-GCM passphrase encryption happens on-device and ciphertext is stored in `users/{uid}/backups/latest`. Its content fingerprint is passphrase-keyed. Keep the project on Spark and deploy only Firestore rules:
+- New backups are plain UTF-8 ledger JSON in the private, hidden Google Drive `appDataFolder`; the Drive REST API uses the Google `drive.appdata` authorization scope.
+- No backup passphrase or client-side cloud-backup encryption is used. Access relies on the Google account and Drive permission. Treat the Drive account as sensitive.
+- Firebase Firestore rules allow an authenticated owner to read their legacy `users/{uid}/backups/latest` document, but block all client create/update/delete requests. The current app has no Firestore backup or restore client.
+- Existing Firestore snapshots and legacy encrypted Drive files are not automatically copied or restored. Retain the original phone/data and export or use a legacy app version to migrate records before relying on a new-device restore.
+
+The owner deployed the read-only Firestore rules to project `daily-ledger-4d8ef`; deployments should still be reviewed and verified in Firebase Console. Rule tests can be run with:
 
 ```powershell
-firebase deploy --only firestore:rules
+npm test
 ```
 
-New v4 backup does not use Storage, Functions or KMS. Its payload limit is 900 KB; larger ledgers should use the separately encrypted Google Drive backup or local CSV/PDF export. The same passphrase must be saved on every device before restore. A lost passphrase cannot be recovered by the app owner.
+## Firebase AI
 
-Existing v1 Firestore backups remain readable and migrate to v4 after restore. Legacy v2/v3 backups use the older Storage/KMS architecture and may need those original services available for restore. Do not delete legacy key versions while an old backup still depends on them.
-
-Building the APK does not deploy Firestore rules, activate AI Logic, configure App Check, or perform a live cloud restore. No billing upgrade or paid resource provisioning is required or performed for the new Spark backup path.
+Firebase AI Logic with Gemini is optional and separate from backup. The project owner must configure AI Logic and App Check in Firebase Console; see `FIREBASE-AI-SETUP.md`. Building the APK does not activate inference or change billing.

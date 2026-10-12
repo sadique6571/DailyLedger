@@ -1,4 +1,13 @@
-# Current fixes included
+# Current backup changes — 1.7.16
+
+- New ledger backups use the signed-in user's private Google Drive app-data folder and readable JSON; there is no backup passphrase or separate cloud-backup encryption.
+- Firebase Firestore backup writes are disabled. Existing owner backups are read-only legacy data and are not automatically migrated.
+- Background Drive sync checks the last-seen file version and refuses to overwrite a newer remote copy. A confirmed manual **Back up now** can intentionally replace it.
+- The local SQLCipher-encrypted database is unchanged.
+
+The notes below describe historical behavior in earlier versions and are not instructions for the current backup flow.
+
+## Historical fixes
 
 - Migrated AI runtime to Firebase AI Logic (`firebase-ai`) with a current Gemini Flash model and structured response schemas.
 - App Check debug/release providers remain initialized at app startup; callable key Functions enforce App Check.

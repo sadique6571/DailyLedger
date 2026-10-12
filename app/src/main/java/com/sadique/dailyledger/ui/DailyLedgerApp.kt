@@ -46,9 +46,10 @@ import com.sadique.dailyledger.auth.AccountManager
 import com.sadique.dailyledger.auth.UserProfile
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
+import com.sadique.dailyledger.sync.DriveAuth
+import com.sadique.dailyledger.sync.DriveBackupInfo
+import com.sadique.dailyledger.sync.DriveSync
 import com.sadique.dailyledger.sync.SyncScheduler
-import com.sadique.dailyledger.sync.CloudBackup
-import com.sadique.dailyledger.sync.BackupInfo
 import com.sadique.dailyledger.ui.screens.AutoFillScreen
 import com.sadique.dailyledger.ui.screens.CommitteeScreen
 import com.sadique.dailyledger.ui.screens.DashboardScreen
@@ -74,9 +75,7 @@ fun DailyLedgerApp(
     biometric: Boolean,
     driveEnabled: Boolean,
     lastSync: Long,
-    cloudEnabled: Boolean,
-    lastCloudSync: Long,
-    cloudStatus: String,
+    driveStatus: String,
     weatherEnabled: Boolean,
     weatherCity: String,
     weatherTemperature: String,
@@ -113,19 +112,27 @@ fun DailyLedgerApp(
     val snapshot = remember(tx, savings, loans, lp, cp, ledgerCycle, user.id) {
         SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle)
     }
-    var restoreInfo by remember(user.id) { mutableStateOf<BackupInfo?>(null) }
+    var restoreInfo by remember(user.id) { mutableStateOf<DriveBackupInfo?>(null) }
     var restoreBusy by remember(user.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(snapshot, aiEnabled) { vm.refreshInsights(snapshot) }
-    LaunchedEffect(user.id, cloudEnabled, cloudStatus) {
-        if (cloudEnabled && !vm.repo.hasRecords()) {
-            runCatching { CloudBackup(context, user.id).backupInfo() }
-                .onSuccess { info ->
-                    if (info != null && settings.skippedRestoreRevision(user.id) != info.revision) {
+    LaunchedEffect(user.id) {
+        if (!vm.repo.hasRecords()) {
+            val driveEmail = user.googleEmail ?: user.email
+            try {
+                val token = DriveAuth.silentToken(context, driveEmail)
+                if (token != null) {
+                    val info = DriveSync(context, user.id).backupInfo(token)
+                    if (info != null && settings.skippedDriveBackup(user.id) != info.version) {
                         restoreInfo = info
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                settings.setDriveStatus(user.id, e.message ?: "Could not check Google Drive for a backup.")
+            }
         }
     }
     restoreInfo?.let { info ->
@@ -133,10 +140,8 @@ fun DailyLedgerApp(
             onDismissRequest = {},
             title = { Text("Backup found") },
             text = {
-                val whenText = if (info.updatedAt > 0L)
-                    java.text.DateFormat.getDateTimeInstance().format(java.util.Date(info.updatedAt))
-                else "date unavailable"
-                Text("A cloud backup for this account was found ($whenText). Restore it to this phone, or Skip to keep this phone empty for now.")
+                val whenText = runCatching { java.time.Instant.parse(info.modifiedTime).toString() }.getOrDefault("date unavailable")
+                Text("A Google Drive backup for ${user.email} was found ($whenText). Restore it to this phone, or Skip for now.")
             },
             confirmButton = {
                 TextButton(
@@ -145,9 +150,12 @@ fun DailyLedgerApp(
                         restoreBusy = true
                         scope.launch {
                             try {
-                                val message = CloudBackup(context, user.id).restore(info.revision)
+                                val driveEmail = user.googleEmail ?: user.email
+                                val token = DriveAuth.silentToken(context, driveEmail)
+                                    ?: error("Open Settings → Google Drive Backup, approve Drive access, then tap Restore data.")
+                                DriveSync(context, user.id).restore(token)
                                 restoreInfo = null
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Google Drive backup restored to this phone.", Toast.LENGTH_LONG).show()
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -164,8 +172,7 @@ fun DailyLedgerApp(
                     enabled = !restoreBusy,
                     onClick = {
                         scope.launch {
-                            settings.setSkippedRestoreRevision(user.id, info.revision)
-                            settings.cloudStatus(user.id, "Backup found and skipped on this phone. You can restore it later from Settings.")
+                            settings.setSkippedDriveBackup(user.id, info.version)
                             restoreInfo = null
                         }
                     }
@@ -246,9 +253,7 @@ fun DailyLedgerApp(
             context = context,
             vm = vm,
             user = user,
-            cloudEnabled = cloudEnabled,
-            lastCloudSync = lastCloudSync,
-            cloudStatus = cloudStatus,
+            driveStatus = driveStatus,
             theme = theme,
             biometric = biometric,
             driveEnabled = driveEnabled,
@@ -269,10 +274,9 @@ fun DailyLedgerApp(
                     scope.launch { settings.setBiometric(enable) }
                 }
             },
-            onDriveEnabled = { scope.launch { settings.setDriveEnabled(user.id, it) } },
-            onCloudEnabled = { enabled ->
+            onDriveEnabled = { enabled ->
                 scope.launch {
-                    settings.setCloudEnabled(user.id, enabled)
+                    settings.setDriveEnabled(user.id, enabled)
                     if (enabled) SyncScheduler.syncNow(context)
                     else SyncScheduler.cancelImmediate(context)
                 }

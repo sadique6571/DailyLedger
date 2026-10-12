@@ -11,6 +11,7 @@ import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 sealed interface DriveAuthOutcome {
     data class Token(val value: String) : DriveAuthOutcome
@@ -27,21 +28,24 @@ object DriveAuth {
         .build()
 
     suspend fun authorize(activity: Activity, email: String): DriveAuthOutcome = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val result = Tasks.await(Identity.getAuthorizationClient(activity).authorize(request(email)))
             if (result.hasResolution()) {
                 DriveAuthOutcome.Resolution(IntentSenderRequest.Builder(requireNotNull(result.pendingIntent).intentSender).build())
             } else {
                 result.accessToken?.let { DriveAuthOutcome.Token(it) } ?: DriveAuthOutcome.Error("No access token")
             }
-        }.getOrElse { DriveAuthOutcome.Error(it.message ?: "Drive authorization failed") }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            DriveAuthOutcome.Error(e.message ?: "Drive authorization failed")
+        }
     }
 
     suspend fun silentToken(context: Context, email: String): String? = withContext(Dispatchers.IO) {
-        runCatching {
-            val result = Tasks.await(Identity.getAuthorizationClient(context).authorize(request(email)))
-            if (result.hasResolution()) null else result.accessToken
-        }.getOrNull()
+        val result = Tasks.await(Identity.getAuthorizationClient(context).authorize(request(email)))
+        if (result.hasResolution()) null else result.accessToken
+            ?: error("Google Drive did not return an access token.")
     }
 
     fun tokenFromResult(context: Context, intent: Intent?): String? = runCatching {

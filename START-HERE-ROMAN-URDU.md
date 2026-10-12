@@ -1,23 +1,24 @@
-# Daily Ledger 1.5.1
+# Daily Ledger 1.7.16 — shuru karne ka tareeqa
 
-Yeh APK income/kharcha, savings, loans aur kameti ke liye hai. Salary se monthly kharcha minus hota hai; savings aur kameti alag totals hain. Partial kameti receiving, members ke turns/contacts, qarz ki payment history, themes, city weather aur optional sounds bhi shamil hain.
+Yeh app income, kharcha, savings, loans aur kameti ka hisaab rakhti hai. Aapke records phone par local database mein rehte hain; local database SQLCipher se encrypted hai.
 
-## Update
+## Google Drive backup
 
-Nayi APK purani app ke upar install karein. Update ke liye data clear ya uninstall na karein. Phone ka purana database automatically encrypted format mein migrate hota hai. Agar migration fail ho to original file erase nahi hoti.
+1. Settings mein **Google Drive backup** kholein aur **Back up now** dabayein.
+2. Google account ke liye Drive permission approve karein. Iske liye `drive.appdata` permission use hoti hai.
+3. Backup complete hone ka status dekhein. Sirf switch ON hona kaafi nahi—successful backup status zaroor check karein.
+4. Naye phone par isi Daily Ledger account aur backup wale Google account se sign in karke **Restore** karein.
 
-## Backup
+Backup aapke Google Drive ke private hidden app-data folder mein readable JSON ke taur par save hota hai. Alag passphrase ya backup encryption nahi hai; Google account/Drive permission jiske paas hogi woh backup parh sakta hai. Apne Google account ko secure rakhein. Phone ka local SQLCipher encryption alag hai aur barqarar hai.
 
-Jab cloud setup tayyar ho aur backup successfully save ho, isi login ID se naye phone par Restore / Skip milega. Account backup ke liye alag passphrase nahi mangi jati. Random key data encrypt karti hai; user ID sirf account ki pehchan hai. Backend Functions + KMS login verify karke key recover karta hai.
+Purane Firestore backups aur pehle ke encrypted Drive backup files is version mein khud-ba-khud migrate/restore nahi hote. Purana phone aur uska data delete/uninstall na karein jab tak naya Drive backup bana kar restore test na kar lein. Zaroorat par purane app version se purana backup restore karke naya Drive backup banayein.
 
-Is ZIP ka cloud backup Blaze billing mangta hai. Abhi billing enable ya cloud setup deploy hone ka dawa nahi kiya gaya. Pehle app ka last successful backup status check karein. Automatic backup ON hona backup save hone ki guarantee nahi.
-
-Firebase console mein naye backup ka encrypted data aur metadata hota hai. Magar authorized backend/KMS administrator key recover kar sakta hai: yeh WhatsApp jaisi zero-knowledge E2EE nahi. Purane readable backups ya CSV/PDF exports automatically private nahi ban jate.
+Automatic sync agar dusre phone ki nayi Drive version dekhe to overwrite karne ke bajaye ruk jata hai. Pehle latest backup Restore karein, ya Settings se **Back up now** ki confirmation de kar is phone ki ledger se replace karein.
 
 ## AI
 
-Chat nahi hai: sirf suggestions aur review wali Auto Fill. Common entries phone par offline parse hoti hain: `aj dodh 150 papar 100 sabzi 100` ya `salary 60,000 aur petrol 2k`. Iske liye internet, API key ya billing nahi chahiye. Yeh chhota rules engine hai, bara language model nahi. Har amount/category/date save se pehle check karein.
+Chat nahi hai: sirf suggestions aur review wali Auto Fill. Common entries phone par offline parse hoti hain: `aj doodh 150 papad 100 sabzi 100` ya `salary 60,000 aur petrol 2k`. Iske liye internet ya paid AI nahi chahiye. Optional Cloud AI alag consent se chalta hai; enable karne se pehle uski data-sharing details parhein.
 
-Sirf optional Cloud AI ke liye Firebase AI Logic aur Play Integrity App Check console mein configure karne honge. AI enable karte waqt data-sharing consent parhein. AI suggestion ya entry ghalat ho sakti hai; save se pehle review karein. Free/paid usage project ke billing plan aur quota par depend karti hai.
+Update APK ko purani app ke upar install karein; app data clear ya uninstall na karein.
 
-`REVIEW-AND-SETUP.md` mein review aur next setup steps hain. `KMS-SETUP.md` backend ki paid setup details aur `FIREBASE-AI-SETUP.md` AI configuration batata hai.
+Google setup ke liye `GOOGLE-SETUP.md`, aur optional AI ke liye `FIREBASE-AI-SETUP.md` dekhein.

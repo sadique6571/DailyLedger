@@ -6,26 +6,9 @@ service cloud.firestore {
         return request.auth != null && request.auth.uid == userId;
       }
 
-      function validEncryptedBackup() {
-        let data = request.resource.data;
-        return data.keys().hasAll(['formatVersion', 'revision', 'payload', 'contentHash', 'updatedAt'])
-          && data.keys().hasOnly(['formatVersion', 'revision', 'payload', 'contentHash', 'updatedAt'])
-          && data.formatVersion == 4
-          && data.revision is string
-          && data.revision.matches('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
-          && data.payload is string
-          && data.payload.size() > 0
-          && data.payload.size() <= 900000
-          && data.payload.matches('^[A-Za-z0-9+/]+={0,2}$')
-          && data.contentHash is string
-          && data.contentHash.matches('^[a-f0-9]{64}$')
-          && data.updatedAt == request.time;
-      }
-
-      // Existing v1-v3 backups remain readable for migration; new writes are encrypted format v4.
+      // Backups have moved to each user's Google Drive. Keep old snapshots read-only.
       allow get: if ownsAccount();
-      allow create, update: if ownsAccount() && validEncryptedBackup();
-      allow delete: if ownsAccount();
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {

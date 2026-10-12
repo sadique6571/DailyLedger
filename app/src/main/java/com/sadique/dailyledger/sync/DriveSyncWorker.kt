@@ -12,15 +12,26 @@ class DriveSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
     override suspend fun doWork(): Result {
         val state = SettingsStore(applicationContext).all.first()
         val user = state.user ?: return Result.success()
-        val email = user.googleEmail ?: return Result.success()
+        val email = user.googleEmail ?: user.email
+        if (email.isBlank()) return Result.success()
         if (!state.driveEnabled || !FirebaseRuntime.configured(applicationContext)) return Result.success()
         if (FirebaseRuntime.auth(applicationContext).currentUser?.uid != user.id) return Result.success()
-        val token = DriveAuth.silentToken(applicationContext, email) ?: return Result.success()
+        val store = SettingsStore(applicationContext)
+        val token = DriveAuth.silentToken(applicationContext, email) ?: run {
+            store.setDriveStatus(user.id, "Google Drive access needs to be approved again in Settings.")
+            return Result.failure()
+        }
         return try {
             DriveSync(applicationContext, user.id).upload(token)
             Result.success()
         } catch (e: CancellationException) { throw e }
-        catch (e: IllegalStateException) { Result.failure() }
-        catch (e: Exception) { if (runAttemptCount < 4) Result.retry() else Result.failure() }
+        catch (e: DriveBackupConflictException) {
+            store.setDriveStatus(user.id, e.message.orEmpty())
+            Result.failure()
+        }
+        catch (e: Exception) {
+            store.setDriveStatus(user.id, e.message ?: "Google Drive backup failed. Check the account and internet connection.")
+            if (runAttemptCount < 4) Result.retry() else Result.failure()
+        }
     }
 }

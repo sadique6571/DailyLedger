@@ -11,8 +11,6 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.sadique.dailyledger.data.AppDatabase
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.SettingsStore
-import com.sadique.dailyledger.security.SecureSecretStore
-import com.sadique.dailyledger.security.KeyManager
 import com.sadique.dailyledger.sync.BackupLock
 import com.sadique.dailyledger.sync.SyncScheduler
 import kotlinx.coroutines.sync.withLock
@@ -60,9 +58,7 @@ class AccountManager(private val context: Context) {
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { }
         BackupLock.mutex.withLock {
-            val signedInUid = if (configured) FirebaseRuntime.auth(context).currentUser?.uid else null
             if (configured) FirebaseRuntime.auth(context).signOut()
-            signedInUid?.let { runCatching { KeyManager(context, it).clearLocalCache() } }
             SettingsStore(context).clearUser()
         }
     }
@@ -73,10 +69,6 @@ class AccountManager(private val context: Context) {
             google?.uid?.takeIf { it != user.uid }?.let { oldOwner ->
                 LedgerRepository(AppDatabase.get(context), user.uid).migrateOwner(oldOwner)
                 SettingsStore(context).migrateDriveAccount(oldOwner, user.uid)
-                SecureSecretStore(context, oldOwner).loadPassphrase()?.let {
-                    if (!SecureSecretStore(context, user.uid).hasPassphrase())
-                        SecureSecretStore(context, user.uid).savePassphrase(it)
-                }
             }
             val settings = SettingsStore(context)
             val storedName = settings.all.first().user?.takeIf { it.id == user.uid }?.name

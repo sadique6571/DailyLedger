@@ -1,15 +1,16 @@
-# Current workspace notes — Daily Ledger source 1.7.14
+# Current workspace notes — Daily Ledger source 1.7.16
 
-Checked locally on **2026-10-10**:
+Verified locally on **2026-10-12**:
 
-- `:app:testDebugUnitTest`: passed, **53 tests**, no failures, errors or skips.
-- Application Kotlin compiled as part of unit testing. No APK build was run for this change; source is version code **14**, version name **1.7.14**.
-- Category asset contains **160 unique categories** (145 expenses and 15 income categories); every built-in label has a canonical AI category rule.
-- Category-learning matcher tests confirm remembered corrections override AI suggestions by item phrase and transaction type.
-- Android instrumentation tests, including the encrypted category-memory round-trip, were not run or recompiled after these edits; no attached device or emulator is available. JVM matcher and category inference tests did run.
-- Live Firebase email/password provider settings and cloud restore were not accessible from this local build; when Firebase returns `ERROR_OPERATION_NOT_ALLOWED`, the app now identifies the Email/Password provider setting that the project owner must enable.
+- `:app:testDebugUnitTest assembleRelease`: passed. **47 JVM tests** passed, with no failures, errors or skips; debug and release Kotlin compiled and release APK packaged.
+- `npm.cmd test`: passed. Firestore emulator verified owner-only legacy reads and denied client create/update/delete; Storage emulator regression checks also passed.
+- Firestore rules deployed to Firebase project `daily-ledger-4d8ef`. Legacy backup documents remain owner-readable; client writes/deletes are blocked.
+- Release APK is version **1.7.16**, code **16**, package `com.sadique.dailyledger`, **26,418,197 bytes**.
+- APK SHA-256: `DA855E71295C73A6618B8200ECBA988D09F45F717BB7A00FA4C05A62C8C52AFD`.
+- Automated tests do not verify live Google OAuth, Drive authorization, a real upload, or a second-device restore; verify those using non-critical test records before relying on recovery.
+- Firestore backups and prior encrypted Drive backups are not migrated by this release. Preserve the original local records and make a new Drive backup before moving to another phone.
 
-The previous verified APK was version **1.7.13**, code **13**; it does not contain the category-learning changes. The dated sections below record earlier CI artifacts and device results.
+The dated sections below record earlier CI artifacts and device results.
 
 # Testing Daily Ledger 1.6.1
 

@@ -1,4 +1,4 @@
-> The current APK encrypts its local ledger. Cloud backup code is implemented and tested, but live deployment and same-account restore still require the setup below. Configuration files alone do not activate the service. No further APK change is needed for this server setup. See `REVIEW-AND-SETUP.md` for the current verification status.
+> **Historical / legacy only.** Current Daily Ledger versions use Google Drive app-data backup and do not call Cloud KMS, Cloud Functions, or Firestore for new backups. Do not enable billing or create these resources for current backup. Legacy Firestore and older encrypted Drive backups are not automatically restored by the current client. See `GOOGLE-SETUP.md` and `REVIEW-AND-SETUP.md`.
 
 # Cloud KMS + Firebase Functions setup
 
