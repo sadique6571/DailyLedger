@@ -7,13 +7,20 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.Alignment
-import kotlin.coroutines.cancellation.CancellationException
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,27 +28,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sadique.dailyledger.auth.AccountManager
 import com.sadique.dailyledger.auth.friendlyAuthError
+import com.sadique.dailyledger.data.AppDatabase
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
 import com.sadique.dailyledger.ui.DailyLedgerApp
 import com.sadique.dailyledger.ui.DailyLedgerTheme
+import com.sadique.dailyledger.ui.ShimmerBox
 import com.sadique.dailyledger.ui.screens.LockedScreen
 import com.sadique.dailyledger.ui.screens.LoginScreen
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.sadique.dailyledger.data.AppDatabase
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.ui.unit.dp
+import kotlin.coroutines.cancellation.CancellationException
 
 class MainActivity : FragmentActivity() {
     private val notifyPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -83,7 +89,7 @@ class MainActivity : FragmentActivity() {
                             Text("Your local database could not be opened safely. Your files have not been erased. Do not clear app data unless you have a verified backup.")
                             Button(onClick = { retry++ }) { Text("Retry") }
                         }
-                        current == null || !sessionReady -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        current == null || !sessionReady -> LoadingScreen()
                         current.user == null -> AuthGate()
                         current.biometric && !unlocked -> Locked { unlocked = true }
                         else -> DailyLedgerApp(
@@ -105,6 +111,25 @@ class MainActivity : FragmentActivity() {
                             onLogout = {},
                         )
                     }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun LoadingScreen() {
+        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), contentAlignment = Alignment.Center) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+                ShimmerBox(Modifier.fillMaxWidth().height(130.dp), RoundedCornerShape(28.dp))
+                Spacer(Modifier.height(18.dp))
+                ShimmerBox(Modifier.fillMaxWidth(.55f).height(22.dp), RoundedCornerShape(999.dp))
+                Spacer(Modifier.height(10.dp))
+                ShimmerBox(Modifier.fillMaxWidth(.7f).height(18.dp), RoundedCornerShape(999.dp))
+                Spacer(Modifier.height(20.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
+                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
+                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
                 }
             }
         }

@@ -27,12 +27,16 @@ import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.auth.UserProfile
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.export.ExportManager
+import com.sadique.dailyledger.export.ExportPeriod
+import com.sadique.dailyledger.notifications.ExportNotifications
 import com.sadique.dailyledger.security.SecureSecretStore
 import com.sadique.dailyledger.sync.*
 import com.sadique.dailyledger.ui.MainViewModel
 import com.sadique.dailyledger.weather.WeatherService
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import java.time.LocalDate
+import java.time.YearMonth
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,8 +83,13 @@ fun SettingsScreen(
     var passphrase by remember { mutableStateOf("") }
     var passphraseReady by remember(user.id) { mutableStateOf(secrets.hasPassphrase()) }
     var message by remember { mutableStateOf<String?>(null) }
+    var exportResult by remember { mutableStateOf<String?>(null) }
+    var exportPeriod by remember { mutableStateOf(ExportPeriod.CURRENT_MONTH) }
+    var exportFrom by remember { mutableStateOf("") }
+    var exportThrough by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var confirmation by remember { mutableStateOf<String?>(null) }
+    var resetStage by remember { mutableStateOf(0) }
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
     var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
@@ -117,11 +126,50 @@ fun SettingsScreen(
             }
         }
     }
+    fun export(pdf: Boolean) {
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            try {
+                val (from, through) = when (exportPeriod) {
+                    ExportPeriod.CURRENT_MONTH -> {
+                        val month = YearMonth.now()
+                        month.atDay(1) to month.atEndOfMonth()
+                    }
+                    ExportPeriod.ALL_TIME -> null to null
+                    ExportPeriod.CUSTOM -> {
+                        val start = exportFrom.trim().takeIf { it.isNotEmpty() }?.let(LocalDate::parse)
+                        val end = exportThrough.trim().takeIf { it.isNotEmpty() }?.let(LocalDate::parse)
+                        require(start == null || end == null || !start.isAfter(end)) {
+                            "Start date must be on or before end date."
+                        }
+                        start to end
+                    }
+                }
+                val location = if (pdf) ExportManager.pdf(context, vm.repo, from, through)
+                    else ExportManager.csv(context, vm.repo, from, through)
+                val format = if (pdf) "PDF" else "CSV"
+                val notificationPosted = ExportNotifications.post(context, format, location)
+                val notificationStatus = if (notificationPosted) ""
+                    else "\nNotifications are disabled. Enable them in Android app settings to receive export alerts."
+                exportResult = "$format export completed successfully.\nSaved to: $location$notificationStatus"
+                message = exportResult
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                exportResult = null
+                message = "Export failed: ${e.message ?: "Please try again."}"
+            } finally {
+                busy = false
+            }
+        }
+    }
     suspend fun runDrive(token: String, action: String) {
         try {
             if (action == "RESTORE") {
                 DriveSync(context, vm.ownerId).restore(token)
-                SyncScheduler.syncNow(context, immediate = true)
+                SyncScheduler.syncNow(context)
                 message = "Google Drive backup restored."
             } else {
                 DriveSync(context, vm.ownerId).upload(token)
@@ -214,6 +262,34 @@ fun SettingsScreen(
         )
     }
 
+    if (resetStage > 0) {
+        AlertDialog(
+            onDismissRequest = { resetStage = 0 },
+            title = { Text(if (resetStage == 1) "Reset local data?" else "Final confirmation") },
+            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. Cloud backup is kept separate and can be restored later if needed." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (resetStage == 1) {
+                        resetStage = 2
+                    } else {
+                        resetStage = 0
+                        scope.launch {
+                            try {
+                                vm.repo.clearAllForOwner()
+                                message = "Local records for this account were reset on this phone."
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                message = e.message ?: "Could not reset local records."
+                            }
+                        }
+                    }
+                }) { Text(if (resetStage == 1) "Continue" else "Delete local data") }
+            },
+            dismissButton = { TextButton(onClick = { resetStage = 0 }) { Text("Cancel") } },
+        )
+    }
+
     LedgerBackdrop(Modifier.fillMaxSize()) {
     Column(
         Modifier
@@ -234,11 +310,37 @@ fun SettingsScreen(
         }
 
         AccountBackupCard(cloudEnabled, backupReady, if (lastCloudSync > 0) formatTime(lastCloudSync) else "Not yet checked",
-            cloudStatus, busy, onCloudEnabled, { confirmation = "CLOUD_RESTORE" }, { backupDetails = !backupDetails })
-        if (backupDetails) SectionCard("Backup details", "Same-account recovery · no extra backup passphrase") {
-            Text("Encrypted backups can be recovered by authorized backend administrators. A successful backup is required for restore.", style = MaterialTheme.typography.bodySmall)
-            Text("Android may delay automatic background work. You can check and back up now.", style = MaterialTheme.typography.bodySmall)
-            GradientButton("Back up now", { cloud("SYNC") }, Modifier.fillMaxWidth(), !busy, Icons.Rounded.CloudUpload)
+            cloudStatus, busy, onCloudEnabled, { confirmation = "CLOUD_RESTORE" }, { cloud("SYNC") }, { backupDetails = !backupDetails })
+        SectionCard("Backup encryption passphrase", "Free Firebase Spark backup is encrypted on this phone before upload.") {
+            Text("Use at least 6 characters and keep this passphrase safe. You will need the same passphrase to restore on another phone. This passphrase is also used for optional Google Drive copies.", style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(
+                passphrase,
+                { passphrase = it },
+                label = { Text("Backup passphrase") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !busy && !(backupReady && passphraseReady),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+            Button(onClick = {
+                try {
+                    secrets.savePassphrase(passphrase)
+                    passphrase = ""
+                    passphraseReady = true
+                    message = "Backup passphrase saved securely on this phone."
+                } catch (e: Exception) {
+                    message = e.message ?: "Could not save the backup passphrase."
+                }
+            }, enabled = passphrase.length >= 6 && !busy && !(backupReady && passphraseReady)) { Text("Save passphrase") }
+            Text(if (passphraseReady) "A passphrase is saved on this phone." else "Save a passphrase before the first cloud backup.", style = MaterialTheme.typography.bodySmall)
+            if (backupReady && passphraseReady) {
+                Text("Passphrase changes are locked while a cloud backup exists so its restore key is not accidentally replaced. Delete that backup first only if you understand that it removes the remote copy.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+        if (backupDetails) SectionCard("Backup details", "Free Firebase Spark Firestore · encrypted payload · up to 900 KB") {
+            Text("Backups are encrypted on this phone with your saved passphrase before upload. Firebase stores the ciphertext only; keep your passphrase because it cannot be recovered by the app owner.", style = MaterialTheme.typography.bodySmall)
+            Text("Restore and manual backup stay available even when automatic backup is turned off.", style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { confirmation = "CLOUD_REPLACE" }, enabled = !busy) { Text("Replace backup with this phone's data") }
             TextButton(onClick = { confirmation = "CLOUD_DELETE" }, enabled = !busy) { Text("Delete cloud backup", color = MaterialTheme.colorScheme.error) }
         }
@@ -279,29 +381,9 @@ fun SettingsScreen(
         if (user.googleEmail != null) {
             SectionCard("Google Drive copy", "Optional extra backup for ${user.googleEmail}.") {
                 Text(
-                    "This copy is encrypted with your backup passphrase. Keep it safe; you will need it to restore on another phone.",
+                    "This optional copy is encrypted with the same backup passphrase set above.",
                     style = MaterialTheme.typography.bodySmall,
                 )
-                OutlinedTextField(
-                    passphrase,
-                    { passphrase = it },
-                    label = { Text("Drive backup passphrase") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !busy,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                )
-                Button(onClick = {
-                    try {
-                        secrets.savePassphrase(passphrase)
-                        passphrase = ""
-                        passphraseReady = true
-                        message = "Drive passphrase saved securely for this account."
-                    } catch (_: Exception) {
-                        message = "Could not save the passphrase. Please try again."
-                    }
-                }, enabled = passphrase.length >= 6 && !busy) { Text("Save passphrase") }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { confirmation = "DRIVE_UPLOAD" }, enabled = passphraseReady && !busy) { Text("Save copy") }
                     OutlinedButton(onClick = { confirmation = "DRIVE_RESTORE" }, enabled = passphraseReady && !busy) { Text("Restore copy") }
@@ -338,15 +420,52 @@ fun SettingsScreen(
             }
         }
 
-        SectionCard("Export", null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !busy, onClick = {
-                    scope.launch { message = "CSV: ${exportSafely { ExportManager.csv(context, vm.repo) }}" }
-                }) { Text("Export CSV") }
-                OutlinedButton(enabled = !busy, onClick = {
-                    scope.launch { message = "PDF: ${exportSafely { ExportManager.pdf(context, vm.repo) }}" }
-                }) { Text("Export PDF") }
+        SectionCard("Export", "Choose a statement period. Dates use YYYY-MM-DD.") {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    ExportPeriod.CURRENT_MONTH to "Current month",
+                    ExportPeriod.ALL_TIME to "All records",
+                    ExportPeriod.CUSTOM to "Choose dates",
+                ).forEach { (period, label) ->
+                    FilterChip(
+                        selected = exportPeriod == period,
+                        onClick = { exportPeriod = period },
+                        label = { Text(label) },
+                    )
+                }
             }
+            if (exportPeriod == ExportPeriod.CUSTOM) {
+                OutlinedTextField(
+                    exportFrom,
+                    { exportFrom = it },
+                    label = { Text("From date (optional)") },
+                    placeholder = { Text("YYYY-MM-DD") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    exportThrough,
+                    { exportThrough = it },
+                    label = { Text("To date (optional)") },
+                    placeholder = { Text("YYYY-MM-DD") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Text("Leave either date empty to include records before or after the entered date.", style = MaterialTheme.typography.bodySmall)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(enabled = !busy, onClick = { export(false) }) { Text("Export CSV") }
+                OutlinedButton(enabled = !busy, onClick = { export(true) }) { Text("Export PDF") }
+            }
+        }
+
+        SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
+            Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
+            Text("Data stays on this phone unless you choose a cloud backup or export.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        SectionCard("Local data reset", "Permanent reset only on this phone. Cloud backup can still be restored later.") {
+            OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
         }
 
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -356,6 +475,14 @@ fun SettingsScreen(
         Text(user.email, style = MaterialTheme.typography.bodySmall)
         OutlinedButton(onClick = onLogout, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
     }
+    }
+    exportResult?.let { result ->
+        AlertDialog(
+            onDismissRequest = { exportResult = null },
+            title = { Text("Export complete") },
+            text = { Text(result) },
+            confirmButton = { TextButton(onClick = { exportResult = null }) { Text("Done") } },
+        )
     }
 }
 
@@ -394,11 +521,4 @@ private tailrec fun Context.findActivity(): Activity = when (this) {
     is Activity -> this
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> error("No Activity found in context chain")
-}
-private suspend fun exportSafely(block: suspend () -> String): String = try {
-    block(); "saved to Downloads"
-} catch (e: CancellationException) {
-    throw e
-} catch (e: Exception) {
-    "failed: ${e.message ?: "unknown error"}"
 }

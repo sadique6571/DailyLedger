@@ -49,6 +49,57 @@ class LedgerScreensTest {
         screenshot("dashboard-separate-totals")
     }
 
+    @Test fun dashboardRequiresExplicitSalaryCycleStartAndOffersArchive() {
+        var action = ""
+        val cycle = LedgerCycleEntity("test", 1, 250)
+        val tx = listOf(TransactionEntity("salary", "test", "INCOME", 1000, "Salary", "", "$month-01", 2, 2))
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                DashboardScreen(
+                    tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
+                    receipts = emptyList(), savings = emptyList(), userName = "Test",
+                    weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                    ledgerCycle = cycle, onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
+                    onStartNewMonth = { action = "start" },
+                    onArchivePreviousMonth = { callback -> action = "archive"; callback(true) },
+                )
+            }
+        }
+        compose.onNodeWithText(money(1250)).assertIsDisplayed()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("salary-cycle-controls")
+        compose.onNodeWithTag("start-new-salary-month").performClick()
+        compose.onNodeWithText("Archive & start").performClick()
+        assertEquals("start", action)
+        compose.onNodeWithTag("archive-last-month").performClick()
+        compose.onNodeWithText("Archive month").performClick()
+        assertEquals("archive", action)
+    }
+
+    @Test fun frequentPurchaseOpensDatedEntriesAndTotals() {
+        val tx = listOf(
+            TransactionEntity("veg-1", "test", "EXPENSE", 50000, "Vegetables", "Sabzi", "$month-01", 1, 1),
+            TransactionEntity("veg-2", "test", "EXPENSE", 20000, "Vegetables", "Sabzi", "$month-02", 2, 2),
+        )
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                DashboardScreen(
+                    tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
+                    receipts = emptyList(), savings = emptyList(), userName = "Test",
+                    weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                    onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
+                )
+            }
+        }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
+        compose.onNodeWithTag("frequent-item-0").performClick()
+        compose.onNodeWithText("Sabzi").assertIsDisplayed()
+        compose.onAllNodesWithText("Sabzi").assertCountEquals(3) // title plus both recorded purchases
+        compose.onNodeWithText(displayMoney(70000)).assertExists()
+        compose.onNodeWithText(displayMoney(50000)).assertIsDisplayed()
+        compose.onNodeWithText(displayMoney(20000)).assertIsDisplayed()
+        compose.onNodeWithText("Total this cycle: ${displayMoney(70000)}").assertIsDisplayed()
+    }
+
     @Test fun firstKametiCanBeReceivedBeforeSecond() {
         val receipts = mutableStateOf(emptyList<CommitteeReceiptEntity>())
         compose.setContent {

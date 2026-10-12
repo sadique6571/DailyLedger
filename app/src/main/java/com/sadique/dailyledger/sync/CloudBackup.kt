@@ -5,15 +5,14 @@ import android.util.Base64
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Source
-import com.google.firebase.storage.StorageMetadata
 import com.sadique.dailyledger.auth.FirebaseRuntime
 import com.sadique.dailyledger.auth.awaitResult
 import com.sadique.dailyledger.data.AppDatabase
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.BackupCrypto
-import com.sadique.dailyledger.security.DekWrapResult
 import com.sadique.dailyledger.security.KeyManager
+import com.sadique.dailyledger.security.SecureSecretStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -38,6 +37,7 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
     private val repo = LedgerRepository(AppDatabase.get(context), ownerId)
     private val settings = SettingsStore(context)
     private val keyManager = KeyManager(context, ownerId)
+    private val secrets = SecureSecretStore(context, ownerId)
     private val firestore get() = FirebaseRuntime.firestore(context)
     private val storage get() = FirebaseRuntime.storage(context)
     private val document get() = firestore.collection("users").document(ownerId).collection("backups").document("latest")
@@ -49,7 +49,7 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
     private fun revision(snapshot: DocumentSnapshot): String? {
         if (!snapshot.exists()) return null
         val ver = snapshot.getLong("formatVersion") ?: 1L
-        require(ver in 1L..3L) { "Unsupported cloud backup format version: $ver" }
+        require(ver in 1L..4L) { "Unsupported cloud backup format version: $ver" }
         return snapshot.getString("revision") ?: throw IllegalStateException("Cloud backup revision missing")
     }
 
@@ -79,22 +79,30 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
             val remote = document.get(Source.SERVER).awaitResult()
             checkAccount()
             val state = settings.cloudState(ownerId)
-            if (!state.ready && !repo.hasRecords() && remote.exists()) {
-                settings.cloudStatus(ownerId, "Backup found. Choose Restore or Skip; no data was uploaded.")
-                return@withContext "Backup found. Waiting for your restore choice."
+            if (!repo.hasRecords() && remote.exists()) {
+                settings.cloudStatus(ownerId, "Cloud backup found while this phone has no records. Restore it, or explicitly replace it from Backup details; no data was uploaded.")
+                return@withContext "Cloud backup found. Restore it or explicitly replace it from Backup details; no data was uploaded."
             }
             val json = localJson()
             val format = remote.getLong("formatVersion") ?: 1L
-            val localPlainHash = if (remote.exists() && format == 3L) {
-                val dek = keyManager.getExistingDek(requireNotNull(remote.getString("wrappedKey")), requireNotNull(revision(remote)), format)
-                BackupCrypto.plainFingerprint(json, dek, ownerId)
-            } else SnapshotCodec.hash(json)
             val remoteRevision = revision(remote)
+            if (remote.exists() && format == 3L) {
+                // Do not call paid KMS just to compare a legacy snapshot. Only migrate it automatically
+                // when this phone's last-known revision still matches; otherwise require an explicit choice.
+                if (!state.ready || state.revision != remoteRevision) throw BackupConflictException()
+                return@withContext writeFirestoreSnapshot(json, remoteRevision)
+            }
+            val localPlainHash = if (remote.exists() && format == 4L) {
+                val passphrase = secrets.loadPassphrase() ?: error("Set the original backup encryption passphrase to sync this account.")
+                val chars = passphrase.toCharArray()
+                try { BackupCrypto.passphraseFingerprint(json, chars, ownerId) }
+                finally { chars.fill('\u0000') }
+            } else SnapshotCodec.hash(json)
 
-            // V2 stores a plaintext canonical hash for change detection only; ciphertext is separately AEAD-authenticated.
-            val remotePlainHash = if (remote.exists() && remote.getLong("formatVersion") in listOf(2L, 3L)) {
+            // V2 stores a canonical hash for change detection only; ciphertext is separately authenticated.
+            val remotePlainHash = if (remote.exists() && remote.getLong("formatVersion") == 2L) {
                 remote.getString("plainHash")
-            } else if (remote.exists() && (remote.getLong("formatVersion") ?: 1L) == 1L) {
+            } else if (remote.exists() && (remote.getLong("formatVersion") ?: 1L) in listOf(1L, 4L)) {
                 remote.getString("contentHash")
             } else null
 
@@ -108,13 +116,13 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
                     "Backup found. Waiting for your restore choice."
                 }
                 BackupPolicy.Decision.UNCHANGED -> {
-                    if (format < 3L) writeEncryptedSnapshot(json, remoteRevision)
+                    if (format < 4L) writeFirestoreSnapshot(json, remoteRevision)
                     else {
-                        settings.cloudComplete(ownerId, requireNotNull(remoteRevision), "Encrypted backup is up to date.")
-                        "Encrypted backup is up to date."
+                        settings.cloudComplete(ownerId, requireNotNull(remoteRevision), "Encrypted Spark backup is up to date.")
+                        "Encrypted Spark backup is up to date."
                     }
                 }
-                BackupPolicy.Decision.UPLOAD -> writeEncryptedSnapshot(json, remoteRevision)
+                BackupPolicy.Decision.UPLOAD -> writeFirestoreSnapshot(json, remoteRevision)
                 BackupPolicy.Decision.CONFLICT -> throw BackupConflictException()
             }
         }
@@ -137,7 +145,7 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
             FirebaseRuntime.prepareBackup(context)
             val remote = document.get(Source.SERVER).awaitResult()
             val json = localJson()
-            val result = writeEncryptedSnapshot(json, revision(remote))
+            val result = writeFirestoreSnapshot(json, revision(remote))
             settings.setSkippedRestoreRevision(ownerId, "")
             result
         }
@@ -149,9 +157,6 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
             FirebaseRuntime.prepareBackup(context)
             val remote = document.get(Source.SERVER).awaitResult()
             if (remote.exists()) {
-                val storagePath = remote.getString("storagePath")
-                // Delete authoritative metadata first. If object cleanup then fails, only an unreachable
-                // ciphertext orphan remains; we never leave metadata pointing at a deliberately deleted object.
                 val expected = revision(remote)
                 settings.setCloudEnabled(ownerId, false)
                 firestore.runTransaction { transaction ->
@@ -159,9 +164,6 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
                     if (revision(transaction.get(document)) != expected) throw BackupConflictException()
                     transaction.delete(document)
                 }.awaitResult()
-                if (!storagePath.isNullOrEmpty() && validPath(storagePath, requireNotNull(revision(remote)))) {
-                    runCatching { storage.reference.child(storagePath).delete().awaitResult() }
-                }
             }
             keyManager.clearLocalCache()
             settings.setCloudEnabled(ownerId, false)
@@ -175,7 +177,33 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
         val formatVersion = snapshot.getLong("formatVersion") ?: 1L
         val rev = requireNotNull(revision(snapshot))
 
-        val json: String = if (formatVersion >= 2L) {
+        val json: String = if (formatVersion == 4L) {
+            val payload = requireNotNull(snapshot.getString("payload")) { "Encrypted backup payload is missing." }
+            require(payload.length <= MAX_FIRESTORE_PAYLOAD_CHARS) { "Cloud backup payload is too large." }
+            val passphrase = secrets.loadPassphrase() ?: error("Enter the backup encryption passphrase saved on the original phone.")
+            val encrypted = try { Base64.decode(payload, Base64.NO_WRAP) }
+            catch (_: IllegalArgumentException) { error("Cloud backup payload is invalid.") }
+            val passphraseChars = passphrase.toCharArray()
+            val plain = try {
+                try { BackupCrypto.decrypt(encrypted, passphraseChars) }
+                catch (e: javax.crypto.AEADBadTagException) {
+                    throw IllegalStateException("The backup passphrase is incorrect or the cloud backup is damaged.", e)
+                }
+            } finally {
+                encrypted.fill(0)
+                passphraseChars.fill('\u0000')
+            }
+            try {
+                val fingerprintPassphrase = passphrase.toCharArray()
+                String(plain, Charsets.UTF_8).also {
+                    val fingerprint = try { BackupCrypto.passphraseFingerprint(it, fingerprintPassphrase, ownerId) }
+                    finally { fingerprintPassphrase.fill('\u0000') }
+                    require(fingerprint == snapshot.getString("contentHash")) {
+                        "Backup content verification failed."
+                    }
+                }
+            } finally { plain.fill(0) }
+        } else if (formatVersion in 2L..3L) {
             val storagePath = requireNotNull(snapshot.getString("storagePath")) { "Missing backup storage path" }
             require(validPath(storagePath, rev)) { "Invalid backup storage path." }
             val ivBase64 = requireNotNull(snapshot.getString("iv")) { "Missing encryption IV" }
@@ -214,18 +242,15 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
         settings.cloudComplete(ownerId, rev, "Backup restored to this phone.")
         settings.setSkippedRestoreRevision(ownerId, "")
 
-        if (formatVersion < 3L) {
-            // V1 has no wrapped KMS key. Force a brand-new random DEK and only replace V1 metadata
-            // after the encrypted Storage object upload succeeds and the Firestore transaction commits.
+        if (formatVersion < 4L) {
             try {
-                val freshKey = keyManager.createAndWrapNewDek()
-                writeEncryptedSnapshot(json, rev, forcedDek = freshKey)
+                writeFirestoreSnapshot(json, rev)
                 settings.setSkippedRestoreRevision(ownerId, "")
-                return "Your account backup was restored and upgraded to encrypted v3 format."
+                return "Your account backup was restored and upgraded to encrypted Spark format."
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 throw MigrationFailedException(
-                    "Records were restored to this phone. Cloud encryption upgrade is pending; check Firebase setup and try Back up now. Your earlier remote backup was retained.",
+                    "Records were restored to this phone. Encrypted Spark backup upgrade is pending; check the passphrase and Firestore limit, then try Back up now. Your earlier remote backup was retained.",
                     e
                 )
             }
@@ -259,72 +284,45 @@ class CloudBackup(private val context: Context, private val ownerId: String) {
         }
     }
 
-    private suspend fun writeEncryptedSnapshot(
-        json: String,
-        expectedRevision: String?,
-        forcedDek: DekWrapResult? = null,
-    ): String {
+    private suspend fun writeFirestoreSnapshot(json: String, expectedRevision: String?): String {
         checkAccount()
-
-        // Fetch metadata before choosing a key. Missing/V1 metadata must always create a new wrapped key,
-        // even if this device still has an unrelated cached DEK.
         val remoteBefore = document.get(Source.SERVER).awaitResult()
         if (revision(remoteBefore) != expectedRevision) throw BackupConflictException()
-        val remoteVersion = if (remoteBefore.exists()) remoteBefore.getLong("formatVersion") ?: 1L else 0L
-
-        val dekWrap = forcedDek ?: if (remoteVersion == 3L) {
-            val existingWrapped = requireNotNull(remoteBefore.getString("wrappedKey")) { "Encrypted backup key metadata is missing." }
-            DekWrapResult(keyManager.getExistingDek(existingWrapped, requireNotNull(expectedRevision), remoteVersion), existingWrapped)
-        } else {
-            keyManager.createAndWrapNewDek()
-        }
-        require(dekWrap.wrappedKey.isNotBlank()) { "Wrapped backup key is missing." }
-
-        val nextRevision = UUID.randomUUID().toString()
-        val plainHash = BackupCrypto.plainFingerprint(json, dekWrap.dek, ownerId)
+        val passphrase = secrets.loadPassphrase() ?: error("Set and save a backup encryption passphrase before enabling cloud backup.")
         val plainBytes = json.toByteArray(Charsets.UTF_8)
-        require(plainBytes.size <= 16 * 1024 * 1024) { "Backup is too large. Export your data instead." }
-        val encrypted = try { BackupCrypto.encryptPayload(plainBytes, dekWrap.dek, BackupCrypto.snapshotAad(ownerId, nextRevision)) }
-            finally { plainBytes.fill(0) }
-        val newStoragePath = "users/$ownerId/backups/$nextRevision.enc"
-        val oldStoragePath = if (remoteVersion >= 2L) remoteBefore.getString("storagePath") else null
-
-        val newStorageRef = storage.reference.child(newStoragePath)
-        val metadata = StorageMetadata.Builder()
-            .setContentType("application/octet-stream")
-            .setCustomMetadata("ownerId", ownerId)
-            .setCustomMetadata("revision", nextRevision)
-            .build()
-
-        checkAccount()
-        newStorageRef.putBytes(encrypted.ciphertext, metadata).awaitResult()
-
-        BackupCommitProtocol.commit(writeMetadata = {
-            firestore.runTransaction { transaction ->
-                checkAccount()
-                val current = transaction.get(document)
-                if (revision(current) != expectedRevision) throw BackupConflictException()
-
-                transaction.set(document, mapOf(
-                    "formatVersion" to 3L,
-                    "revision" to nextRevision,
-                    "storagePath" to newStoragePath,
-                    "wrappedKey" to dekWrap.wrappedKey,
-                    "contentHash" to encrypted.contentHash,
-                    "plainHash" to plainHash,
-                    "iv" to Base64.encodeToString(encrypted.iv, Base64.NO_WRAP),
-                    "updatedAt" to FieldValue.serverTimestamp(),
-                ))
-                nextRevision
-            }.awaitResult()
-        }, removeRejectedUpload = { newStorageRef.delete().awaitResult() })
-
-        // Old valid data is removed only after new encrypted metadata is committed.
-        if (!oldStoragePath.isNullOrEmpty() && oldStoragePath != newStoragePath && validPath(oldStoragePath, expectedRevision.orEmpty())) {
-            runCatching { storage.reference.child(oldStoragePath).delete().awaitResult() }
+        val passphraseChars = passphrase.toCharArray()
+        val encrypted = try {
+            BackupCrypto.encrypt(plainBytes, passphraseChars)
+        } finally {
+            plainBytes.fill(0)
+            passphraseChars.fill('\u0000')
         }
+        val payload = try { Base64.encodeToString(encrypted, Base64.NO_WRAP) }
+        finally { encrypted.fill(0) }
+        require(payload.length <= MAX_FIRESTORE_PAYLOAD_CHARS) {
+            "Encrypted backup is too large for Firebase Spark Firestore (maximum 900 KB). Use the encrypted Google Drive backup or export instead."
+        }
+        val nextRevision = UUID.randomUUID().toString()
+        val hashPassphraseChars = passphrase.toCharArray()
+        val contentHash = try { BackupCrypto.passphraseFingerprint(json, hashPassphraseChars, ownerId) }
+        finally { hashPassphraseChars.fill('\u0000') }
+        firestore.runTransaction { transaction ->
+            checkAccount()
+            if (revision(transaction.get(document)) != expectedRevision) throw BackupConflictException()
+            transaction.set(document, mapOf(
+                "formatVersion" to 4L,
+                "revision" to nextRevision,
+                "payload" to payload,
+                "contentHash" to contentHash,
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ))
+            nextRevision
+        }.awaitResult()
+        settings.cloudComplete(ownerId, nextRevision, "Encrypted backup saved to Firebase Spark Firestore.")
+        return "Encrypted backup saved to your Firebase account."
+    }
 
-        settings.cloudComplete(ownerId, nextRevision, "Backed up securely to your account.")
-        return "Encrypted backup saved to your account."
+    private companion object {
+        const val MAX_FIRESTORE_PAYLOAD_CHARS = 900_000
     }
 }

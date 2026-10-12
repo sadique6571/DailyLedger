@@ -23,8 +23,8 @@ android {
         applicationId = "com.sadique.dailyledger"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.6.1"
+        versionCode = 15
+        versionName = "1.7.15"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("boolean", "FIREBASE_CONFIGURED", firebaseConfigured.toString())

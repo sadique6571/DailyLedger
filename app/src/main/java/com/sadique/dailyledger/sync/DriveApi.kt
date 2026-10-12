@@ -10,7 +10,7 @@ class DriveApi(private val token:String) {
     private val name="daily-ledger-backup.dlb"
     private fun conn(url:String,method:String="GET",type:String?=null)= (URL(url).openConnection() as HttpURLConnection).apply { requestMethod=method; connectTimeout=20_000; readTimeout=30_000; setRequestProperty("Authorization","Bearer $token"); type?.let{setRequestProperty("Content-Type",it)} }
     private fun body(c:HttpURLConnection):ByteArray { val code=c.responseCode; val bytes=(if(code in 200..299)c.inputStream else c.errorStream)?.readBytes()?:byteArrayOf(); if(code !in 200..299) throw IOException("Drive HTTP $code: ${String(bytes)}"); return bytes }
-    fun findId():String? { val q=URLEncoder.encode("name = '$name'","UTF-8"); val c=conn("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$q&fields=files(id,name,modifiedTime)&pageSize=10"); val json=JSONObject(String(body(c))); val a=json.getJSONArray("files"); return if(a.length()>0)a.getJSONObject(0).getString("id") else null }
+    fun findId():String? { val q=URLEncoder.encode("name = '$name' and trashed = false","UTF-8"); val c=conn("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$q&fields=files(id,name,modifiedTime)&orderBy=modifiedTime%20desc&pageSize=100"); val json=JSONObject(String(body(c))); val a=json.getJSONArray("files"); return if(a.length()>0)a.getJSONObject(0).getString("id") else null }
     fun upload(data:ByteArray) {
         val id=findId() ?: create()
         // HttpURLConnection rejects the PATCH verb, so send POST with Google's method-override header.

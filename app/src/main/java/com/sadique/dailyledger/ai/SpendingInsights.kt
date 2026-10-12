@@ -36,6 +36,8 @@ object SpendingInsights {
         savings: List<SavingEntity> = emptyList(),
         loans: List<LoanEntity> = emptyList(),
         loanPayments: List<LoanPaymentEntity> = emptyList(),
+        committeePayments: List<CommitteePaymentEntity> = emptyList(),
+        ledgerCycle: LedgerCycleEntity? = null,
     ): SpendingSnapshot {
         val month = YearMonth.from(today)
         val previous = month.minusMonths(1)
@@ -43,8 +45,19 @@ object SpendingInsights {
         val own = transactions.filter { row ->
             row.ownerId == owner && runCatching { LocalDate.parse(row.date) <= today }.getOrDefault(false)
         }
-        val current = own.filter { it.date.startsWith("$month-") }
-        val summary = monthlySalarySummary(current, month.toString())
+        val current = own.filter { row ->
+            ledgerCycle?.let { row.createdAt >= it.startAt } ?: row.date.startsWith("$month-")
+        }
+        val currentSavings = savings.filter { item ->
+            item.ownerId == owner && (ledgerCycle?.let { item.createdAt >= it.startAt } ?: item.date.startsWith("$month-")) &&
+                runCatching { LocalDate.parse(item.date) <= today }.getOrDefault(false)
+        }
+        val currentCommitteePayments = committeePayments.filter { payment ->
+            payment.ownerId == owner && (ledgerCycle?.let { payment.paidAt >= it.startAt } ?: payment.month == month.toString())
+        }
+        val summary = ledgerCycle?.let {
+            ledgerCycleSummary(current, currentCommitteePayments, currentSavings, it)
+        } ?: monthlySalarySummary(current, month.toString(), currentCommitteePayments, currentSavings)
         val categories = current
             .filter { it.type == "EXPENSE" }
             .groupBy { it.category.trim().ifBlank { "Other" } }
@@ -57,9 +70,7 @@ object SpendingInsights {
 
         val now = comparable(month)
         val old = comparable(previous)
-        val savedThisMonth = savings
-            .filter { it.ownerId == owner && it.date.startsWith("$month-") && runCatching { LocalDate.parse(it.date) <= today }.getOrDefault(false) }
-            .sumOf { it.amountMinor }
+        val savedThisMonth = currentSavings.sumOf { it.amountMinor }
         val savingRate = if (summary.salary > 0L) ((savedThisMonth.toDouble() / summary.salary) * 100.0).roundToInt().coerceIn(0, 100) else 0
         val borrowedOutstanding = loans.filter { it.ownerId == owner && it.direction == "BORROWED" }.sumOf { loan ->
             (loan.principalMinor - loanPayments.filter { it.ownerId == owner && it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0L)
@@ -74,7 +85,8 @@ object SpendingInsights {
 
         var score = 50
         if (summary.salary > 0L) {
-            val expenseRate = summary.expenses.toDouble() / summary.salary.toDouble()
+            val available = summary.salary + summary.openingBalanceMinor
+            val expenseRate = if (available > 0L) summary.totalOutflow.toDouble() / available.toDouble() else 1.0
             score += when {
                 expenseRate <= 0.60 -> 20
                 expenseRate <= 0.80 -> 10
@@ -112,8 +124,9 @@ object SpendingInsights {
             }
 
             if (summary.salary > 0L && summary.remaining < 0) {
-                tips += SpendingTip("Salary se zyada kharcha", "Expenses salary se ${rs(-summary.remaining)} zyada hain. Pehle zaroori bills alag karein, phir optional kharchay kam karein.")
-            } else if (summary.salary > 0L && BigDecimal.valueOf(summary.expenses).multiply(BigDecimal(100)) >= BigDecimal.valueOf(summary.salary).multiply(BigDecimal(85))) {
+                tips += SpendingTip("Salary se zyada monthly outflow", "Expenses, kameti aur savings mila kar salary se ${rs(-summary.remaining)} zyada hain. Pehle zaroori bills alag karein, phir optional kharchay kam karein.")
+            } else if (summary.salary + summary.openingBalanceMinor > 0L &&
+                BigDecimal.valueOf(summary.totalOutflow).multiply(BigDecimal(100)) >= BigDecimal.valueOf(summary.salary + summary.openingBalanceMinor).multiply(BigDecimal(85))) {
                 tips += SpendingTip("Budget pressure", "Salary ka 85% ya zyada kharch ho chuka hai. Agle optional kharchay save karne se pehle review karein.")
             }
 

@@ -147,3 +147,31 @@ data class CreditPaymentEntity(
     val createdAt: Long,
     @ColumnInfo(defaultValue = "'Cash'") val method: String = "Cash",
 )
+
+@Entity(tableName = "ledger_cycles")
+data class LedgerCycleEntity(
+    @PrimaryKey val ownerId: String,
+    val startAt: Long,
+    val openingBalanceMinor: Long,
+)
+
+@Entity(
+    tableName = "ledger_archives",
+    indices = [Index(value = ["ownerId", "archiveKey"], unique = true), Index("ownerId")],
+)
+data class LedgerArchiveEntity(
+    @PrimaryKey val id: String,
+    val ownerId: String,
+    val archiveKey: String,
+    val label: String,
+    val startAt: Long,
+    val endAt: Long,
+    val salaryMinor: Long,
+    val otherIncomeMinor: Long,
+    val expensesMinor: Long,
+    val committeeMinor: Long,
+    val savingsMinor: Long,
+    val openingBalanceMinor: Long,
+    val closingBalanceMinor: Long,
+    val archivedAt: Long,
+)

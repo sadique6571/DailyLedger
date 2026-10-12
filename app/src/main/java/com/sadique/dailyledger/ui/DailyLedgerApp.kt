@@ -100,6 +100,8 @@ fun DailyLedgerApp(
     val receipts by vm.committeeReceipts.collectAsState()
     val committeeMembers by vm.committeeMembers.collectAsState()
     val savings by vm.savings.collectAsState()
+    val ledgerCycle by vm.ledgerCycle.collectAsState()
+    val ledgerArchives by vm.ledgerArchives.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
     var remindersOpen by remember { mutableStateOf(false) }
@@ -108,7 +110,9 @@ fun DailyLedgerApp(
     val aiEnabled by vm.aiEnabled.collectAsState()
     val aiTips by vm.aiTips.collectAsState()
     val aiStatus by vm.aiStatus.collectAsState()
-    val snapshot = remember(tx, savings, loans, lp, user.id) { SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp) }
+    val snapshot = remember(tx, savings, loans, lp, cp, ledgerCycle, user.id) {
+        SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle)
+    }
     var restoreInfo by remember(user.id) { mutableStateOf<BackupInfo?>(null) }
     var restoreBusy by remember(user.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -197,12 +201,14 @@ fun DailyLedgerApp(
                 vm.saveAiDrafts(drafts, batchId)
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
             },
+            onSaved = { autoFillOpen = false },
+            onLearnCategory = vm::rememberCategory,
         )
         return
     }
     var quickTransaction by remember { mutableStateOf<String?>(null) }
     val saveError by vm.error.collectAsState()
-    LaunchedEffect(user.id) { SyncScheduler.syncNow(context, immediate = true) }
+    LaunchedEffect(user.id) { SyncScheduler.syncNow(context) }
     LaunchedEffect(saveError) {
         saveError?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -267,7 +273,7 @@ fun DailyLedgerApp(
             onCloudEnabled = { enabled ->
                 scope.launch {
                     settings.setCloudEnabled(user.id, enabled)
-                    if (enabled) SyncScheduler.syncNow(context, immediate = true)
+                    if (enabled) SyncScheduler.syncNow(context)
                     else SyncScheduler.cancelImmediate(context)
                 }
             },
@@ -333,6 +339,8 @@ fun DailyLedgerApp(
                     receipts = receipts,
                     committeeMembers = committeeMembers,
                     savings = savings,
+                    ledgerCycle = ledgerCycle,
+                    ledgerArchives = ledgerArchives,
                     userName = user.name,
                     weatherEnabled = weatherEnabled,
                     weatherCity = weatherCity,
@@ -344,6 +352,8 @@ fun DailyLedgerApp(
                     onOpenKameti = { tab = 3 },
                     onAutoFill = { autoFillOpen = true },
                     onAllTransactions = { tab = 1 },
+                    onStartNewMonth = vm::startNewMonth,
+                    onArchivePreviousMonth = { callback -> vm.archivePreviousMonth(callback) },
                     snapshot = snapshot,
                     aiTips = aiTips,
                     aiStatus = aiStatus,
@@ -356,7 +366,12 @@ fun DailyLedgerApp(
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
-                        }) { saveTransaction(t, a, c, n, d, e) }
+                        }) {
+                            if (e != null && e.type == t && e.category != c && n.isNotBlank()) {
+                                vm.rememberCategory(t, n, c)?.let { error(it) }
+                            }
+                            saveTransaction(t, a, c, n, d, e)
+                        }
                     },
                     onDelete = { x -> vm.launch { deleteTransaction(x) } },
                 )

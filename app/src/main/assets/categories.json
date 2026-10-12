@@ -40,7 +40,83 @@
     "label": "Spices",
     "type": "EXPENSE",
     "aliases": [
-      "masala"
+      "masala",
+      "spice",
+      "spices"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Garam masala",
+    "type": "EXPENSE",
+    "aliases": [
+      "garam masala"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Ground coriander",
+    "type": "EXPENSE",
+    "aliases": [
+      "sukha dhaniya",
+      "dhania powder",
+      "ground coriander",
+      "coriander powder"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Turmeric",
+    "type": "EXPENSE",
+    "aliases": [
+      "haldi",
+      "turmeric"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Chilli powder",
+    "type": "EXPENSE",
+    "aliases": [
+      "lal mirch",
+      "red chilli",
+      "chilli powder",
+      "chili powder"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Cumin & seeds",
+    "type": "EXPENSE",
+    "aliases": [
+      "zeera",
+      "cumin",
+      "ajwain",
+      "kalonji",
+      "rai"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Salt",
+    "type": "EXPENSE",
+    "aliases": [
+      "namak",
+      "salt"
+    ]
+  },
+  {
+    "group": "Groceries",
+    "label": "Condiments & sauces",
+    "type": "EXPENSE",
+    "aliases": [
+      "ketchup",
+      "sauce",
+      "soy sauce",
+      "vinegar",
+      "mayonnaise",
+      "pickle",
+      "achar"
     ]
   },
   {
@@ -275,6 +351,18 @@
   },
   {
     "group": "Home",
+    "label": "Laundry detergent",
+    "type": "EXPENSE",
+    "aliases": [
+      "surf",
+      "washing powder",
+      "detergent powder",
+      "laundry detergent",
+      "washing liquid"
+    ]
+  },
+  {
+    "group": "Home",
     "label": "Dishwashing",
     "type": "EXPENSE",
     "aliases": [
@@ -303,6 +391,62 @@
       "match box",
       "machis",
       "mosquito coil"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Wife's expenses",
+    "type": "EXPENSE",
+    "aliases": [
+      "wife kharcha",
+      "wife expenses",
+      "biwi kharcha",
+      "biwi ke liye",
+      "wifey expenses",
+      "wife ki zarurat"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Children fees",
+    "type": "EXPENSE",
+    "aliases": [
+      "bachon ki fee",
+      "bacho ki fee",
+      "children fee",
+      "school fee",
+      "kids fee",
+      "children fees",
+      "bachon ka fee",
+      "bache ki fee"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Soap & shampoo",
+    "type": "EXPENSE",
+    "aliases": [
+      "soap",
+      "sabun",
+      "shampoo",
+      "conditioner",
+      "bath soap",
+      "hair wash"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Daily household cash",
+    "type": "EXPENSE",
+    "aliases": [
+      "ghar ka kharcha",
+      "daily household",
+      "household cash",
+      "daily kharcha",
+      "ghar ka paisa",
+      "ghr ka kharcha",
+      "ghar ki zarurat",
+      "home money"
     ]
   },
   {
@@ -439,6 +583,76 @@
   },
   {
     "group": "Health",
+    "label": "Father medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "father medical",
+      "father medicine",
+      "father doctor",
+      "abbu ki dawa",
+      "walid ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Mother medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "mother medical",
+      "mother medicine",
+      "mother doctor",
+      "ammi ki dawa",
+      "walida ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Wife medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "wife medical",
+      "wife medicine",
+      "wife doctor",
+      "biwi ki dawa",
+      "begum ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Baby medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "baby medical",
+      "baby medicine",
+      "baby doctor",
+      "baby ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Son medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "son medical",
+      "son medicine",
+      "son doctor",
+      "beta ki dawa",
+      "bete ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Daughter medical",
+    "type": "EXPENSE",
+    "aliases": [
+      "daughter medical",
+      "daughter medicine",
+      "daughter doctor",
+      "beti ki dawa"
+    ]
+  },
+  {
+    "group": "Health",
     "label": "Doctor",
     "type": "EXPENSE",
     "aliases": [
@@ -502,6 +716,30 @@
       "bachon ki fee",
       "bache ki fee",
       "fees"
+    ]
+  },
+  {
+    "group": "Education",
+    "label": "Son fees",
+    "type": "EXPENSE",
+    "aliases": [
+      "son fee",
+      "son fees",
+      "beta fee",
+      "betay ki fee",
+      "bete ki fee"
+    ]
+  },
+  {
+    "group": "Education",
+    "label": "Daughter fees",
+    "type": "EXPENSE",
+    "aliases": [
+      "daughter fee",
+      "daughter fees",
+      "beti fee",
+      "beti ki fee",
+      "betiyon ki fee"
     ]
   },
   {
@@ -857,6 +1095,17 @@
     ]
   },
   {
+    "group": "Travel",
+    "label": "Daughter travel",
+    "type": "EXPENSE",
+    "aliases": [
+      "daughter travel",
+      "daughter trip",
+      "beti ka safar",
+      "beti ka trip"
+    ]
+  },
+  {
     "group": "Leisure",
     "label": "Hotel stay",
     "type": "EXPENSE",
@@ -997,6 +1246,442 @@
     "aliases": [
       "emergency"
     ]
+  },
+  {
+    "group": "Work & other",
+    "label": "Spouse personal expenses",
+    "type": "EXPENSE",
+    "aliases": [
+      "wife expenses",
+      "wife personal",
+      "wife kharcha",
+      "biwi",
+      "begum",
+      "zauja"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Household cash",
+    "type": "EXPENSE",
+    "aliases": [
+      "daily household cash",
+      "household cash",
+      "ghar ka kharcha",
+      "ghar ka daily kharcha",
+      "ghar chalane ke paise"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Drinking water",
+    "type": "EXPENSE",
+    "aliases": [
+      "drinking water",
+      "mineral water",
+      "bottled water"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Water delivery",
+    "type": "EXPENSE",
+    "aliases": [
+      "water delivery",
+      "water tanker",
+      "pani tanker"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Home maintenance",
+    "type": "EXPENSE",
+    "aliases": [
+      "home maintenance",
+      "house maintenance",
+      "ghar ki marammat"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Kitchen utensils",
+    "type": "EXPENSE",
+    "aliases": [
+      "kitchen utensils",
+      "cooking utensils",
+      "bartan khareeday"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Bedding & linens",
+    "type": "EXPENSE",
+    "aliases": [
+      "bedding",
+      "bedsheet",
+      "bed sheet",
+      "blanket",
+      "pillow"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Home security",
+    "type": "EXPENSE",
+    "aliases": [
+      "home security",
+      "lock",
+      "security camera",
+      "alarm"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "House cleaning help",
+    "type": "EXPENSE",
+    "aliases": [
+      "house cleaning",
+      "cleaning help",
+      "safai wali"
+    ]
+  },
+  {
+    "group": "Children & family",
+    "label": "Children activities",
+    "type": "EXPENSE",
+    "aliases": [
+      "children activities",
+      "kids activity",
+      "school trip",
+      "school picnic"
+    ]
+  },
+  {
+    "group": "Children & family",
+    "label": "School meals",
+    "type": "EXPENSE",
+    "aliases": [
+      "school lunch",
+      "school meal",
+      "school canteen",
+      "lunch money"
+    ]
+  },
+  {
+    "group": "Children & family",
+    "label": "Children healthcare",
+    "type": "EXPENSE",
+    "aliases": [
+      "child doctor",
+      "children doctor",
+      "kids medicine",
+      "bachon ki dawa"
+    ]
+  },
+  {
+    "group": "Children & family",
+    "label": "Elder care",
+    "type": "EXPENSE",
+    "aliases": [
+      "elder care",
+      "parents medicine",
+      "parents care",
+      "buzurg"
+    ]
+  },
+  {
+    "group": "Children & family",
+    "label": "Children allowance",
+    "type": "EXPENSE",
+    "aliases": [
+      "children allowance",
+      "kids allowance",
+      "bachon ka pocket money"
+    ]
+  },
+  {
+    "group": "Personal care",
+    "label": "Personal allowance",
+    "type": "EXPENSE",
+    "aliases": [
+      "personal allowance",
+      "my pocket money",
+      "mera jaib kharch"
+    ]
+  },
+  {
+    "group": "Personal care",
+    "label": "Skincare",
+    "type": "EXPENSE",
+    "aliases": [
+      "skincare",
+      "skin care",
+      "face wash",
+      "moisturizer",
+      "sunblock",
+      "sunscreen"
+    ]
+  },
+  {
+    "group": "Health",
+    "label": "Eyecare",
+    "type": "EXPENSE",
+    "aliases": [
+      "eye care",
+      "eyecare",
+      "eye drops",
+      "contact lenses"
+    ]
+  },
+  {
+    "group": "Electronics",
+    "label": "Phone accessories",
+    "type": "EXPENSE",
+    "aliases": [
+      "phone accessories",
+      "mobile cover",
+      "phone cover",
+      "charger",
+      "earphones"
+    ]
+  },
+  {
+    "group": "Transport",
+    "label": "Vehicle registration",
+    "type": "EXPENSE",
+    "aliases": [
+      "vehicle registration",
+      "car registration",
+      "bike registration",
+      "token tax"
+    ]
+  },
+  {
+    "group": "Transport",
+    "label": "Car wash",
+    "type": "EXPENSE",
+    "aliases": [
+      "car wash",
+      "bike wash",
+      "vehicle wash"
+    ]
+  },
+  {
+    "group": "Transport",
+    "label": "Vehicle inspection",
+    "type": "EXPENSE",
+    "aliases": [
+      "vehicle inspection",
+      "car inspection",
+      "fitness certificate"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Appliance maintenance",
+    "type": "EXPENSE",
+    "aliases": [
+      "appliance maintenance",
+      "fridge repair",
+      "washing machine repair",
+      "ac repair"
+    ]
+  },
+  {
+    "group": "Utilities",
+    "label": "Home internet",
+    "type": "EXPENSE",
+    "aliases": [
+      "home internet",
+      "internet bill",
+      "wifi bill",
+      "broadband bill"
+    ]
+  },
+  {
+    "group": "Utilities",
+    "label": "Cooking gas cylinder",
+    "type": "EXPENSE",
+    "aliases": [
+      "gas cylinder",
+      "lpg cylinder",
+      "cooking gas cylinder"
+    ]
+  },
+  {
+    "group": "Income",
+    "label": "Pension",
+    "type": "INCOME",
+    "aliases": [
+      "pension",
+      "retirement income"
+    ]
+  },
+  {
+    "group": "Income",
+    "label": "Overtime",
+    "type": "INCOME",
+    "aliases": [
+      "overtime",
+      "extra shift"
+    ]
+  },
+  {
+    "group": "Income",
+    "label": "Commission income",
+    "type": "INCOME",
+    "aliases": [
+      "commission",
+      "commission income"
+    ]
+  },
+  {
+    "group": "Income",
+    "label": "Agriculture income",
+    "type": "INCOME",
+    "aliases": [
+      "agriculture income",
+      "crop sale",
+      "fasal ki income"
+    ]
+  },
+  {
+    "group": "Home",
+    "label": "Home insurance",
+    "type": "EXPENSE",
+    "aliases": ["house insurance", "makan insurance"]
+  },
+  {
+    "group": "Home",
+    "label": "Building materials",
+    "type": "EXPENSE",
+    "aliases": ["construction material", "cement", "bricks", "eent", "sand", "bajri"]
+  },
+  {
+    "group": "Home",
+    "label": "Garden & outdoor",
+    "type": "EXPENSE",
+    "aliases": ["garden", "gardening", "lawn", "plants", "pauday"]
+  },
+  {
+    "group": "Home",
+    "label": "Pest control",
+    "type": "EXPENSE",
+    "aliases": ["termite spray", "fumigation", "deemak spray"]
+  },
+  {
+    "group": "Home",
+    "label": "Solar maintenance",
+    "type": "EXPENSE",
+    "aliases": ["solar panel repair", "solar service"]
+  },
+  {
+    "group": "Home",
+    "label": "Generator maintenance",
+    "type": "EXPENSE",
+    "aliases": ["generator repair", "generator service"]
+  },
+  {
+    "group": "Home",
+    "label": "Generator fuel",
+    "type": "EXPENSE",
+    "aliases": ["generator petrol", "generator diesel", "petrol for generator", "diesel for generator"]
+  },
+  {
+    "group": "Utilities",
+    "label": "Data packages",
+    "type": "EXPENSE",
+    "aliases": ["data package", "internet package", "mobile data", "weekly package", "monthly package"]
+  },
+  {
+    "group": "Transport",
+    "label": "Work commute",
+    "type": "EXPENSE",
+    "aliases": ["office commute", "office ka kiraya"]
+  },
+  {
+    "group": "Health",
+    "label": "Medical equipment",
+    "type": "EXPENSE",
+    "aliases": ["wheelchair", "blood pressure machine", "thermometer"]
+  },
+  {
+    "group": "Education",
+    "label": "Exam preparation",
+    "type": "EXPENSE",
+    "aliases": ["test preparation", "entry test", "competitive exam"]
+  },
+  {
+    "group": "Electronics",
+    "label": "Electronics",
+    "type": "EXPENSE",
+    "aliases": ["electronic item", "television", "led tv", "speaker"]
+  },
+  {
+    "group": "Electronics",
+    "label": "Computer & accessories",
+    "type": "EXPENSE",
+    "aliases": ["computer", "laptop", "keyboard", "mouse", "computer accessories"]
+  },
+  {
+    "group": "Electronics",
+    "label": "Device repair",
+    "type": "EXPENSE",
+    "aliases": ["mobile repair", "phone repair", "laptop repair"]
+  },
+  {
+    "group": "Work & other",
+    "label": "Work meals",
+    "type": "EXPENSE",
+    "aliases": ["work meal", "office lunch", "office meal"]
+  },
+  {
+    "group": "Work & other",
+    "label": "Delivery charges",
+    "type": "EXPENSE",
+    "aliases": ["delivery charge", "delivery fee", "courier fee"]
+  },
+  {
+    "group": "Work & other",
+    "label": "Legal & professional fees",
+    "type": "EXPENSE",
+    "aliases": ["legal fee", "lawyer fee", "consultant fee", "professional fee"]
+  },
+  {
+    "group": "Work & other",
+    "label": "Property tax",
+    "type": "EXPENSE",
+    "aliases": ["house tax", "makan tax"]
+  },
+  {
+    "group": "Giving & community",
+    "label": "Mosque & madrasa",
+    "type": "EXPENSE",
+    "aliases": ["mosque", "masjid", "madrasa", "madarsa", "mosque donation", "masjid donation", "madrasa donation", "مسجد", "مدرسہ"]
+  },
+  {
+    "group": "Giving & community",
+    "label": "Community contributions",
+    "type": "EXPENSE",
+    "aliases": ["community fund", "neighbourhood fund"]
+  },
+  {
+    "group": "Income",
+    "label": "Sale of belongings",
+    "type": "INCOME",
+    "aliases": ["sold old phone", "sold furniture", "sale of belongings", "old item sale"]
+  },
+  {
+    "group": "Income",
+    "label": "Side hustle income",
+    "type": "INCOME",
+    "aliases": ["side hustle", "side income", "part time income"]
+  },
+  {
+    "group": "Income",
+    "label": "Insurance claim",
+    "type": "INCOME",
+    "aliases": ["claim received"]
   },
   {
     "group": "Work & other",

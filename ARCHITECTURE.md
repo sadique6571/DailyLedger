@@ -1,4 +1,4 @@
-# Daily Ledger 1.5.1 architecture
+# Daily Ledger 1.7.14 architecture
 
 ## Device and identity
 
@@ -6,7 +6,7 @@ Firebase Authentication provides Google/email sign-in. Firebase UID scopes ledge
 
 ## Ledger model
 
-Room schema 4 adds loan contacts, payment methods and committee members. All owner migration, deletion and JSON backup flows include these records. Ledger JSON format 3 is independent of cloud envelope V3: formats 1/2 remain importable. Loan overpayment and duplicate/personal-limit kameti turns are rejected transactionally. Marking a member turn received updates its schedule status; the actual payout amount is recorded separately through Receive amount.
+Room schema 6 adds loan contacts, payment methods, committee members, persisted salary-cycle state and archived period summaries. Ledger JSON format 5 is independent of cloud envelope V3; formats 1–4 remain importable. Salary cycles advance only after explicit confirmation; starting a cycle archives its summary and carries its remaining balance forward. Manual calendar-month archives are snapshots only—the original transactions remain in the ledger. All cycle state and archive summaries are included in owner migration, deletion, encrypted cloud/Drive backup, and restore. Loan overpayment and duplicate/personal-limit kameti turns are rejected transactionally. Marking a member turn received updates its schedule status; the actual payout amount is recorded separately through Receive amount.
 
 ## Cloud account backup
 
@@ -17,9 +17,15 @@ Room schema 4 adds loan contacts, payment methods and committee members. All own
 5. Commit metadata using a Firestore revision transaction. A failed revision comparison cannot overwrite another phone. A timeout has unknown outcome, so it must not trigger deletion of the potentially committed object.
 6. Delete the old object only after a confirmed metadata commit. Ambiguous failures may leave ciphertext orphans for later administration; preserving a usable backup takes priority.
 
+Restore runs as a Room transaction. It rejects colliding transaction IDs and checks that the number of inserted transactions matches the snapshot before reporting success; malformed restores leave the previous local ledger intact. Manual Drive backups encrypt the same complete ledger JSON and select the latest matching app-data file.
+
 Functions wrap/unwrap through Cloud KMS with UID/version AAD. Unwrap accepts expected revision/fingerprint/version but never a client-selected user or wrapped key: it reads the authenticated user's current Firestore metadata. Exact metadata matching prevents caching a newly rotated key under an older envelope. Firestore V1 and encrypted Storage V2 can be read; new writes use V3 only.
 
-A fresh empty phone asks Restore / Skip. Local edits with a different remote revision require explicit restore or replace. Delete compares the revision and disables automatic backup on that phone. Other devices with an initialized old revision stop on a missing remote rather than silently recreating it. Storage retention/soft-delete and orphan cleanup are separate from deleting the active metadata.
+A fresh empty phone asks Restore / Skip. Local edits with a different remote revision require explicit restore or replace. Automatic sync never uploads an empty local ledger over an existing cloud snapshot; replace remains an explicit user action, preserving recovery after a mistaken local reset. Manual Restore and Back up now remain available independently of automatic backup and cached local backup status. Delete compares the revision and disables automatic backup on that phone. Other devices with an initialized old revision stop on a missing remote rather than silently recreating it. Storage retention/soft-delete and orphan cleanup are separate from deleting the active metadata.
+
+Local changes queue account-backup work behind any upload already in progress instead of cancelling it. Each queued worker exports the current complete ledger snapshot, so rapid successive entries are included by a later backup attempt.
+
+AI category corrections are saved per account in an Android-Keystore-encrypted on-device preference record. Exact learned item phrases take precedence over generated categories on later Auto Fill drafts; those private phrases are applied locally and are not sent to Gemini.
 
 ## AI and external requests
 
@@ -31,4 +37,4 @@ Play Integrity is used for the distributed APK; no shared debug token. AI limits
 
 ## Trust and cost
 
-The backend can recover backup keys. This is managed account encryption, not zero-knowledge E2EE. Functions, Storage and KMS require Blaze/billing; linking billing also affects Gemini prices. The APK contains no KMS key material or service-account credential. A copied public development signing key is not a production signing identity. See `REVIEW-AND-SETUP.md` for deployment and testing limits.
+New Firestore v4 backups are encrypted on-device with a passphrase and stored in one Firestore document capped at 900 KB. Firebase stores ciphertext, but a lost passphrase cannot be recovered. This path uses Firebase Spark and does not write to Storage, Functions or KMS. Legacy v2/v3 restore still depends on the original Storage/KMS services. Gemini Developer API and App Check are separate owner-configured services; keep the project on Spark and follow `FIREBASE-AI-SETUP.md` if paid Firebase services are out of scope. A copied public development signing key is not a production signing identity.

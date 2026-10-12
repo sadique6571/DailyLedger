@@ -2,6 +2,8 @@ package com.sadique.dailyledger.ai
 
 import org.junit.Assert.*
 import org.junit.Test
+import com.sadique.dailyledger.data.TransactionEntity
+import com.sadique.dailyledger.data.monthlySalarySummary
 
 class OfflineMiniAiTest {
     @Test fun parsesRomanUrduMultipleTransactions() {
@@ -11,6 +13,16 @@ class OfflineMiniAiTest {
         assertEquals("Fuel", result.entries[1].category)
         assertEquals("INCOME", result.entries[2].type)
         assertEquals("Salary", result.entries[2].category)
+    }
+
+    @Test fun salaryAndOtherIncomeDraftsFeedDashboardMonthlyTotals() {
+        val drafts = OfflineMiniAi.drafts("meri salary 50000 ayi aur bonus 5000 mila")!!.entries
+        val transactions = drafts.mapIndexed { index, draft ->
+            TransactionEntity("$index", "owner", draft.type, draft.amountMinor, draft.category, draft.note, draft.date, 1, 1)
+        }
+        val summary = monthlySalarySummary(transactions, drafts.first().date.substring(0, 7))
+        assertEquals(5_000_000L, summary.salary)
+        assertEquals(500_000L, summary.otherIncome)
     }
 
     @Test fun parsesHazarAndKAmounts() {

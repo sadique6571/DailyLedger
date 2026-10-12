@@ -49,7 +49,7 @@ class LedgerUpgradeTest {
         DatabaseEncryption.migrate(file, password)
         assertFalse(DatabaseEncryption.isPlaintext(file))
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .openHelperFactory(EncryptedOpenHelperFactory(password)).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5).build()
+            .openHelperFactory(EncryptedOpenHelperFactory(password)).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6).build()
         try {
             val dao = db.ledgerDao()
             val committees = dao.committeesNow("owner") // Opening validates all migrated tables against Room's schema.
@@ -95,7 +95,7 @@ class LedgerUpgradeTest {
             repo.addCommitteeReceipt(c.id, 6000000, "2026-11-06", "Second kameti")
             assertTrue(repo.committees.first().single().received)
             val json = repo.exportJson()
-            assertEquals(4, JSONObject(json).getInt("version"))
+            assertEquals(5, JSONObject(json).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(json)
             val restoredCommittee = restored.committees.first().single()
@@ -123,6 +123,98 @@ class LedgerUpgradeTest {
             assertTrue(restored.committeeReceipts.first().isEmpty())
             assertTrue(restored.committeePayments.first().isEmpty())
             assertEquals(2, dao.committeeReceiptsNow("owner").size)
+        } finally { db.close() }
+    }
+
+    @Test fun everyIncomeAndExpenseTransactionIsRestoredFromBackup() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val original = LedgerRepository(db, "owner")
+            original.saveTransaction("INCOME", 25000000, "Salary", "Monthly salary", "2026-10-01")
+            original.saveTransaction("EXPENSE", 50000, "Vegetables", "Sabzi", "2026-10-02")
+            original.saveTransaction("EXPENSE", 20000, "Household", "Soap and shampoo", "2026-10-03")
+            val cycleStart = System.currentTimeMillis() - 10_000
+            db.ledgerDao().upsertLedgerCycle(LedgerCycleEntity("owner", cycleStart, 250000))
+            db.ledgerDao().insertLedgerArchive(
+                LedgerArchiveEntity("owner:archive:calendar:2026-09", "owner", "calendar:2026-09", "2026-09",
+                    1, 2, 1000, 200, 300, 100, 50, 0, 550, 2),
+            )
+
+            val restored = LedgerRepository(db, "restored")
+            val backupJson = original.exportJson()
+            assertEquals(5, JSONObject(backupJson).getInt("version"))
+            restored.importJson(backupJson)
+
+            val transactions = restored.transactions.first().sortedBy { it.date }
+            assertEquals(3, transactions.size)
+            assertEquals(listOf("INCOME", "EXPENSE", "EXPENSE"), transactions.map { it.type })
+            assertEquals(listOf(25000000L, 50000L, 20000L), transactions.map { it.amountMinor })
+            assertEquals(listOf("Salary", "Vegetables", "Household"), transactions.map { it.category })
+            assertEquals(listOf("restored", "restored", "restored"), transactions.map { it.ownerId })
+            assertEquals(cycleStart, restored.ledgerCycle.first()?.startAt)
+            assertEquals(250000L, restored.ledgerCycle.first()?.openingBalanceMinor)
+            assertEquals(550L, restored.ledgerArchives.first().single().closingBalanceMinor)
+        } finally { db.close() }
+    }
+
+    @Test fun duplicateTransactionIdsCannotSilentlyDropEntriesDuringRestore() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val source = LedgerRepository(db, "source")
+            source.saveTransaction("EXPENSE", 50000, "Vegetables", "Sabzi", "2026-10-01")
+            source.saveTransaction("EXPENSE", 20000, "Vegetables", "Tomatoes", "2026-10-02")
+            val malformed = JSONObject(source.exportJson())
+            val rows = malformed.getJSONArray("transactions")
+            rows.getJSONObject(1).put("id", rows.getJSONObject(0).getString("id"))
+
+            val destination = LedgerRepository(db, "destination")
+            destination.saveTransaction("INCOME", 100000, "Salary", "Existing local entry", "2026-10-03")
+            expectRejected { destination.importJson(malformed.toString()) }
+            val remaining = destination.transactions.first()
+            assertEquals(1, remaining.size)
+            assertEquals("Existing local entry", remaining.single().note)
+        } finally { db.close() }
+    }
+
+    @Test fun startingSalaryCycleArchivesAndCarriesRemainingBalance() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val now = System.currentTimeMillis()
+            val repo = LedgerRepository(db, "owner")
+            val dao = db.ledgerDao()
+            dao.upsertLedgerCycle(LedgerCycleEntity("owner", now - 20_000, 5000))
+            dao.insertTransactions(
+                listOf(
+                    TransactionEntity("salary", "owner", "INCOME", 10000, "Salary", "", "2026-10-01", now - 10_000, now - 10_000),
+                    TransactionEntity("food", "owner", "EXPENSE", 3000, "Food", "", "2026-10-02", now - 5_000, now - 5_000),
+                ),
+            )
+            repo.startNewLedgerCycle(now)
+            val cycle = repo.ledgerCycle.first()!!
+            assertEquals(now, cycle.startAt)
+            assertEquals(12000L, cycle.openingBalanceMinor)
+            assertEquals(12000L, repo.ledgerArchives.first().single().closingBalanceMinor)
+            assertEquals(12000L, ledgerCycleSummary(repo.transactions.first(), emptyList(), emptyList(), cycle, now + 1).remaining)
+        } finally { db.close() }
+    }
+
+    @Test fun initialCycleUsesLastRecordedSalaryAndDoesNotRollAtCalendarChange() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val now = System.currentTimeMillis()
+            val dao = db.ledgerDao()
+            dao.insertTransactions(
+                listOf(
+                    TransactionEntity("old-salary", "owner", "INCOME", 10000, "Salary", "", "2026-08-01", now - 60L * 86_400_000, now - 60L * 86_400_000),
+                    TransactionEntity("last-salary", "owner", "INCOME", 12000, "Salary", "", "2026-09-01", now - 20L * 86_400_000, now - 20L * 86_400_000),
+                ),
+            )
+            val repo = LedgerRepository(db, "owner")
+            repo.ensureLedgerCycle(now)
+            val salaryBoundary = repo.ledgerCycle.first()!!.startAt
+            assertEquals(now - 20L * 86_400_000, salaryBoundary)
+            repo.ensureLedgerCycle(now + 60L * 86_400_000)
+            assertEquals(salaryBoundary, repo.ledgerCycle.first()!!.startAt)
         } finally { db.close() }
     }
 

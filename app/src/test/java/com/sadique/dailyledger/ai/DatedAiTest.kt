@@ -53,8 +53,27 @@ class DatedAiTest {
         assertNull(OfflineCreditAi.drafts("rashan 1,50", today = today))
     }
     @Test fun specificCategoriesBeatBroadAliases() {
-        val cases = mapOf("formula milk" to "Baby food & formula", "school shoes" to "School uniform", "hair oil" to "Shampoo & hair care", "bartan soap" to "Dishwashing", "oil change" to "Vehicle service", "admission fee" to "Admission & exam fees")
+        val cases = mapOf(
+            "formula milk" to "Baby food & formula",
+            "school shoes" to "School uniform",
+            "hair oil" to "Shampoo & hair care",
+            "bartan soap" to "Dishwashing",
+            "oil change" to "Vehicle service",
+            "admission fee" to "Admission & exam fees",
+            "wife kharcha" to "Spouse personal expenses",
+            "ghar ka daily kharcha" to "Household cash",
+            "phone cover" to "Phone accessories",
+            "gas cylinder" to "Cooking gas cylinder",
+            "house insurance" to "Home insurance",
+            "generator petrol" to "Generator fuel",
+            "office lunch" to "Work meals",
+            "masjid ka kharcha" to "Mosque & madrasa",
+            "masjid donation" to "Mosque & madrasa",
+            "property tax" to "Property tax",
+            "laptop repair" to "Device repair",
+        )
         cases.forEach { (text, category) -> assertEquals(text, category, CategoryRules.infer("EXPENSE", text)) }
+        assertEquals("Commission income", CategoryRules.infer("INCOME", "commission"))
         assertEquals("EXPENSE", OfflineMiniAi.drafts("Milad shopping 500", today)!!.entries.single().type)
     }
 }

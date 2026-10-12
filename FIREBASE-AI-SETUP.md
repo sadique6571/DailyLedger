@@ -1,4 +1,4 @@
-# Firebase AI setup — Daily Ledger 1.6.1
+# Firebase AI setup — Daily Ledger 1.7.15
 
 This version uses the official Firebase AI Logic Android SDK with the **Gemini Developer API**. Cloud Functions, Groq keys and Cloudflare are not required by the new app. Features remain automatic spending suggestions and reviewed Auto Fill, with no AI chat.
 
@@ -6,7 +6,7 @@ This version uses the official Firebase AI Logic Android SDK with the **Gemini D
 
 - Firebase project: `daily-ledger-4d8ef`
 - Android package: `com.sadique.dailyledger`
-- Version: `1.6.1`, version code `9`
+- Version: `1.7.15`, version code `15`
 - Model: `gemini-3.5-flash-lite` (stable, free-tier eligible in current official docs, checked 2026-10-07)
 - Existing signing certificate SHA-256: `4C:22:14:C4:D4:B6:E3:8B:FA:81:44:F1:41:CC:24:A7:18:00:3F:55:20:41:06:17:76:6D:19:5C:CD:2D:23:1D`
 
@@ -59,11 +59,13 @@ The current APK preserves the development signing identity to update existing in
 - [Rate limits](https://firebase.google.com/docs/ai-logic/quotas)
 - [Gemini API data terms](https://ai.google.dev/gemini-api/terms)
 
-## This project also uses KMS backup
+## Backup plan and cost
 
-KMS/Functions/Storage requires Blaze. Linking billing changes Gemini pricing too: AI is not guaranteed free on that project. Confirm the cost decision before enabling that backend. The APK uses `gemini-3.5-flash-lite`; app limits are per device and do not replace server quotas.
+The current client backup path uses **Firebase Spark Firestore only**. It encrypts backups on-device with the passphrase saved in Settings and writes ciphertext to the owner-scoped Firestore document (maximum 900 KB). New backup writes do not use Storage, Functions or KMS. Deploy only Firestore rules with `firebase deploy --only firestore:rules`. The old KMS/Functions/Storage design remains documented in `KMS-SETUP.md` for legacy v2/v3 backups; restoring those may require their original paid services.
 
-## v1.6.1 build variants and diagnosis
+Keep the Firebase project on Spark if paid services are out of scope. Firebase AI Logic uses the Gemini Developer API free tier when available, but quotas, eligibility and provider terms can change; do not link billing or select the billing-required Vertex/Agent Platform route for this setup. The APK uses `gemini-3.5-flash-lite`; app limits are per device and do not replace server quotas.
+
+## Current build variants and diagnosis
 
 The downloadable APK is `assembleRelease`, non-debuggable, and contains only the Play Integrity provider. Its existing certificate is retained for upgrades. `assembleDebug` is private testing only and contains Firebase's debug provider: every installation needs its own console-registered token. Never share a token in an APK, repository, report or public log.
 

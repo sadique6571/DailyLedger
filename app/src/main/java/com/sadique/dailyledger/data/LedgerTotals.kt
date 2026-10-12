@@ -1,19 +1,52 @@
 package com.sadique.dailyledger.data
 
-data class SalarySummary(val salary: Long, val expenses: Long, val otherIncome: Long) {
-    val remaining: Long get() = salary - expenses
+data class SalarySummary(
+    val salary: Long,
+    val expenses: Long,
+    val otherIncome: Long,
+    val committeeContributions: Long = 0,
+    val savingsContributions: Long = 0,
+    val openingBalanceMinor: Long = 0,
+) {
+    val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions
+    val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions
+}
+
+fun ledgerCycleSummary(
+    transactions: List<TransactionEntity>,
+    committeePayments: List<CommitteePaymentEntity>,
+    savings: List<SavingEntity>,
+    cycle: LedgerCycleEntity,
+    now: Long = System.currentTimeMillis(),
+): SalarySummary {
+    val currentTransactions = transactions.filter { it.createdAt in cycle.startAt..now }
+    return SalarySummary(
+        salary = currentTransactions.filter { it.isSalary() }.sumOf { it.amountMinor },
+        expenses = currentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
+        otherIncome = currentTransactions.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
+        committeeContributions = committeePayments.filter { it.paidAt in cycle.startAt..now }.sumOf { it.amountMinor },
+        savingsContributions = savings.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
+        openingBalanceMinor = cycle.openingBalanceMinor,
+    )
 }
 
 fun TransactionEntity.isSalary(): Boolean = type == "INCOME" &&
     (category.trim().equals("Salary", ignoreCase = true) ||
         category.trim().equals("Monthly salary", ignoreCase = true) || category.trim() == "تنخواہ")
 
-fun monthlySalarySummary(transactions: List<TransactionEntity>, month: String): SalarySummary {
+fun monthlySalarySummary(
+    transactions: List<TransactionEntity>,
+    month: String,
+    committeePayments: List<CommitteePaymentEntity> = emptyList(),
+    savings: List<SavingEntity> = emptyList(),
+): SalarySummary {
     val current = transactions.filter { it.date.startsWith("$month-") }
     return SalarySummary(
         salary = current.filter { it.isSalary() }.sumOf { it.amountMinor },
         expenses = current.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
         otherIncome = current.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
+        committeeContributions = committeePayments.filter { it.month == month }.sumOf { it.amountMinor },
+        savingsContributions = savings.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },
     )
 }
 

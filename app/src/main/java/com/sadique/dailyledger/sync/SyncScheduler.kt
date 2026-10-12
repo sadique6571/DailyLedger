@@ -14,14 +14,12 @@ object SyncScheduler {
         manager.cancelUniqueWork("drive-sync")
         manager.cancelUniqueWork("drive-sync-now")
     }
-    fun syncNow(context: Context, immediate: Boolean = false) {
-        val delay = if (immediate) 0L else 20L
+    fun syncNow(context: Context) {
         val manager = WorkManager.getInstance(context)
-        manager.enqueueUniqueWork("account-backup-now", ExistingWorkPolicy.REPLACE,
+        // Keep later edits queued; replacing unique work can cancel an upload mid-backup.
+        manager.enqueueUniqueWork("account-backup-now", ExistingWorkPolicy.APPEND_OR_REPLACE,
             OneTimeWorkRequestBuilder<CloudBackupWorker>().setConstraints(connected())
-                .setInitialDelay(delay, TimeUnit.SECONDS)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
-
     }
     fun cancelImmediate(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork("account-backup-now")

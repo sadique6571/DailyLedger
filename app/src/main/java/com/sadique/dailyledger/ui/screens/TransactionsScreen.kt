@@ -11,12 +11,14 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.sadique.dailyledger.ui.isValidDate
 import com.sadique.dailyledger.ui.plainAmount
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.LedgerRepository
+import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
@@ -62,7 +64,10 @@ fun TransactionsScreen(
                     Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text("${x.category} • ${x.type}")
-                            Text(x.note.ifBlank { x.date }, style = MaterialTheme.typography.bodySmall)
+                            Text(x.date, style = MaterialTheme.typography.bodySmall)
+                            if (x.note.isNotBlank()) {
+                                Text(x.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                         Column {
                             Text(money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
@@ -95,6 +100,8 @@ fun TransactionDialog(
     var note by remember { mutableStateOf(x?.note ?: "") }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
     var chooseCategory by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val categoryCount = remember(type) { CategoryCatalog.load(context).count { it.type == type } }
     if (chooseCategory) CategoryPicker(type, { cat = it; chooseCategory = false }, { chooseCategory = false })
     AlertDialog(
         onDismissRequest = dismiss,
@@ -114,7 +121,7 @@ fun TransactionDialog(
                 }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(cat, { cat = it.take(60) }, label = { Text("Category / custom category") })
-                TextButton(onClick = { chooseCategory = true }) { Text("Choose from 93 categories") }
+                TextButton(onClick = { chooseCategory = true }) { Text("Choose from $categoryCount categories") }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
             }

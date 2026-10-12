@@ -31,15 +31,16 @@ Review changes also prevent silent batch truncation, parse grouped rupees and Ur
 
 ## Cloud setup and cost
 
-This ZIP chose a managed **Firebase Functions + Cloud KMS + Storage** recovery design. It restores after the same Firebase login without another passphrase. Firebase administrators with sufficient KMS/runtime privileges can decrypt records. This is **not WhatsApp-style zero-knowledge end-to-end encryption**. A user ID authorizes the account; it is never the encryption key.
-
-Blaze billing is required for this backend. Storage/Functions may have no-cost allowances, but KMS key versions and operations can cost money. Linking billing also changes Gemini Developer API billing; do not promise that cloud AI stays free on this project. No billing upgrade or cloud deployment has been performed by this review.
+New client backups use **Firebase Spark Firestore only**: the app encrypts each snapshot with the backup passphrase and stores the ciphertext in the account-owned `users/{uid}/backups/latest` document. There is a 900 KB payload limit. New backups do not call Cloud Storage, Cloud Functions or KMS. Keep the saved passphrase; it is required for restoring on another phone. Existing v2/v3 backups may still require their original Storage/KMS backend to restore.
 
 Required owner setup:
 
-1. For optional cloud AI only, enable Firebase AI Logic (Gemini Developer API) and configure Android App Check / Play Integrity. For APK distribution outside Play, use Firebase's documented outside-Play provider settings; do not require PLAY_RECOGNIZED or LICENSED verdicts. Keep device integrity checks enabled.
-2. Decide whether to enable Blaze. If approved, follow `KMS-SETUP.md`, then deploy Functions, Firestore and Storage rules. Do not delete/disable the KMS key versions while backups depend on them.
-3. On two real phones, verify same-account backup/restore, an account mismatch, cancelled restore, offline edits and a changed remote revision.
+1. Keep Firebase on the Spark plan if paid services are out of scope. Do not deploy Functions, KMS or Storage for the new backup path.
+2. Deploy only the owner-scoped Firestore rules with `firebase deploy --only firestore:rules`. The rules use rules language version 2 and permit only authenticated users to access their own backup document; new writes must be encrypted format v4 and no larger than 900 KB.
+3. Save a backup passphrase in Settings before enabling backup. Verify restore on a second phone using the same passphrase, and test missing/wrong passphrase and a ledger larger than the Firestore cap.
+4. Optional Cloud AI is separate. Follow `FIREBASE-AI-SETUP.md` to enable Firebase AI Logic with the Gemini Developer API and configure App Check/Play Integrity. Keep billing off and do not select the billing-required Vertex/Agent Platform route.
+
+No billing upgrade or live cloud deployment is performed by the app build.
 
 The developer signing key matches the existing APK to allow an update. It is a public development key, not a private production signing identity. Public distribution should move to a separately managed production signing/release process.
 

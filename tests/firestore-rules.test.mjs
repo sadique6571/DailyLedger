@@ -12,44 +12,41 @@ const guest = env.unauthenticatedContext().firestore();
 const path = 'users/alice/backups/latest';
 const revision = '12345678-1234-1234-1234-123456789abc';
 
-const v1Snapshot = () => ({
-  formatVersion: 1,
+const encryptedSnapshot = () => ({
+  formatVersion: 4,
   revision,
-  payload: 'compressed-snapshot-placeholder',
+  payload: 'ZW5jcnlwdGVkLXBheWxvYWQ=',
   contentHash: 'a'.repeat(64),
-  updatedAt: serverTimestamp(),
-});
-
-const v2Snapshot = () => ({
-  formatVersion: 3,
-  revision,
-  storagePath: `users/alice/backups/${revision}.enc`,
-  wrappedKey: 'd3JhcHBlZC1rZXktcGxhY2Vob2xkZXI=',
-  contentHash: 'a'.repeat(64),
-  plainHash: 'b'.repeat(64),
-  iv: 'MTIzNDU2Nzg5MDEy',
   updatedAt: serverTimestamp(),
 });
 
 try {
   await env.clearFirestore();
-  await assertFails(setDoc(doc(guest, path), v2Snapshot()));
-  await assertSucceeds(setDoc(doc(alice, path), v2Snapshot()));
+  await assertFails(setDoc(doc(guest, path), encryptedSnapshot()));
+  await assertSucceeds(setDoc(doc(alice, path), encryptedSnapshot()));
   await assertSucceeds(getDoc(doc(alice, path)));
   await assertFails(getDoc(doc(bob, path)));
   await assertFails(getDoc(doc(guest, path)));
-  await assertFails(setDoc(doc(bob, path), v2Snapshot()));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), storagePath: `users/bob/backups/${revision}.enc` }));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), plainHash: 'not-a-hash' }));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), unexpected: 'field' }));
-  await assertFails(setDoc(doc(alice, path), v1Snapshot()));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), formatVersion: 2 }));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), iv: 'a'.repeat(32) }));
-  await assertFails(setDoc(doc(alice, path), { ...v2Snapshot(), storagePath: `users/alice/backups/00000000-1234-1234-1234-123456789abc.enc` }));
-  await env.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), path), v1Snapshot()));
-  await assertSucceeds(getDoc(doc(alice,path)));
-  await assertFails(getDoc(doc(bob,path)));
-  await assertFails(setDoc(doc(alice, path), { ...v1Snapshot(), payload: '' }));
+  await assertFails(setDoc(doc(bob, path), encryptedSnapshot()));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), revision: 'not-a-uuid' }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), contentHash: 'not-a-hash' }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), payload: '' }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), payload: 'not base64!' }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), payload: 'a'.repeat(900001) }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), unexpected: 'field' }));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), formatVersion: 1 }));
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), path), {
+      formatVersion: 1,
+      revision,
+      payload: 'legacy-backup',
+      contentHash: 'b'.repeat(64),
+      updatedAt: serverTimestamp(),
+    });
+  });
+  await assertSucceeds(getDoc(doc(alice, path)));
+  await assertFails(getDoc(doc(bob, path)));
+  await assertFails(setDoc(doc(alice, path), { ...encryptedSnapshot(), payload: '' }));
   await assertSucceeds(deleteDoc(doc(alice, path)));
   console.log('Firestore backup rule checks passed.');
 } finally {

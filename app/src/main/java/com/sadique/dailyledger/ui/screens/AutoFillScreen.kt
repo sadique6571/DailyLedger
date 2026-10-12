@@ -33,7 +33,9 @@ import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
-                   generate: suspend (String) -> AiDraftResult, save: suspend (List<TransactionDraft>, String) -> Unit) {
+                   generate: suspend (String) -> AiDraftResult, save: suspend (List<TransactionDraft>, String) -> Unit,
+                   onSaved: () -> Unit = {},
+                   onLearnCategory: (String, String, String) -> String? = { _, _, _ -> null }) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -163,6 +165,24 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         }
                     }
                 }
+                if (entries.isNotEmpty()) item(key = "save-drafts") {
+                    GradientButton("Review & Save (${entries.size})", onClick = {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val count = entries.size
+                                save(entries, batch)
+                                entries = emptyList(); input = ""; message = "$count entries saved to your ledger."
+                                batch = UUID.randomUUID().toString()
+                                onSaved()
+                                listState.animateScrollToItem(1)
+                            } catch (e: CancellationException) { throw e }
+                            catch (e: Exception) { message = if (e is IllegalArgumentException || e is IllegalStateException) e.message ?: "Could not save entries." else "Could not save entries. Try again." }
+                            finally { busy = false }
+                        }
+                    }, modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
+                    TextButton(onClick = { entries = emptyList(); message = "Drafts discarded."; batch = UUID.randomUUID().toString() }, enabled = !busy) { Text("Discard drafts") }
+                }
                 item(key = "categories") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Popular categories", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -178,23 +198,6 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         }
                     }
                 }
-                if (entries.isNotEmpty()) item(key = "save-drafts") {
-                    GradientButton("Review & Save (${entries.size})", onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                val count = entries.size
-                                save(entries, batch)
-                                entries = emptyList(); input = ""; message = "$count entries saved to your ledger."
-                                batch = UUID.randomUUID().toString()
-                                listState.animateScrollToItem(1)
-                            } catch (e: CancellationException) { throw e }
-                            catch (e: Exception) { message = if (e is IllegalArgumentException || e is IllegalStateException) e.message ?: "Could not save entries." else "Could not save entries. Try again." }
-                            finally { busy = false }
-                        }
-                    }, modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
-                    TextButton(onClick = { entries = emptyList(); message = "Drafts discarded."; batch = UUID.randomUUID().toString() }, enabled = !busy) { Text("Discard drafts") }
-                }
                 item(key = "offline-details") {
                     Text("Offline Mini AI is always available", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Text("Income and expenses only. Savings, loans and kameti use their own spaces.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -206,6 +209,10 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     editing?.let { i -> entries.getOrNull(i)?.let { draft ->
         TransactionDialog(TransactionEntity("draft", "", draft.type, draft.amountMinor, draft.category, draft.note, draft.date, 0, 0),
             dismiss = { editing = null }, save = { type, amount, category, note, date ->
+                if (category != draft.category) {
+                    val learningError = onLearnCategory(type, note, category)
+                    message = learningError ?: "Learned: I'll use $category for \"$note\" next time."
+                }
                 entries = entries.mapIndexed { j, old -> if (i == j) TransactionDraft(type, amount, category, note, date) else old }; editing = null
             })
     } }
@@ -214,7 +221,14 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
         manual = false
     })
     pickFor?.let { index -> entries.getOrNull(index)?.let { draft ->
-        CategoryPicker(draft.type, onSelect = { category -> entries = entries.mapIndexed { i, old -> if (i == index) old.copy(category = category) else old }; pickFor = null }, onDismiss = { pickFor = null })
+        CategoryPicker(draft.type, onSelect = { category ->
+            if (category != draft.category) {
+                val learningError = onLearnCategory(draft.type, draft.note, category)
+                message = learningError ?: "Learned: I'll use $category for \"${draft.note}\" next time."
+            }
+            entries = entries.mapIndexed { i, old -> if (i == index) old.copy(category = category) else old }
+            pickFor = null
+        }, onDismiss = { pickFor = null })
     } }
     if (allCategories) CategoryPicker("EXPENSE", onSelect = { manualCategory = it; manual = true; allCategories = false }, onDismiss = { allCategories = false })
 }

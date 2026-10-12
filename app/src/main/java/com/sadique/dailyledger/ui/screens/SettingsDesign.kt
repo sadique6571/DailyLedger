@@ -20,7 +20,7 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String, status: String, busy: Boolean,
-    onToggle: (Boolean) -> Unit, onRestore: () -> Unit, onDetails: () -> Unit) {
+    onToggle: (Boolean) -> Unit, onRestore: () -> Unit, onBackup: () -> Unit, onDetails: () -> Unit) {
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GlowIcon(Icons.Rounded.CloudUpload, Color(0xFF468FFF), size = 49.dp)
@@ -39,7 +39,7 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
                     Column(Modifier.weight(1f)) {
                         Text(if (knownBackup) "Backup available" else if (enabled) "Awaiting first backup" else "Cloud backup is off",
                             fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(if (knownBackup) "Last successful check: $lastCheck" else "Enable and verify a backup before relying on recovery.",
+                        Text(if (knownBackup) "Last successful check: $lastCheck" else if (enabled) "No verified backup yet. You can back up or try restoring manually." else "Automatic backup is off. Manual backup and restore are still available.",
                             fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box(Modifier.size(44.dp)) {
@@ -49,10 +49,23 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    GradientButton("Restore data", onRestore, Modifier.weight(1.2f), !busy, Icons.Rounded.Restore)
-                    OutlinedButton(onClick = onDetails, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 50.dp), shape = RoundedCornerShape(15.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
-                        Text("View details", fontSize = 12.sp)
-                    }
+                    GradientButton(
+                        text = "Restore data",
+                        onClick = onRestore,
+                        modifier = Modifier.weight(1f),
+                        enabled = !busy,
+                        icon = Icons.Rounded.Restore,
+                    )
+                    GradientButton(
+                        text = "Back up now",
+                        onClick = onBackup,
+                        modifier = Modifier.weight(1f),
+                        enabled = !busy,
+                        icon = Icons.Rounded.CloudUpload,
+                    )
+                }
+                TextButton(onClick = onDetails, enabled = !busy, modifier = Modifier.align(Alignment.End)) {
+                    Text("View details", fontSize = 12.sp)
                 }
             }
         }

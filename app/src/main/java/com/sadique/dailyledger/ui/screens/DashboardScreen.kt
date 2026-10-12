@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,8 +33,11 @@ import com.sadique.dailyledger.ai.SpendingTip
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.*
 import java.time.LocalTime
+import java.time.Instant
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -41,22 +46,40 @@ fun DashboardScreen(
     committees: List<CommitteeEntity>, cp: List<CommitteePaymentEntity>, receipts: List<CommitteeReceiptEntity>,
     committeeMembers: List<CommitteeMemberEntity> = emptyList(), savings: List<SavingEntity>, userName: String,
     weatherEnabled: Boolean, weatherCity: String, weatherTemperature: String, weatherCondition: String,
+    ledgerCycle: LedgerCycleEntity? = null, ledgerArchives: List<LedgerArchiveEntity> = emptyList(),
     onAddSalary: () -> Unit, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
     aiStatus: String = "", aiEnabled: Boolean = false, onEnableAi: () -> Unit = {},
     onAllTransactions: (() -> Unit)? = null,
+    onStartNewMonth: () -> Unit = {}, onArchivePreviousMonth: ((Boolean) -> Unit) -> Unit = {},
 ) {
     val month = YearMonth.now()
-    val summary = monthlySalarySummary(tx, month.toString())
-    val grouped = tx.filter { it.date.startsWith("$month-") && it.type == "EXPENSE" }
-        .groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value }
+    val summary = ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it) }
+        ?: monthlySalarySummary(tx, month.toString(), cp, savings)
+    val expenseRows = tx.filter {
+        it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
+    }
+    val grouped = expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value }
+    val frequentItems = expenseRows.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
+        .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
+        .sortedByDescending { it.second }
+        .take(4)
     // All categories contribute to the chart total; smaller categories share the final slice.
     val categories = grouped.take(if (grouped.size > 5) 4 else 5).map { it.key to it.value } +
         if (grouped.size > 5) listOf("Others" to grouped.drop(4).sumOf { it.value }) else emptyList()
-    val spentRatio = if (summary.salary > 0) (summary.expenses.toFloat() / summary.salary).coerceIn(0f, 1f) else if (summary.expenses > 0) 1f else 0f
-    val spentPct = (spentRatio * 100).roundToInt()
     var showBalance by remember { mutableStateOf(true) }
+    var confirmNewMonth by remember { mutableStateOf(false) }
+    var confirmArchive by remember { mutableStateOf(false) }
+    var showArchives by remember { mutableStateOf(false) }
+    var archiveMessage by remember { mutableStateOf("") }
+    var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
     val recent = tx.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.updatedAt }).take(4)
+    val cycleStartLabel = ledgerCycle?.let {
+        Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+    }
+    val availableForCycle = summary.salary + summary.otherIncome + summary.openingBalanceMinor
+    val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
+    val spentPct = (spentRatio * 100).roundToInt()
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -74,7 +97,7 @@ fun DashboardScreen(
                                         fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 255.dp))
                                 }
                             }
-                        } else Text(month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -91,7 +114,7 @@ fun DashboardScreen(
                             }
                             Text(if (showBalance) displayMoney(summary.remaining) else "Rs •••••", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
-                            Text(if (summary.remaining < 0) "Expenses are above this month's salary" else "Monthly salary used", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+                            Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                             Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
                                 Box(Modifier.fillMaxWidth().height(12.dp).background(Color.White.copy(alpha = .17f), CircleShape))
                                 if (spentRatio > 0) Box(Modifier.fillMaxWidth(spentRatio).height(12.dp).background(Brush.verticalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape))
@@ -100,8 +123,17 @@ fun DashboardScreen(
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${displayMoney(summary.expenses)} of ${displayMoney(summary.salary)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
+                                Text("${displayMoney(summary.totalOutflow)} of ${displayMoney(availableForCycle.coerceAtLeast(0L))}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
                                 Text("${100 - spentPct}% left", color = Color.White, fontSize = 10.sp)
+                            }
+                            if (summary.openingBalanceMinor != 0L) {
+                                Text("Balance carried forward: ${displayMoney(summary.openingBalanceMinor)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
+                            }
+                            if (summary.committeeContributions > 0 || summary.savingsContributions > 0) {
+                                Text(
+                                    "Expenses ${displayMoney(summary.expenses)} · Kameti ${displayMoney(summary.committeeContributions)} · Savings ${displayMoney(summary.savingsContributions)}",
+                                    color = Color(0xFFC0FFEE), fontSize = 10.sp,
+                                )
                             }
                             if (summary.otherIncome > 0) Text("Other income: ${displayMoney(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
                         }
@@ -109,13 +141,66 @@ fun DashboardScreen(
                 }
             }
             item(key = "monthly-totals") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DashboardStat("Income", summary.salary, "Monthly salary", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).testTag("dashboard-add-salary"), onAddSalary)
-                    DashboardStat("Expense", summary.expenses, "This month", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f), onAddExpense)
-                    DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f), onOpenSavings)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).testTag("dashboard-add-salary"), onAddSalary)
+                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f), onAllTransactions ?: onAddSalary)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f), onAddExpense)
+                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f), onOpenSavings)
+                    }
+                }
+            }
+            item(key = "salary-cycle-controls") {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Button(
+                        onClick = { confirmNewMonth = true },
+                        enabled = ledgerCycle != null,
+                        modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
+                    ) {
+                        Icon(Icons.Rounded.Autorenew, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text("Salary received • Start new month")
+                    }
+                    OutlinedButton(
+                        onClick = { confirmArchive = true },
+                        modifier = Modifier.fillMaxWidth().testTag("archive-last-month"),
+                    ) {
+                        Icon(Icons.Rounded.Archive, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text("Archive last month")
+                    }
+                    if (ledgerArchives.isNotEmpty()) {
+                        TextButton(onClick = { showArchives = true }, modifier = Modifier.align(Alignment.End)) {
+                            Text("View archives (${ledgerArchives.size})")
+                        }
+                    }
+                    if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
             item(key = "spending") { SpendingDonutCard(categories, summary.expenses) }
+            if (frequentItems.isNotEmpty()) item(key = "frequent-items") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                        Text("This cycle", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    frequentItems.forEachIndexed { index, (label, total) ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedFrequentCategory = label }
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                                .testTag("frequent-item-$index"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(label.ifBlank { "Other" }, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(displayMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
             item(key = "recent") {
                 Column {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -173,7 +258,98 @@ fun DashboardScreen(
             snapshot?.let { data -> item(key = "insights") { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi) } }
         }
     }
+    if (confirmNewMonth) {
+        AlertDialog(
+            onDismissRequest = { confirmNewMonth = false },
+            title = { Text("Start a new salary month?") },
+            text = { Text("The current salary period will be archived. Its remaining balance (${displayMoney(summary.remaining)}) will carry forward; no money or transaction will be deleted. Start the new period before entering your next salary.") },
+            confirmButton = {
+                TextButton(onClick = { confirmNewMonth = false; onStartNewMonth() }) { Text("Archive & start") }
+            },
+            dismissButton = { TextButton(onClick = { confirmNewMonth = false }) { Text("Cancel") } },
+        )
+    }
+    if (confirmArchive) {
+        val previousMonth = month.minusMonths(1)
+        AlertDialog(
+            onDismissRequest = { confirmArchive = false },
+            title = { Text("Archive $previousMonth?") },
+            text = { Text("Save a summary of last calendar month's salary, other income, expenses, kameti and savings. Original transactions remain in your ledger. This will not change your active salary month or balance.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmArchive = false
+                    onArchivePreviousMonth { archived ->
+                        archiveMessage = if (archived) "$previousMonth archived. Original entries were kept." else "$previousMonth was already archived."
+                    }
+                }) { Text("Archive month") }
+            },
+            dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text("Cancel") } },
+        )
+    }
+    if (showArchives) {
+        AlertDialog(
+            onDismissRequest = { showArchives = false },
+            title = { Text("Archived periods") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ledgerArchives.forEach { archive ->
+                        LedgerCard(Modifier.fillMaxWidth()) {
+                            Text(archive.label, fontWeight = FontWeight.SemiBold)
+                            Text("Salary ${displayMoney(archive.salaryMinor)} · Other income ${displayMoney(archive.otherIncomeMinor)}", fontSize = 11.sp)
+                            Text("Expenses ${displayMoney(archive.expensesMinor)} · Kameti ${displayMoney(archive.committeeMinor)} · Savings ${displayMoney(archive.savingsMinor)}", fontSize = 11.sp)
+                            Text("Closing balance ${displayMoney(archive.closingBalanceMinor)}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showArchives = false }) { Text("Close") } },
+        )
+    }
+    selectedFrequentCategory?.let { category ->
+        val purchases = expenseRows.filter { it.frequentPurchaseLabel().equals(category, ignoreCase = true) }
+            .sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.createdAt })
+        val total = purchases.sumOf { it.amountMinor }
+        AlertDialog(
+            onDismissRequest = { selectedFrequentCategory = null },
+            title = { Text(category.ifBlank { "Other" }) },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Total this cycle: ${displayMoney(total)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    purchases.forEachIndexed { index, purchase ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    purchase.note.ifBlank { purchase.category.ifBlank { "Purchase" } },
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                val displayDate = runCatching {
+                                    java.time.LocalDate.parse(purchase.date)
+                                        .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault()))
+                                }.getOrDefault(purchase.date)
+                                Text(displayDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(displayMoney(purchase.amountMinor), fontWeight = FontWeight.SemiBold)
+                        }
+                        if (index < purchases.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    HorizontalDivider()
+                    Text("Total: ${displayMoney(total)}", Modifier.align(Alignment.End), fontWeight = FontWeight.Bold)
+                }
+            },
+            confirmButton = { TextButton(onClick = { selectedFrequentCategory = null }) { Text("Close") } },
+        )
+    }
 }
+
+private fun TransactionEntity.frequentPurchaseLabel(): String =
+    note.trim().ifBlank { category.trim().ifBlank { "Other" } }
 
 @Composable
 private fun DashboardStat(title: String, amount: Long, detail: String, icon: ImageVector, color: Color, modifier: Modifier, action: () -> Unit) {
@@ -197,7 +373,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long)
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-            Text("This month", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp)
+            Text("This cycle", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp)
         }
         Spacer(Modifier.height(15.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {

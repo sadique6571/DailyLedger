@@ -2,6 +2,7 @@ package com.sadique.dailyledger.security
 
 import java.security.MessageDigest
 import java.security.SecureRandom
+import javax.crypto.Mac
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -68,6 +69,24 @@ object BackupCrypto {
         "DailyLedger/v3/${owner.length}:$owner/$revision".toByteArray(Charsets.UTF_8)
     fun plainFingerprint(json: String, dek: SecretKeySpec, owner: String): String =
         EnvelopeCrypto.fingerprint(dek.encoded, owner, json)
+
+    /** Stable keyed digest for Firestore change detection; the passphrase-derived key prevents plain-data hashes. */
+    fun passphraseFingerprint(json: String, passphrase: CharArray, owner: String): String {
+        val context = "DailyLedger/FirestoreBackup/v4/$owner"
+        val salt = MessageDigest.getInstance("SHA-256")
+            .digest(context.toByteArray(Charsets.UTF_8)).copyOf(16)
+        val key = derivePassphraseKey(passphrase, salt)
+        val keyBytes = key.encoded
+        return try {
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(keyBytes, "HmacSHA256"))
+            mac.doFinal("$context\u0000$json".toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+        } finally {
+            keyBytes.fill(0)
+            salt.fill(0)
+        }
+    }
 
     // Passphrase-based fallback methods retained for optional user Google Drive exports
     fun encrypt(plain: ByteArray, passphrase: CharArray): ByteArray {

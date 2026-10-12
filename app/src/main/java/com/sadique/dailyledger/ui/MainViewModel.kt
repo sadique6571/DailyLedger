@@ -38,9 +38,12 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     val committeeReceipts=repo.committeeReceipts.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val committeeMembers=repo.committeeMembers.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val savings=repo.savings.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
+    val ledgerCycle=repo.ledgerCycle.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),null)
+    val ledgerArchives=repo.ledgerArchives.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
     fun clearError() { _error.value = null }
+    init { viewModelScope.launch { repo.ensureLedgerCycle() } }
     fun launch(
         onSuccess: () -> Unit = {},
         block: suspend LedgerRepository.() -> Unit,
@@ -59,6 +62,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
+    private val categoryLearning=CategoryLearningStore(app,ownerId)
     val aiEnabled=MutableStateFlow(aiPrefs.enabled)
     val aiTips=MutableStateFlow<List<SpendingTip>>(emptyList())
     val aiStatus=MutableStateFlow("")
@@ -82,11 +86,28 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     suspend fun autoFill(input:String):AiDraftResult{
         checkAccount()
         require(!OfflineMiniAi.usesDedicatedLedger(input)) { "Udhar Saman, loans, savings aur kameti apne tabs mein record karein. Auto Fill sirf income aur expenses ke liye hai." }
-        OfflineMiniAi.drafts(input)?.let { return it }
-        check(aiEnabled.value){"Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly."}
-        val result=aiService.drafts(input);checkAccount();return result
+        val result = OfflineMiniAi.drafts(input) ?: run {
+            check(aiEnabled.value){"Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly."}
+            aiService.drafts(input).also { checkAccount() }
+        }
+        val learnedRules = categoryLearning.rules()
+        return result.copy(entries = result.entries.map { CategoryLearning.apply(it, learnedRules) })
     }
+    fun rememberCategory(type:String,phrase:String,category:String):String? = try{
+        checkAccount()
+        categoryLearning.remember(type,phrase,category)
+        null
+    }catch(e:Exception){e.message?:"Could not save this category correction on this device."}
     suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();repo.saveDraftBatch(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
+    fun startNewMonth() = launch { startNewLedgerCycle() }
+    fun archivePreviousMonth(onSuccess:(Boolean)->Unit) = viewModelScope.launch {
+        try {
+            val archived = BackupLock.mutex.withLock { checkAccount(); repo.archivePreviousCalendarMonth() }
+            onSuccess(archived)
+            SyncScheduler.syncNow(getApplication<Application>())
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { _error.value = e.message ?: "Could not archive last month." }
+    }
     suspend fun saveCreditDrafts(drafts:List<CreditDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();repo.saveCreditDrafts(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
     suspend fun saveCreditPayment(id:String,amount:Long,date:String,note:String,method:String){BackupLock.mutex.withLock{checkAccount();repo.addCreditPayment(id,amount,date,note,method)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
     class Factory(private val app:Application,private val owner:String):ViewModelProvider.Factory{override fun <T:ViewModel> create(modelClass:Class<T>):T=MainViewModel(app,owner) as T}

@@ -2,26 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId}/backups/latest {
-      function ownAccount() { return request.auth != null && request.auth.uid == userId; }
-      function validEncryptedMetadata() {
+      function ownsAccount() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function validEncryptedBackup() {
         let data = request.resource.data;
-        return data.keys().hasAll(['formatVersion','revision','storagePath','wrappedKey','contentHash','plainHash','iv','updatedAt'])
-          && data.keys().hasOnly(['formatVersion','revision','storagePath','wrappedKey','contentHash','plainHash','iv','updatedAt'])
-          && data.formatVersion == 3
-          && data.revision is string && data.revision.matches('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
-          && data.storagePath == 'users/' + userId + '/backups/' + data.revision + '.enc'
-          && data.wrappedKey is string && data.wrappedKey.size() >= 16 && data.wrappedKey.size() <= 4096
-          && data.wrappedKey.matches('^[A-Za-z0-9+/]+={0,2}$')
-          && data.contentHash is string && data.contentHash.matches('^[a-f0-9]{64}$')
-          && data.plainHash is string && data.plainHash.matches('^[a-f0-9]{64}$')
-          && data.iv is string && data.iv.matches('^[A-Za-z0-9+/]{16}$')
+        return data.keys().hasAll(['formatVersion', 'revision', 'payload', 'contentHash', 'updatedAt'])
+          && data.keys().hasOnly(['formatVersion', 'revision', 'payload', 'contentHash', 'updatedAt'])
+          && data.formatVersion == 4
+          && data.revision is string
+          && data.revision.matches('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+          && data.payload is string
+          && data.payload.size() > 0
+          && data.payload.size() <= 900000
+          && data.payload.matches('^[A-Za-z0-9+/]+={0,2}$')
+          && data.contentHash is string
+          && data.contentHash.matches('^[a-f0-9]{64}$')
           && data.updatedAt == request.time;
       }
-      // Older formats remain readable for migration; an old client cannot downgrade encryption.
-      allow get: if ownAccount();
-      allow create, update: if ownAccount() && validEncryptedMetadata();
-      allow delete: if ownAccount();
+
+      // Existing v1-v3 backups remain readable for migration; new writes are encrypted format v4.
+      allow get: if ownsAccount();
+      allow create, update: if ownsAccount() && validEncryptedBackup();
+      allow delete: if ownsAccount();
     }
-    match /{document=**} { allow read, write: if false; }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

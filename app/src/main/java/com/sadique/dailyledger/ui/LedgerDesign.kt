@@ -112,21 +112,43 @@ fun GradientButton(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 data class CategoryVisual(val icon: ImageVector, val color: Color)
 
 fun categoryVisual(category: String, type: String = "EXPENSE"): CategoryVisual {
-    val name = category.lowercase()
+    val name = category.lowercase().replace("&", "and")
     return when {
-        type == "INCOME" -> CategoryVisual(Icons.Rounded.Work, LedgerColors.Green)
-        listOf("fuel", "petrol", "diesel").any { it in name } -> CategoryVisual(Icons.Rounded.LocalGasStation, LedgerColors.Red)
-        listOf("transport", "car", "bus", "taxi", "bike", "travel").any { it in name } -> CategoryVisual(Icons.Rounded.DirectionsCar, LedgerColors.Blue)
-        listOf("restaurant", "dining", "food", "snack", "tea").any { it in name } -> CategoryVisual(Icons.Rounded.Restaurant, LedgerColors.Amber)
-        listOf("grocer", "vegetable", "fruit", "rice", "flour", "daal", "lentil").any { it in name } -> CategoryVisual(Icons.Rounded.ShoppingCart, LedgerColors.Green)
-        listOf("health", "medical", "medicine", "doctor").any { it in name } -> CategoryVisual(Icons.Rounded.Favorite, LedgerColors.Red)
-        listOf("school", "education", "book", "tuition").any { it in name } -> CategoryVisual(Icons.Rounded.School, LedgerColors.Purple)
-        listOf("shopping", "clothes", "clothing", "shoes", "gift").any { it in name } -> CategoryVisual(Icons.Rounded.ShoppingBag, LedgerColors.Red)
-        listOf("cleaning", "dishwash", "household", "soap", "shampoo", "hygiene", "toiletries", "oral care").any { it in name } -> CategoryVisual(Icons.Rounded.CleaningServices, LedgerColors.Teal)
-        listOf("baby", "diaper", "child").any { it in name } -> CategoryVisual(Icons.Rounded.ChildCare, LedgerColors.Purple)
-        listOf("saving", "wallet").any { it in name } -> CategoryVisual(Icons.Rounded.AccountBalanceWallet, LedgerColors.Green)
-        listOf("bill", "milk", "doodh", "electric", "internet", "mobile").any { it in name } -> CategoryVisual(Icons.Rounded.Description, LedgerColors.Blue)
-        else -> CategoryVisual(Icons.Rounded.MoreHoriz, Color(0xFF7C92AE))
+        listOf("other income", "other expense", "other").any { name == it } ->
+            CategoryVisual(Icons.Rounded.Category, Color(0xFF7C92AE))
+        listOf("salary", "pension", "overtime", "commission", "income", "refund", "bonus", "gift received").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Payments, LedgerColors.Green)
+        listOf("fuel", "petrol", "diesel", "gas cylinder").any { it in name } ->
+            CategoryVisual(Icons.Rounded.LocalGasStation, LedgerColors.Red)
+        listOf("transport", "vehicle", "car", "bus", "taxi", "bike", "travel", "parking", "toll", "hotel", "holiday").any { it in name } ->
+            CategoryVisual(Icons.Rounded.DirectionsCar, LedgerColors.Blue)
+        listOf("restaurant", "dining", "food", "snack", "tea", "coffee", "beverage", "meal", "bakery", "bread", "meat", "chicken", "fish", "egg", "kitchen", "utensil").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Restaurant, LedgerColors.Amber)
+        listOf("grocery", "grocer", "vegetable", "fruit", "rice", "flour", "lentil", "daal", "dairy", "milk", "oil", "spice", "sugar", "water").any { it in name } ->
+            CategoryVisual(Icons.Rounded.ShoppingCart, LedgerColors.Green)
+        listOf("health", "medical", "medicine", "doctor", "hospital", "lab", "dental", "eye", "glasses", "insurance", "elder care").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Favorite, LedgerColors.Red)
+        listOf("school", "education", "book", "tuition", "college", "university", "course", "stationery", "exam", "admission", "uniform", "project").any { it in name } ->
+            CategoryVisual(Icons.Rounded.School, LedgerColors.Purple)
+        listOf("shopping", "clothes", "clothing", "shoes", "gift", "cosmetic", "skincare", "haircut", "personal allowance", "spouse", "wife").any { it in name } ->
+            CategoryVisual(Icons.Rounded.ShoppingBag, LedgerColors.Purple)
+        listOf("cleaning", "dishwash", "household", "soap", "shampoo", "hygiene", "toiletries", "oral care", "laundry", "home supplies", "bedding").any { it in name } ->
+            CategoryVisual(Icons.Rounded.CleaningServices, LedgerColors.Teal)
+        listOf("baby", "diaper", "child", "children", "toy", "pocket money", "childcare", "family support").any { it in name } ->
+            CategoryVisual(Icons.Rounded.ChildCare, LedgerColors.Purple)
+        listOf("saving", "wallet", "bank", "tax", "document", "postage", "subscription", "internet", "mobile", "phone", "electricity", "bill", "rent").any { it in name } ->
+            CategoryVisual(Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue)
+        listOf("home", "rent", "repair", "maintenance", "furniture", "appliance", "domestic help", "security", "house cleaning").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Home, LedgerColors.Teal)
+        listOf("pet", "veterinary").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Pets, LedgerColors.Amber)
+        listOf("zakat", "sadqa", "donation", "religious", "eid", "festival", "wedding", "event").any { it in name } ->
+            CategoryVisual(Icons.Rounded.VolunteerActivism, LedgerColors.Green)
+        listOf("business", "office", "freelance", "agriculture").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Work, LedgerColors.Blue)
+        listOf("emergency", "insurance").any { it in name } ->
+            CategoryVisual(Icons.Rounded.Warning, LedgerColors.Red)
+        else -> CategoryVisual(Icons.Rounded.LocalOffer, Color(0xFF7C92AE))
     }
 }
 

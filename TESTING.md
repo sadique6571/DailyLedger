@@ -1,3 +1,16 @@
+# Current workspace notes — Daily Ledger source 1.7.14
+
+Checked locally on **2026-10-10**:
+
+- `:app:testDebugUnitTest`: passed, **53 tests**, no failures, errors or skips.
+- Application Kotlin compiled as part of unit testing. No APK build was run for this change; source is version code **14**, version name **1.7.14**.
+- Category asset contains **160 unique categories** (145 expenses and 15 income categories); every built-in label has a canonical AI category rule.
+- Category-learning matcher tests confirm remembered corrections override AI suggestions by item phrase and transaction type.
+- Android instrumentation tests, including the encrypted category-memory round-trip, were not run or recompiled after these edits; no attached device or emulator is available. JVM matcher and category inference tests did run.
+- Live Firebase email/password provider settings and cloud restore were not accessible from this local build; when Firebase returns `ERROR_OPERATION_NOT_ALLOWED`, the app now identifies the Email/Password provider setting that the project owner must enable.
+
+The previous verified APK was version **1.7.13**, code **13**; it does not contain the category-learning changes. The dated sections below record earlier CI artifacts and device results.
+
 # Testing Daily Ledger 1.6.1
 
 Verified on **2026-10-08**, build commit **4ba852eed63a99d0f1d859772f67f44686206286**:
@@ -8,7 +21,7 @@ Verified on **2026-10-08**, build commit **4ba852eed63a99d0f1d859772f67f44686206
 - Release APK package, version, existing signing certificate and non-debuggable status verified. The APK contains Play Integrity and excludes the Firebase debug App Check provider.
 - Dashboard, separate totals, reviewed Auto Fill, Udhar date review, Settings and More screen captures inspected for layout and readable content.
 
-New regression coverage includes supplied/mixed dates, invalid/leap dates, Urdu digits/grouped money, repeated purchases, whole-batch rejection, specific categories, Udhar partial/full payment bounds, retry idempotency, account isolation and transactional backup rollback. Device checks cover encrypted schema upgrades through version 5 and editing a purchase date before saving while retaining its separate due date. Existing backup conflict, corruption and recovery safeguards remain tested.
+Historical CI regression coverage includes supplied/mixed dates, invalid/leap dates, Urdu digits/grouped money, repeated purchases, whole-batch rejection, specific categories, Udhar partial/full payment bounds, retry idempotency, account isolation and transactional backup rollback. The v1.6.1 device run covered encrypted schema upgrades through version 5 and editing purchase dates; the v1.7.13 version-6 migration, salary-cycle, complete transaction restore and frequent-purchase detail instrumentation tests compile locally but require a device/emulator to execute. Existing backup conflict, corruption and recovery safeguards remain tested.
 
 APK: **1.6.1**, version code **9**, package `com.sadique.dailyledger`, **29,251,281 bytes**.
 

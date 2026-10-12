@@ -21,8 +21,10 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
         SavingEntity::class,
         CreditPurchaseEntity::class,
         CreditPaymentEntity::class,
+        LedgerCycleEntity::class,
+        LedgerArchiveEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -125,6 +127,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS ledger_cycles (ownerId TEXT NOT NULL, startAt INTEGER NOT NULL, openingBalanceMinor INTEGER NOT NULL, PRIMARY KEY(ownerId))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS ledger_archives (id TEXT NOT NULL, ownerId TEXT NOT NULL, archiveKey TEXT NOT NULL, label TEXT NOT NULL, startAt INTEGER NOT NULL, endAt INTEGER NOT NULL, salaryMinor INTEGER NOT NULL, otherIncomeMinor INTEGER NOT NULL, expensesMinor INTEGER NOT NULL, committeeMinor INTEGER NOT NULL, savingsMinor INTEGER NOT NULL, openingBalanceMinor INTEGER NOT NULL, closingBalanceMinor INTEGER NOT NULL, archivedAt INTEGER NOT NULL, PRIMARY KEY(id))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_ledger_archives_ownerId_archiveKey ON ledger_archives(ownerId, archiveKey)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_ledger_archives_ownerId ON ledger_archives(ownerId)")
+            }
+        }
+
         @Volatile private var INSTANCE: AppDatabase? = null
 
         fun get(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {
@@ -134,7 +145,7 @@ abstract class AppDatabase : RoomDatabase() {
                 DatabaseEncryption.migrate(file, password)
                 Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "daily-ledger.db")
                     .openHelperFactory(EncryptedOpenHelperFactory(password))
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also { INSTANCE = it }
             }
         }

@@ -19,7 +19,7 @@ class LedgerTotalsTest {
         ), "2026-10")
         assertEquals(10000000L, summary.salary)
         assertEquals(3000000L, summary.expenses)
-        assertEquals(7000000L, summary.remaining)
+        assertEquals(10000000L, summary.remaining)
         assertEquals(3000000L, summary.otherIncome)
     }
     @Test fun salaryLabelsAreRecognizedWithoutTreatingAllIncomeAsSalary() {
@@ -33,6 +33,46 @@ class LedgerTotalsTest {
         val summary = monthlySalarySummary(listOf(tx("INCOME", 10000, "Salary"), tx("EXPENSE", 12500, "Food")), "2026-10")
         assertEquals(-2500L, summary.remaining)
         assertEquals(0L, monthlySalarySummary(emptyList(), "2026-10").remaining)
+    }
+    @Test fun currentMonthKametiAndSavingsAreDeductedFromAvailableSalary() {
+        val contribution = CommitteePaymentEntity("cp", "owner", "c", 1, "2026-10", 1500, 1)
+        val previousContribution = contribution.copy(id = "cp-old", month = "2026-09")
+        val saving = SavingEntity("s", "owner", "DIRECT", 500, "2026-10-06", "", 1)
+        val previousSaving = saving.copy(id = "s-old", date = "2026-09-30")
+        val summary = monthlySalarySummary(
+            listOf(tx("INCOME", 10000, "Salary"), tx("EXPENSE", 2500, "Food")),
+            "2026-10",
+            listOf(contribution, previousContribution),
+            listOf(saving, previousSaving),
+        )
+        assertEquals(1500L, summary.committeeContributions)
+        assertEquals(500L, summary.savingsContributions)
+        assertEquals(4500L, summary.totalOutflow)
+        assertEquals(5500L, summary.remaining)
+    }
+    @Test fun manualSalaryCycleKeepsOpeningBalanceAndOnlyCountsNewEntries() {
+        val cycle = LedgerCycleEntity("owner", 100, 700)
+        val transactions = listOf(
+            tx("INCOME", 9000, "Salary").copy(createdAt = 99),
+            tx("INCOME", 10000, "Salary").copy(createdAt = 100),
+            tx("INCOME", 2000, "Bonus").copy(createdAt = 120),
+            tx("EXPENSE", 3000, "Food").copy(createdAt = 130),
+        )
+        val payments = listOf(
+            CommitteePaymentEntity("old", "owner", "c", 1, "2026-10", 400, 99),
+            CommitteePaymentEntity("new", "owner", "c", 2, "2026-10", 500, 135),
+        )
+        val savings = listOf(
+            SavingEntity("old", "owner", "DIRECT", 200, "2026-10-01", "", 99),
+            SavingEntity("new", "owner", "DIRECT", 600, "2026-10-02", "", 140),
+        )
+        val summary = ledgerCycleSummary(transactions, payments, savings, cycle, now = 150)
+        assertEquals(10000L, summary.salary)
+        assertEquals(2000L, summary.otherIncome)
+        assertEquals(3000L, summary.expenses)
+        assertEquals(500L, summary.committeeContributions)
+        assertEquals(600L, summary.savingsContributions)
+        assertEquals(8600L, summary.remaining)
     }
     @Test fun twoKametisReceiveOneAtATime() {
         val c = committee()

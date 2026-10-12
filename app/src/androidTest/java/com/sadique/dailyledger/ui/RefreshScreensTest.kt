@@ -43,7 +43,7 @@ class RefreshScreensTest {
         compose.setContent { DailyLedgerTheme("AQUA") { LedgerBackdrop {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 LedgerBrandHeader("Settings & backup")
-                AccountBackupCard(true, false, "", "", false, {}, { action = "restore" }, { action = "details" })
+                AccountBackupCard(true, false, "", "", false, {}, { action = "restore" }, { action = "backup" }, { action = "details" })
                 PersonalizationCard(true, true, "Okara", {}, {}, { action = "location" }, {})
                 SavingsSettingsCard(0) { action = "savings" }
                 EncryptionBanner()
@@ -53,6 +53,8 @@ class RefreshScreensTest {
         compose.onNodeWithText("Backup available").assertDoesNotExist()
         compose.onNodeWithText("Restore data").performClick()
         assertEquals("restore", action)
+        compose.onNodeWithText("Back up now").performClick()
+        assertEquals("backup", action)
         shot("aqua-settings")
         compose.onNodeWithText("Change").performScrollTo().performClick()
         assertEquals("location", action)

@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.util.UUID
 
 class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
@@ -19,6 +20,70 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     val committeeReceipts = dao.observeCommitteeReceipts(ownerId)
     val committeeMembers = dao.observeCommitteeMembers(ownerId)
     val savings = dao.observeSavings(ownerId)
+    val ledgerCycle = dao.observeLedgerCycle(ownerId)
+    val ledgerArchives = dao.observeLedgerArchives(ownerId)
+
+    suspend fun ensureLedgerCycle(now: Long = System.currentTimeMillis()) = db.withTransaction {
+        val transactions = dao.transactionsNow(ownerId)
+        val lastSalaryAt = transactions.filter { it.isSalary() && it.createdAt <= now }.maxOfOrNull { it.createdAt }
+        val firstRecordAt = transactions.filter { it.createdAt <= now }.minOfOrNull { it.createdAt }
+        val initialStart = lastSalaryAt ?: firstRecordAt
+            ?: LocalDate.ofInstant(java.time.Instant.ofEpochMilli(now), ZoneId.systemDefault())
+                .withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        dao.insertLedgerCycle(LedgerCycleEntity(ownerId, initialStart, 0L))
+    }
+
+    suspend fun startNewLedgerCycle(now: Long = System.currentTimeMillis()) = db.withTransaction {
+        val cycle = requireNotNull(dao.ledgerCycleNow(ownerId)) { "Your salary cycle is still loading. Try again shortly." }
+        require(now >= cycle.startAt) { "The device clock is earlier than the active salary cycle. Correct the date and try again." }
+        val startedAt = if (now > cycle.startAt) now else Math.addExact(cycle.startAt, 1L)
+        val summary = ledgerCycleSummary(
+            dao.transactionsNow(ownerId), dao.committeePaymentsNow(ownerId), dao.savingsNow(ownerId), cycle, now,
+        )
+        val key = "cycle:${cycle.startAt}"
+        val zone = ZoneId.systemDefault()
+        val periodStart = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(cycle.startAt), zone)
+        val periodEnd = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(now), zone)
+        dao.insertLedgerArchive(
+            LedgerArchiveEntity(
+                id = "$ownerId:archive:$key", ownerId = ownerId, archiveKey = key,
+                label = "Salary cycle $periodStart to $periodEnd",
+                startAt = cycle.startAt, endAt = now, salaryMinor = summary.salary,
+                otherIncomeMinor = summary.otherIncome, expensesMinor = summary.expenses,
+                committeeMinor = summary.committeeContributions, savingsMinor = summary.savingsContributions,
+                openingBalanceMinor = summary.openingBalanceMinor, closingBalanceMinor = summary.remaining,
+                archivedAt = now,
+            ),
+        )
+        dao.upsertLedgerCycle(LedgerCycleEntity(ownerId, startedAt, summary.remaining))
+    }
+
+    suspend fun archivePreviousCalendarMonth(now: Long = System.currentTimeMillis()): Boolean = db.withTransaction {
+        val month = YearMonth.from(LocalDate.ofInstant(java.time.Instant.ofEpochMilli(now), ZoneId.systemDefault())).minusMonths(1)
+        val key = "calendar:$month"
+        if (dao.ledgerArchiveNow(ownerId, key) != null) return@withTransaction false
+        val monthTransactions = dao.transactionsNow(ownerId).filter { it.date.startsWith("$month-") }
+        val calendarStart = month.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val calendarEnd = month.plusMonths(1).atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val monthCommitteePayments = dao.committeePaymentsNow(ownerId).filter {
+            it.month == month.toString() && it.paidAt in calendarStart until calendarEnd
+        }
+        val monthSavings = dao.savingsNow(ownerId).filter {
+            it.date.startsWith("$month-") && it.createdAt in calendarStart until calendarEnd
+        }
+        val summary = monthlySalarySummary(monthTransactions, month.toString(), monthCommitteePayments, monthSavings)
+        dao.insertLedgerArchive(
+            LedgerArchiveEntity(
+                id = "$ownerId:archive:$key", ownerId = ownerId, archiveKey = key,
+                label = month.toString(), startAt = calendarStart, endAt = calendarEnd,
+                salaryMinor = summary.salary, otherIncomeMinor = summary.otherIncome,
+                expensesMinor = summary.expenses, committeeMinor = summary.committeeContributions,
+                savingsMinor = summary.savingsContributions, openingBalanceMinor = 0L,
+                closingBalanceMinor = summary.remaining, archivedAt = now,
+            ),
+        )
+        true
+    }
 
     suspend fun saveTransaction(type: String, amountMinor: Long, category: String, note: String, date: String, existing: TransactionEntity? = null) {
         require(type == "INCOME" || type == "EXPENSE") { "Choose income or expense." }
@@ -222,7 +287,13 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.committeesNow(ownerId).isNotEmpty() || dao.committeePaymentsNow(ownerId).isNotEmpty() ||
         dao.committeeReceiptsNow(ownerId).isNotEmpty() || dao.committeeMembersNow(ownerId).isNotEmpty() ||
         dao.creditPurchasesNow(ownerId).isNotEmpty() || dao.creditPaymentsNow(ownerId).isNotEmpty() ||
-        dao.savingsNow(ownerId).isNotEmpty()
+        dao.savingsNow(ownerId).isNotEmpty() ||
+        dao.ledgerArchivesNow(ownerId).any {
+            it.salaryMinor != 0L || it.otherIncomeMinor != 0L || it.expensesMinor != 0L ||
+                it.committeeMinor != 0L || it.savingsMinor != 0L || it.openingBalanceMinor != 0L ||
+                it.closingBalanceMinor != 0L
+        } ||
+        (dao.ledgerCycleNow(ownerId)?.openingBalanceMinor ?: 0L) != 0L
 
     suspend fun migrateOwner(oldOwner: String) = db.withTransaction {
         if (oldOwner != ownerId) {
@@ -236,12 +307,19 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             dao.migrateCommitteeReceipts(oldOwner, ownerId)
             dao.migrateCommitteeMembers(oldOwner, ownerId)
             dao.migrateSavings(oldOwner, ownerId)
+            dao.migrateLedgerCycle(oldOwner, ownerId)
+            dao.migrateLedgerArchives(oldOwner, ownerId)
         }
     }
 
     suspend fun exportJson(): String = db.withTransaction {
         fun JSONObject.putNullable(key: String, value: Any?) = apply { if (value == null) put(key, JSONObject.NULL) else put(key, value) }
-        val root = JSONObject().put("version", 4).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        val cycle = dao.ledgerCycleNow(ownerId) ?: LedgerCycleEntity(
+            ownerId,
+            YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            0L,
+        ).also { dao.insertLedgerCycle(it) }
+        val root = JSONObject().put("version", 6).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
         root.put("transactions", JSONArray().apply { dao.transactionsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("type",x.type).put("amountMinor",x.amountMinor).put("category",x.category).put("note",x.note).put("date",x.date).put("createdAt",x.createdAt).put("updatedAt",x.updatedAt)) } })
         root.put("loans", JSONArray().apply { dao.loansNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("direction",x.direction).put("person",x.person).put("principalMinor",x.principalMinor).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
         root.put("loanPayments", JSONArray().apply { dao.loanPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("loanId",ownedId(x.loanId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
@@ -252,17 +330,53 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
         root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
         root.put("savings", JSONArray().apply { dao.savingsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("kind",x.kind).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt)) } })
+        root.put("ledgerCycle", JSONObject().put("startAt", cycle.startAt).put("openingBalanceMinor", cycle.openingBalanceMinor))
+        root.put("ledgerArchives", JSONArray().apply {
+            dao.ledgerArchivesNow(ownerId).sortedBy { it.archiveKey }.forEach { x ->
+                put(JSONObject().put("id", ownedId(x.id)).put("archiveKey", x.archiveKey).put("label", x.label)
+                    .put("startAt", x.startAt).put("endAt", x.endAt).put("salaryMinor", x.salaryMinor)
+                    .put("otherIncomeMinor", x.otherIncomeMinor).put("expensesMinor", x.expensesMinor)
+                    .put("committeeMinor", x.committeeMinor).put("savingsMinor", x.savingsMinor)
+                    .put("openingBalanceMinor", x.openingBalanceMinor).put("closingBalanceMinor", x.closingBalanceMinor)
+                    .put("archivedAt", x.archivedAt))
+            }
+        })
         root.toString()
+    }
+
+    suspend fun clearAllForOwner() = db.withTransaction {
+        dao.clearTransactions(ownerId)
+        dao.clearLoans(ownerId)
+        dao.clearLoanPayments(ownerId)
+        dao.clearCreditPurchases(ownerId)
+        dao.clearCreditPayments(ownerId)
+        dao.clearCommittees(ownerId)
+        dao.clearCommitteePayments(ownerId)
+        dao.clearCommitteeReceipts(ownerId)
+        dao.clearCommitteeMembers(ownerId)
+        dao.clearSavings(ownerId)
+        dao.clearLedgerCycle(ownerId)
+        dao.clearLedgerArchives(ownerId)
+        dao.insertLedgerCycle(
+            LedgerCycleEntity(
+                ownerId,
+                YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                0L,
+            ),
+        )
     }
 
     suspend fun importJson(json: String) = db.withTransaction {
         val root = JSONObject(json)
         val version = root.optInt("version")
-        require(version in 1..4) { "Unsupported backup version. Update the app to restore it." }
+        require(version in 1..6) { "Unsupported backup version. Update the app to restore it." }
         require(version == 1 || root.optJSONArray("committeeReceipts") != null) { "Backup is missing kameti receipts; your local data was not changed." }
         if (version >= 3) require(root.optJSONArray("committeeMembers") != null) { "Backup is missing kameti members; your local data was not changed." }
         if (version >= 4) {
             require(root.optJSONArray("creditPurchases") != null && root.optJSONArray("creditPayments") != null) { "Backup is missing udhar records; your local data was not changed." }
+        }
+        if (version >= 5) {
+            require(root.optJSONObject("ledgerCycle") != null && root.optJSONArray("ledgerArchives") != null) { "Backup is missing salary-cycle data; your local data was not changed." }
         }
         listOf("transactions", "loans", "loanPayments", "committees", "committeePayments", "savings").forEach {
             require(root.optJSONArray(it) != null) { "Backup is incomplete; your local data was not changed." }
@@ -278,6 +392,8 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         val savings = root.getJSONArray("savings")
 
         dao.clearCommitteeMembers(ownerId)
+        dao.clearLedgerCycle(ownerId)
+        dao.clearLedgerArchives(ownerId)
         dao.clearCommitteeReceipts(ownerId)
         dao.clearCreditPayments(ownerId)
         dao.clearCreditPurchases(ownerId)
@@ -288,7 +404,20 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.clearCommittees(ownerId)
         dao.clearSavings(ownerId)
 
-        dao.insertTransactions(tx.objects().map { o -> TransactionEntity(ownedId(o.getString("id")),ownerId,o.getString("type"),o.getLong("amountMinor"),o.optString("category"),o.optString("note"),o.getString("date"),o.getLong("createdAt"),o.optLong("updatedAt",o.getLong("createdAt"))) })
+        val restoredTransactions = tx.objects().map { o ->
+            TransactionEntity(
+                ownedId(o.getString("id")), ownerId, o.getString("type"), o.getLong("amountMinor"),
+                o.optString("category"), o.optString("note"), o.getString("date"), o.getLong("createdAt"),
+                o.optLong("updatedAt", o.getLong("createdAt")),
+            )
+        }
+        require(restoredTransactions.map { it.id }.distinct().size == restoredTransactions.size) {
+            "Duplicate transaction IDs in backup. Your local data was not changed."
+        }
+        dao.insertTransactions(restoredTransactions)
+        require(dao.transactionsNow(ownerId).size == restoredTransactions.size) {
+            "Not all transactions were restored. Your local data was not changed."
+        }
         dao.insertLoans(loans.objects().map { o -> LoanEntity(ownedId(o.getString("id")),ownerId,o.getString("direction"),o.optString("person"),o.getLong("principalMinor"),o.optString("dueDate").takeIf{it.isNotBlank()&&it!="null"},o.optString("note"),o.getLong("createdAt"),o.optBoolean("closed"),o.optString("phone"),o.optString("whatsapp")) })
         dao.insertLoanPayments(lp.objects().map { o -> LoanPaymentEntity(ownedId(o.getString("id")),ownerId,ownedId(o.getString("loanId")),o.getLong("amountMinor"),o.getString("date"),o.optString("note"),o.getLong("createdAt"),o.optString("method","Cash")) })
         val restoredCreditPurchases = creditPurchases.objects().map { o -> CreditPurchaseEntity(ownedId(o.getString("id")),ownerId,o.optString("creditor","Unknown shop/person"),o.optString("item","Saman"),o.getLong("amountMinor"),o.optString("category","Other"),o.getString("purchaseDate"),o.optString("dueDate").takeIf{it.isNotBlank()&&it!="null"},o.optString("note"),o.getLong("createdAt"),o.optBoolean("closed"),o.optString("phone"),o.optString("whatsapp")) }
@@ -310,6 +439,40 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.insertCommittees(committees.objects().map { o -> CommitteeEntity(ownedId(o.getString("id")),ownerId,o.optString("name"),o.getLong("monthlyAmountMinor"),o.getInt("totalInstallments"),o.getString("startMonth"),if(o.isNull("payoutInstallment")) null else o.getInt("payoutInstallment"),o.optBoolean("received"),o.optBoolean("active",true),o.optString("note"),o.getLong("createdAt"),o.optInt("shares",1),o.optString("organizerPhone"),o.optString("memberSchedule")) })
         dao.insertCommitteePayments(cp.objects().map { o -> CommitteePaymentEntity(ownedId(o.getString("id")),ownerId,ownedId(o.getString("committeeId")),o.getInt("installmentNumber"),o.getString("month"),o.getLong("amountMinor"),o.getLong("paidAt"),o.optString("method","Cash")) })
         dao.insertSavings(savings.objects().map { o -> SavingEntity(ownedId(o.getString("id")),ownerId,o.getString("kind"),o.getLong("amountMinor"),o.getString("date"),o.optString("note"),o.getLong("createdAt")) })
+        val defaultStart = YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val restoredCycle = root.optJSONObject("ledgerCycle")?.let { o ->
+            LedgerCycleEntity(ownerId, o.getLong("startAt"), o.getLong("openingBalanceMinor"))
+        } ?: LedgerCycleEntity(ownerId, defaultStart, 0L)
+        require(restoredCycle.startAt > 0L) { "Invalid salary-cycle data in backup." }
+        dao.upsertLedgerCycle(restoredCycle)
+        val restoredArchives = if (version >= 5) root.getJSONArray("ledgerArchives").objects().map { o ->
+            LedgerArchiveEntity(
+                id = ownedId(o.getString("id")), ownerId = ownerId, archiveKey = o.getString("archiveKey"),
+                label = o.getString("label"), startAt = o.getLong("startAt"), endAt = o.getLong("endAt"),
+                salaryMinor = o.getLong("salaryMinor"), otherIncomeMinor = o.getLong("otherIncomeMinor"),
+                expensesMinor = o.getLong("expensesMinor"), committeeMinor = o.getLong("committeeMinor"),
+                savingsMinor = o.getLong("savingsMinor"), openingBalanceMinor = o.getLong("openingBalanceMinor"),
+                closingBalanceMinor = o.getLong("closingBalanceMinor"), archivedAt = o.getLong("archivedAt"),
+            )
+        } else emptyList()
+        require(restoredArchives.map { it.archiveKey }.distinct().size == restoredArchives.size) { "Duplicate archived periods in backup." }
+        restoredArchives.forEach { archive ->
+            require(archive.archiveKey.isNotBlank() && archive.startAt <= archive.endAt)
+            require(listOf(archive.salaryMinor, archive.otherIncomeMinor, archive.expensesMinor, archive.committeeMinor, archive.savingsMinor).all { it >= 0L })
+            val expensesAndContributions = Math.addExact(archive.expensesMinor, Math.addExact(archive.committeeMinor, archive.savingsMinor))
+            val expected = Math.subtractExact(
+                Math.addExact(Math.addExact(archive.openingBalanceMinor, archive.salaryMinor), if (version >= 6) archive.otherIncomeMinor else 0L),
+                expensesAndContributions,
+            )
+            val legacyExpected = Math.subtractExact(
+                Math.addExact(archive.openingBalanceMinor, archive.salaryMinor),
+                expensesAndContributions,
+            )
+            require(archive.closingBalanceMinor == expected || (version >= 6 && archive.closingBalanceMinor == legacyExpected)) {
+                "Archived balance does not match its totals."
+            }
+        }
+        dao.insertLedgerArchives(restoredArchives)
 
         val savedCommittees = dao.committeesNow(ownerId)
         savedCommittees.forEach { require(it.shares > 0 && it.totalInstallments > 0 && it.monthlyAmountMinor > 0); it.expectedPayout() }

@@ -5,7 +5,23 @@ import org.junit.Test
 import java.time.LocalDate
 class SpendingInsightsTest {
  private fun tx(id:String,date:String,amount:Long,cat:String="Fuel",owner:String="me",type:String="EXPENSE")=TransactionEntity(id,owner,type,amount,cat,"private",date,1,1)
- @Test fun salaryOtherIncomeRemainSeparate(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-10-01",6000000,"Salary",type="INCOME"),tx("b","2026-10-02",200000),tx("c","2026-10-03",100000,"Bonus",type="INCOME")),LocalDate.parse("2026-10-06"));assertEquals(5800000L,s.summary.remaining);assertEquals(100000L,s.summary.otherIncome)}
+ @Test fun otherIncomeHasItsOwnTotalAndAddsToAvailableBalance(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-10-01",6000000,"Salary",type="INCOME"),tx("b","2026-10-02",200000),tx("c","2026-10-03",100000,"Bonus",type="INCOME")),LocalDate.parse("2026-10-06"));assertEquals(5900000L,s.summary.remaining);assertEquals(100000L,s.summary.otherIncome)}
+ @Test fun carriedBalanceIsIncludedInDashboardAndAiSummary() {
+  val today = LocalDate.now()
+  val cycle = LedgerCycleEntity("me", 1, 25000)
+  val salary = tx("salary", today.toString(), 100000, "Salary", type = "INCOME")
+  val snapshot = SpendingInsights.calculate("me", listOf(salary), today, ledgerCycle = cycle)
+  assertEquals(125000L, snapshot.summary.remaining)
+ }
+ @Test fun monthlyBalanceAndAiContextDeductKametiAndSavingsOnce(){
+  val today=LocalDate.parse("2026-10-06")
+  val payment=CommitteePaymentEntity("cp","me","committee",1,"2026-10",150000,1)
+  val saving=SavingEntity("saving","me","DIRECT",50000,"2026-10-05","",1)
+  val snapshot=SpendingInsights.calculate("me",listOf(tx("salary","2026-10-01",1000000,"Salary",type="INCOME"),tx("expense","2026-10-02",200000)),today,savings=listOf(saving),committeePayments=listOf(payment))
+  assertEquals(150000L,snapshot.summary.committeeContributions)
+  assertEquals(50000L,snapshot.summary.savingsContributions)
+  assertEquals(600000L,snapshot.summary.remaining)
+ }
  @Test fun sameDaysInShortMonths(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-02-28",10000),tx("b","2026-03-28",15000),tx("c","2026-03-31",20000)),LocalDate.parse("2026-03-31"));assertEquals(28,s.comparisonDays);assertEquals(15000L,s.currentComparable);assertEquals(10000L,s.previousComparable);assertEquals(35000L,s.summary.expenses)}
  @Test fun noOtherAccountsOrFutureRows(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-10-01",10000),tx("b","2026-10-01",99999,owner="other"),tx("c","2026-10-07",99999)),LocalDate.parse("2026-10-06"));assertEquals(10000L,s.summary.expenses);assertEquals(1,s.count)}
  @Test fun onlyOptionalSpendingReduced(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-10-01",100000,"Restaurant"),tx("b","2026-10-01",500000,"Medicines")),LocalDate.parse("2026-10-06"));assertTrue(s.tips.single{it.title=="Bachat ka ek option"}.detail.contains("Rs 200"))}

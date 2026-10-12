@@ -31,6 +31,32 @@ class BackupCryptoTest {
     }
 
     @Test
+    fun passphraseBackupRoundTripsAndRejectsTheWrongPassphrase() {
+        val original = """{"ownerId":"owner","transactions":[{"amountMinor":12500}]}"""
+        val encrypted = BackupCrypto.encrypt(original.toByteArray(), "strong passphrase".toCharArray())
+
+        assertEquals(original, String(BackupCrypto.decrypt(encrypted, "strong passphrase".toCharArray())))
+        try {
+            BackupCrypto.decrypt(encrypted, "incorrect passphrase".toCharArray())
+            fail("Expected a wrong passphrase to fail authentication")
+        } catch (_: javax.crypto.AEADBadTagException) {
+            // AES-GCM rejects altered ciphertext and incorrect passphrases.
+        }
+    }
+
+    @Test
+    fun passphraseFingerprintIsStableButDoesNotExposePlaintextHash() {
+        val json = """{"ownerId":"owner","balance":12500}"""
+        val first = BackupCrypto.passphraseFingerprint(json, "strong passphrase".toCharArray(), "owner")
+        val same = BackupCrypto.passphraseFingerprint(json, "strong passphrase".toCharArray(), "owner")
+        val wrongPassphrase = BackupCrypto.passphraseFingerprint(json, "different phrase".toCharArray(), "owner")
+
+        assertEquals(first, same)
+        assertNotEquals(first, wrongPassphrase)
+        assertNotEquals(BackupCrypto.sha256Hex(json.toByteArray()), first)
+    }
+
+    @Test
     fun testNoncesAreUniquePerEncryptionRun() {
         val dek = BackupCrypto.generateDek()
         val plainBytes = "Sample Data".toByteArray(Charsets.UTF_8)
