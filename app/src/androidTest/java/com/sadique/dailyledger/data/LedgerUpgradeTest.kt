@@ -95,7 +95,7 @@ class LedgerUpgradeTest {
             repo.addCommitteeReceipt(c.id, 6000000, "2026-11-06", "Second kameti")
             assertTrue(repo.committees.first().single().received)
             val json = repo.exportJson()
-            assertEquals(5, JSONObject(json).getInt("version"))
+            assertEquals(6, JSONObject(json).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(json)
             val restoredCommittee = restored.committees.first().single()
@@ -142,7 +142,7 @@ class LedgerUpgradeTest {
 
             val restored = LedgerRepository(db, "restored")
             val backupJson = original.exportJson()
-            assertEquals(5, JSONObject(backupJson).getInt("version"))
+            assertEquals(6, JSONObject(backupJson).getInt("version"))
             restored.importJson(backupJson)
 
             val transactions = restored.transactions.first().sortedBy { it.date }

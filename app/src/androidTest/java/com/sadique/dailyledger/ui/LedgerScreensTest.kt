@@ -92,8 +92,8 @@ class LedgerScreensTest {
         }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
         compose.onNodeWithContentDescription("View Sabzi history").performScrollTo().performClick()
-        compose.onAllNodesWithText("Sabzi").assertCountEquals(3) // title plus both recorded purchases
-        compose.onNodeWithText(displayMoney(70000)).assertExists()
+        compose.onAllNodes(hasText("Sabzi") and hasAnyAncestor(isDialog())).assertCountEquals(3) // title plus both recorded purchases
+        compose.onNode(hasText("Total this cycle: ${displayMoney(70000)}") and hasAnyAncestor(isDialog())).assertIsDisplayed()
         compose.onNodeWithText(displayMoney(50000)).assertIsDisplayed()
         compose.onNodeWithText(displayMoney(20000)).assertIsDisplayed()
         compose.onNodeWithText("Total this cycle: ${displayMoney(70000)}").assertIsDisplayed()

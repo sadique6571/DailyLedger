@@ -386,6 +386,7 @@ fun DailyLedgerApp(
                     onOpenKameti = { tab = 3 },
                     onAutoFill = { autoFillOpen = true },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; tab = 1 },
+                    onExpenseHistory = { historyQuery = ""; historyFilter = "EXPENSE"; tab = 1 },
                     onStartNewMonth = vm::startNewMonth,
                     onArchivePreviousMonth = { callback -> vm.archivePreviousMonth(callback) },
                     snapshot = snapshot,

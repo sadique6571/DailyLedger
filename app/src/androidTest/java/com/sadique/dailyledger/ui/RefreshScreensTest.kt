@@ -49,8 +49,8 @@ class RefreshScreensTest {
                 EncryptionBanner()
             }
         } } }
-        compose.onNodeWithText("Awaiting first backup").assertIsDisplayed()
-        compose.onNodeWithText("Backup available").assertDoesNotExist()
+        compose.onNodeWithText("Awaiting first Drive backup").assertIsDisplayed()
+        compose.onNodeWithText("Google Drive backup available").assertDoesNotExist()
         compose.onNodeWithText("Restore data").performClick()
         assertEquals("restore", action)
         compose.onNodeWithText("Back up now").performClick()

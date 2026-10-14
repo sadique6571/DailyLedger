@@ -54,6 +54,7 @@ fun DashboardScreen(
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
     aiStatus: String = "", aiEnabled: Boolean = false, onEnableAi: () -> Unit = {},
     onAllTransactions: (() -> Unit)? = null,
+    onExpenseHistory: () -> Unit = { onAllTransactions?.invoke() },
     onAddOtherIncome: () -> Unit = onAddSalary,
     onAddCategoryExpense: (String, String) -> Unit = { _, _ -> onAddExpense() },
     onOpenInsights: () -> Unit = {}, onOpenLoans: () -> Unit = {}, onOpenUdhar: () -> Unit = {},
@@ -219,7 +220,7 @@ fun DashboardScreen(
                     if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, { onAllTransactions?.invoke() }) }
+            enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
             if (frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
