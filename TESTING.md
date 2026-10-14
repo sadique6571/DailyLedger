@@ -1,4 +1,26 @@
-# Current workspace notes — Daily Ledger source 1.7.16
+# Current release — Daily Ledger 1.8.0
+
+Verified on **2026-10-14**, build commit **cb2f7625035c78be38d8e1ddf287646c2b15024d**:
+[successful GitHub Actions run](https://github.com/sahulatcenterdsj-maker/DailyLedger/actions/runs/38544427519).
+
+- **57 JVM tests** and **33 Android device tests** passed with no failures or skipped tests (Android 10 / API 29).
+- Firestore/Storage emulator security-rule checks, **11 Cloud Functions handler tests** and **19 Java backup-core checks** passed.
+- Debug, instrumentation and release APKs compiled. Release package, version, existing signing certificate and non-debuggable status verified. The release contains Play Integrity and excludes the Firebase debug App Check provider.
+- New regression coverage includes salary countdown/month-end handling, daily spending estimates, hidden balance amounts, historical versus current-month kameti deductions, quantity/date/spelling parsing, category learning and searchable category selection.
+- Existing encrypted-database upgrades, version-6 backup round trips, account isolation, rollback, salary-cycle carry-forward and frequent-purchase date/history checks pass. Stale device-test expectations were aligned with the existing version-6 backup format and current Drive backup labels; the backup implementation was not changed.
+- Balance guide, donut/category breakdown, reviewed Auto Fill and More previews were inspected. PDF export was rendered on Android and all three sample statement pages were inspected for headers, amounts, rows and pagination; empty statements were also tested.
+
+APK: **1.8.0**, version code **17**, package `com.sadique.dailyledger`, **26,467,349 bytes**.
+
+SHA-256: `bcb929c5068f77bb695f8eabf4ba32f3dea0b1edd791745680c7839eb415f72f`.
+
+Signing certificate SHA-1: `c6e19da96097e5424a34766e15746edca7c0f707` (existing shared development identity).
+
+Install over the existing app using the same package/signature; do not uninstall or clear data to update. Online AI, Google Drive backup and local SQLCipher encryption retain the existing implementation. Current Drive backups are readable JSON in the user's private app-data folder, not end-to-end encrypted backups.
+
+No Firebase deployment, billing change or live account operation was performed for this release. These automated checks do not verify live Google sign-in, Gemini inference, a real Drive upload or a second-device restore. The dated sections below are historical evidence, including legacy cloud-backup mechanisms that are no longer used for new backups.
+
+# Historical workspace notes — Daily Ledger source 1.7.16
 
 Verified locally on **2026-10-12**:
 

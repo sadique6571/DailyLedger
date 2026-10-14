@@ -11,7 +11,7 @@ A native Android personal-finance app for PKR income, spending, savings, loans a
 - Salary, expense, other-income and savings cards open entry forms; category rows in the donut open a preselected expense. Balance opens its breakdown. Frequent-purchase cards open a prefilled item; their History button shows dated purchases and totals.
 - Donut chart includes the total, stable category colours, amounts, percentages and expandable category rows.
 - Cards slide in from the left with a short stagger and fade. Amount changes do not restart their animation; no shimmer effect. Savings uses a wallet icon.
-- Recording an old kameti installment now increases its paid count/total without deducting the active salary balance. An installment paid in its own month deducts once and remains charged when that salary cycle crosses into another month. Calendar-month archive reports still group installments by their installment month.
+- Recording an old kameti installment now increases its paid count/total without deducting the active salary balance. An installment paid in its own month deducts once and remains charged when that salary cycle crosses into another month. Recorded payment totals remain in Kameti history; existing archive snapshots and calendar archive rules are retained.
 - Google Drive **Restore** and **Back up now** remain available regardless of auto-backup status.
 - Multiple kameti shares, partial receiving, structured member turns, contact actions and reminders.
 - Borrowed/lent loans with payment methods, complete payment history and overpayment checks.
@@ -63,4 +63,6 @@ Source/CI checks do not prove a successful request to the live Firebase project.
 
 ## Verified APK
 
-The current source is configured for version **1.8.0** (code **17**). Build the non-debuggable APK with `.\gradlew.bat assembleRelease`; install over the existing app without clearing data. The release uses the existing shared development signing identity for update compatibility; it is not a private production signing key. Cloud AI still requires the owner-side Firebase steps described above.
+Version **1.8.0** (code **17**) passed [release verification on 14 October 2026](https://github.com/sahulatcenterdsj-maker/DailyLedger/actions/runs/38544427519): 57 JVM tests, 33 Android emulator tests, Firebase rule checks, 11 Cloud Functions tests and 19 backup-core checks. The run's **DailyLedger-APK** artifact contains the non-debuggable APK and its signature/checksum report; artifacts expire after 14 days. Full results and the APK SHA-256 are in [TESTING.md](TESTING.md).
+
+Build locally with `.\gradlew.bat assembleRelease`; install over the existing app without clearing data. The release uses the existing shared development signing identity for update compatibility; it is not a private production signing key. The existing Firebase configuration is retained. Automated tests do not verify live Google sign-in, Gemini inference or two-device Drive restore.
