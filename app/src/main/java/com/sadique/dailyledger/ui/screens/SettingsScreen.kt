@@ -6,6 +6,8 @@ import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -59,6 +61,7 @@ fun SettingsScreen(
     onTransactionSounds: (Boolean) -> Unit,
     onLogout: () -> Unit,
     onOpenSavings: () -> Unit = {},
+    onAutoFill: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
@@ -74,6 +77,7 @@ fun SettingsScreen(
     }
     var message by remember { mutableStateOf<String?>(null) }
     var exportResult by remember { mutableStateOf<String?>(null) }
+    var exportPdf by remember { mutableStateOf(true) }
     var exportPeriod by remember { mutableStateOf(ExportPeriod.CURRENT_MONTH) }
     var exportFrom by remember { mutableStateOf("") }
     var exportThrough by remember { mutableStateOf("") }
@@ -263,6 +267,7 @@ fun SettingsScreen(
                 Text("Daily Ledger", fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 Text("Your account & preferences", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            IconButton(onClick = onAutoFill, enabled = !busy) { Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill") }
         }
 
         AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
@@ -331,7 +336,24 @@ fun SettingsScreen(
             }
         }
 
-        SectionCard("Export", "Choose a statement period. Dates use YYYY-MM-DD.") {
+        SectionCard("Export your ledger", "A statement to share, or a spreadsheet to work with.") {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
+                    Surface(
+                        modifier = Modifier.weight(1f).clickable(enabled = !busy) { exportPdf = pdf },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (exportPdf == pdf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (exportPdf == pdf) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(if (pdf) Icons.Rounded.PictureAsPdf else Icons.Rounded.TableChart, null, tint = MaterialTheme.colorScheme.primary)
+                            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(if (pdf) "Designed for reading" else "Full descriptions & ledgers", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+            Text("Statement period", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf(
                     ExportPeriod.CURRENT_MONTH to "Current month",
@@ -364,10 +386,12 @@ fun SettingsScreen(
                 )
                 Text("Leave either date empty to include records before or after the entered date.", style = MaterialTheme.typography.bodySmall)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !busy, onClick = { export(false) }) { Text("Export CSV") }
-                OutlinedButton(enabled = !busy, onClick = { export(true) }) { Text("Export PDF") }
-            }
+            Text(if (exportPdf) "PDF includes income, expenses and period totals. It does not replace a backup."
+                else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
+                Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
+            Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {

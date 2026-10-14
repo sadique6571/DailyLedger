@@ -1,6 +1,7 @@
 package com.sadique.dailyledger.ai
 
 import com.sadique.dailyledger.data.TransactionDraft
+import com.sadique.dailyledger.data.ItemCategories
 import java.util.Locale
 
 /**
@@ -20,7 +21,7 @@ object CategoryRules {
     )
 
     // Order matters: specific categories are checked before broader ones.
-    private val expenseRules = listOf(
+    private val expenseRules = ItemCategories.entries.map { Rule(it.label, it.aliases) } + listOf(
         Rule("School transport", listOf("school van", "school bus", "school transport", "van")),
         Rule("Vehicle insurance", listOf("car insurance", "vehicle insurance", "bike insurance")),
         Rule("Health insurance", listOf("health insurance", "medical insurance")),
@@ -270,8 +271,7 @@ object CategoryRules {
     fun normalizeResult(result: AiDraftResult): AiDraftResult =
         result.copy(entries = result.entries.map(::normalizeDraft))
 
-    private fun normalizeText(text: String): String = text
-        .lowercase(Locale.ROOT)
+    private fun normalizeText(text: String): String = OfflineVocabulary.normalize(text)
         .replace('&', ' ')
         .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
         .replace(Regex("\\s+"), " ")

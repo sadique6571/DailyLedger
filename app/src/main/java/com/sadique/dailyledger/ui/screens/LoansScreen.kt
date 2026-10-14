@@ -2,6 +2,9 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.enteringItem
+import com.sadique.dailyledger.ui.enteringItems
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -39,8 +42,8 @@ fun LoansScreen(
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
-            items(loans, key = { it.id }) { loan ->
+            enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
+            enteringItems(loans, key = { it.id }) { loan ->
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)

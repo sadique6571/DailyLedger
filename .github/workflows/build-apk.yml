@@ -7,6 +7,7 @@ on:
       - main
       - master
       - codex/build-apk-20261005
+      - codex/ledger-ui-offline-20261014
 
 permissions:
   contents: read

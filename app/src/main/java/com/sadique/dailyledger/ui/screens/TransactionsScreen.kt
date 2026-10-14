@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.enteringItem
+import com.sadique.dailyledger.ui.enteringItems
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,11 +32,13 @@ fun TransactionsScreen(
     onSave: (String, Long, String, String, String, TransactionEntity?) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
     onAutoFill: (() -> Unit)? = null,
+    initialQuery: String = "",
+    initialFilter: String = "ALL",
 ) {
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
-    var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf("ALL") }
+    var query by remember(initialQuery) { mutableStateOf(initialQuery) }
+    var filter by remember(initialFilter) { mutableStateOf(initialFilter) }
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
             (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true))
@@ -49,7 +54,7 @@ fun TransactionsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item {
+            enteringItem {
                 Text("Transactions", style = MaterialTheme.typography.headlineMedium)
                 onAutoFill?.let { action -> FilledTonalButton(onClick = action) { Text("AI Auto Fill") } }
                 OutlinedTextField(query, { query = it }, label = { Text("Search") }, modifier = Modifier.fillMaxWidth())
@@ -59,7 +64,7 @@ fun TransactionsScreen(
                     }
                 }
             }
-            items(filtered, key = { it.id }) { x ->
+            enteringItems(filtered, key = { it.id }) { x ->
                 Card(onClick = { edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
@@ -93,35 +98,33 @@ fun TransactionDialog(
     save: (String, Long, String, String, String) -> Unit,
     initialType: String = "EXPENSE",
     initialCategory: String = "",
+    initialNote: String = "",
+    onHistory: ((String, String) -> Unit)? = null,
 ) {
     var type by remember { mutableStateOf(x?.type ?: initialType) }
     var amount by remember { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: "") }
     var cat by remember { mutableStateOf(x?.category ?: initialCategory) }
-    var note by remember { mutableStateOf(x?.note ?: "") }
+    var note by remember { mutableStateOf(x?.note ?: initialNote) }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
-    var chooseCategory by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val categoryCount = remember(type) { CategoryCatalog.load(context).count { it.type == type } }
-    if (chooseCategory) CategoryPicker(type, { cat = it; chooseCategory = false }, { chooseCategory = false })
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row {
-                    FilterChip(type == "EXPENSE", { type = "EXPENSE" }, { Text("Expense") })
+                    FilterChip(type == "EXPENSE", { type = "EXPENSE"; cat = "" }, { Text("Expense") })
                     Spacer(Modifier.width(8.dp))
-                    FilterChip(type == "INCOME", { type = "INCOME" }, { Text("Income") })
+                    FilterChip(type == "INCOME", { type = "INCOME"; cat = "" }, { Text("Income") })
                 }
                 if (type == "INCOME") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(cat.equals("Salary", true), { cat = "Salary" }, { Text("Salary") })
-                        FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other" }, { Text("Other income") })
+                        FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
                     }
                 }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
-                OutlinedTextField(cat, { cat = it.take(60) }, label = { Text("Category / custom category") })
-                TextButton(onClick = { chooseCategory = true }) { Text("Choose from $categoryCount categories") }
+                CategoryDropdown(type, cat, { cat = it })
+                onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
             }
@@ -130,7 +133,7 @@ fun TransactionDialog(
             Button(
                 enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0,
                 onClick = {
-                    parseMinor(amount)?.takeIf { it > 0 }?.let { save(type, it, cat.ifBlank { "Other" }, note, date.trim()) }
+                    parseMinor(amount)?.takeIf { it > 0 }?.let { save(type, it, cat.ifBlank { if (type == "INCOME") "Other income" else "Other" }, note, date.trim()) }
                 },
             ) { Text("Save") }
         },

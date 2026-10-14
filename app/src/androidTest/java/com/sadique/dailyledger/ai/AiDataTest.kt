@@ -22,7 +22,7 @@ import java.time.LocalDate
  }
  @Test fun privateSummaryAndConsentIsolation(){val row=TransactionEntity("secret-id","owner","EXPENSE",150000,"Fuel","private-note","2026-10-06",1,1);val json=AiProtocol.context(SpendingInsights.calculate("owner",listOf(row),LocalDate.parse("2026-10-06"))).toString();assertFalse(json.contains("secret-id"));assertFalse(json.contains("owner"));assertFalse(json.contains("private-note"));val a=AiPreferences(context,"test-a");val b=AiPreferences(context,"test-b");a.enabled=false;b.enabled=false;a.enabled=true;assertFalse(b.enabled);a.save("hash",listOf(SpendingTip("title","detail")));assertNotNull(a.cached("hash"));assertNull(b.cached("hash"));a.enabled=false;assertNull(a.cached("hash"))}
  @Test fun catalogAndGeminiSummaryPrivacy(){
-  val c=CategoryCatalog.load(context);assertEquals(160,c.size);assertEquals(160,c.map{it.label}.distinct().size);assertTrue(c.any{it.label=="Salary"&&it.type=="INCOME"})
+  val c=CategoryCatalog.load(context);assertTrue(c.size > 200);assertEquals(c.size,c.map{it.type to it.label}.distinct().size);assertTrue(c.any{it.label=="Moong dal"});assertTrue(c.any{it.label=="Salary"&&it.type=="INCOME"})
   assertTrue(c.any{it.label=="Household cash"&&it.type=="EXPENSE"})
   assertTrue(c.any{it.label=="Spouse personal expenses"&&it.type=="EXPENSE"})
   assertEquals("Spouse personal expenses",CategoryRules.infer("EXPENSE","wife kharcha"))

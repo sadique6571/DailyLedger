@@ -47,7 +47,6 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     var editing by remember { mutableStateOf<Int?>(null) }
     var manual by remember { mutableStateOf(false) }
     var manualCategory by remember { mutableStateOf("") }
-    var pickFor by remember { mutableStateOf<Int?>(null) }
     var allCategories by remember { mutableStateOf(false) }
 
     LaunchedEffect(entries.isNotEmpty()) { if (entries.isNotEmpty()) listState.animateScrollToItem(1) }
@@ -82,7 +81,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
             }
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().imePadding().testTag("autofill-list"),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item(key = "mode") {
+                enteringItem(key = "mode") {
                     Surface(shape = RoundedCornerShape(15.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {
                         Row(Modifier.fillMaxWidth().padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             GradientButton("AI Quick Add", {}, Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome)
@@ -92,7 +91,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         }
                     }
                 }
-                item(key = "input") {
+                enteringItem(key = "input") {
                     LedgerCard(Modifier.fillMaxWidth()) {
                         OutlinedTextField(value = input, onValueChange = { input = it.take(AiProtocol.MAX_INPUT) },
                             modifier = Modifier.fillMaxWidth().testTag("autofill-input"),
@@ -114,7 +113,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         if (message.isNotBlank()) Text(message, Modifier.padding(top = 10.dp).testTag("autofill-message"), fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 }
-                if (entries.isNotEmpty()) item(key = "review-heading") {
+                if (entries.isNotEmpty()) enteringItem(key = "review-heading") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Review ${entries.size} entries", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         Text("Not saved yet", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -145,16 +144,21 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                                         Icon(Icons.Rounded.Edit, null, Modifier.size(13.dp)); Spacer(Modifier.width(3.dp)); Text("Edit", fontSize = 10.sp)
                                     }
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    DraftChip(entry.category, visual.icon, MaterialTheme.colorScheme.primary, Modifier.weight(1f), !busy) { pickFor = i }
-                                    DraftChip(if (entry.type == "INCOME") "Income" else "Expense", if (entry.type == "INCOME") Icons.Rounded.AddCircle else Icons.Rounded.RemoveCircle,
-                                        if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red, Modifier.weight(.85f), !busy) { editing = i }
-                                }
+                                CategoryDropdown(entry.type, entry.category, onSelect = { category ->
+                                    if (category != entry.category) {
+                                        val learningError = onLearnCategory(entry.type, entry.note, category)
+                                        message = learningError ?: "Learned: $category for this item."
+                                    }
+                                    entries = entries.mapIndexed { j, old -> if (j == i) old.copy(category = category) else old }
+                                }, enabled = !busy)
+                                DraftChip(if (entry.type == "INCOME") "Income" else "Expense", if (entry.type == "INCOME") Icons.Rounded.AddCircle else Icons.Rounded.RemoveCircle,
+                                    if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red, Modifier, !busy) { editing = i }
+
                             }
                         }
                     }
                 }
-                item(key = "manual-draft") {
+                enteringItem(key = "manual-draft") {
                     LedgerCard(Modifier.fillMaxWidth().clickable(enabled = !busy && entries.size < 10) { manualCategory = ""; manual = true }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             GlowIcon(Icons.Rounded.AddCircle, LedgerColors.Teal, size = 35.dp)
@@ -165,7 +169,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         }
                     }
                 }
-                if (entries.isNotEmpty()) item(key = "save-drafts") {
+                if (entries.isNotEmpty()) enteringItem(key = "save-drafts") {
                     GradientButton("Review & Save (${entries.size})", onClick = {
                         busy = true
                         scope.launch {
@@ -183,7 +187,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     }, modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
                     TextButton(onClick = { entries = emptyList(); message = "Drafts discarded."; batch = UUID.randomUUID().toString() }, enabled = !busy) { Text("Discard drafts") }
                 }
-                item(key = "categories") {
+                enteringItem(key = "categories") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Popular categories", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         TextButton(onClick = { allCategories = true }, enabled = !busy && entries.size < 10) { Text("View all", fontSize = 11.sp) }
@@ -198,7 +202,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         }
                     }
                 }
-                item(key = "offline-details") {
+                enteringItem(key = "offline-details") {
                     Text("Offline Mini AI is always available", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Text("Income and expenses only. Savings, loans and kameti use their own spaces.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (!enabled) TextButton(onClick = onEnable) { Text("Enable optional Cloud AI", fontSize = 11.sp) }
@@ -220,16 +224,6 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
         if (entries.size < 10) entries = entries + TransactionDraft(type, amount, category, note, date)
         manual = false
     })
-    pickFor?.let { index -> entries.getOrNull(index)?.let { draft ->
-        CategoryPicker(draft.type, onSelect = { category ->
-            if (category != draft.category) {
-                val learningError = onLearnCategory(draft.type, draft.note, category)
-                message = learningError ?: "Learned: I'll use $category for \"${draft.note}\" next time."
-            }
-            entries = entries.mapIndexed { i, old -> if (i == index) old.copy(category = category) else old }
-            pickFor = null
-        }, onDismiss = { pickFor = null })
-    } }
     if (allCategories) CategoryPicker("EXPENSE", onSelect = { manualCategory = it; manual = true; allCategories = false }, onDismiss = { allCategories = false })
 }
 

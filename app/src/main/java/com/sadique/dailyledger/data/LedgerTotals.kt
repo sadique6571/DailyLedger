@@ -1,5 +1,15 @@
 package com.sadique.dailyledger.data
 
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
+
+/** Late historical installments update the kameti ledger, not today's cash balance.
+ * Keep the original charge inside its salary cycle even if the calendar month changes.
+ */
+fun CommitteePaymentEntity.chargesSalaryBalance(zone: ZoneId = ZoneId.systemDefault()): Boolean =
+    runCatching { YearMonth.from(Instant.ofEpochMilli(paidAt).atZone(zone)).toString() == month }.getOrDefault(false)
+
 data class SalarySummary(
     val salary: Long,
     val expenses: Long,
@@ -24,7 +34,9 @@ fun ledgerCycleSummary(
         salary = currentTransactions.filter { it.isSalary() }.sumOf { it.amountMinor },
         expenses = currentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
         otherIncome = currentTransactions.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
-        committeeContributions = committeePayments.filter { it.paidAt in cycle.startAt..now }.sumOf { it.amountMinor },
+        committeeContributions = committeePayments.filter {
+            it.paidAt in cycle.startAt..now && it.chargesSalaryBalance()
+        }.sumOf { it.amountMinor },
         savingsContributions = savings.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
         openingBalanceMinor = cycle.openingBalanceMinor,
     )

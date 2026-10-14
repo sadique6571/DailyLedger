@@ -38,9 +38,9 @@ class LedgerScreensTest {
             }
         }
         compose.onNodeWithText("Remaining balance").assertIsDisplayed()
-        compose.onNodeWithText(money(7000000)).assertIsDisplayed()
+        compose.onNodeWithText(money(4000000)).assertIsDisplayed()
         screenshot("dashboard")
-        compose.onNodeWithTag("dashboard-add-salary").performClick()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("monthly-totals");compose.onNodeWithTag("dashboard-add-salary").performScrollTo().performClick()
         assertEquals("salary", opened)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals");compose.onNodeWithText("Savings total").performScrollTo().performClick()
         assertEquals("savings", opened)
@@ -91,8 +91,7 @@ class LedgerScreensTest {
             }
         }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
-        compose.onNodeWithTag("frequent-item-0").performClick()
-        compose.onNodeWithText("Sabzi").assertIsDisplayed()
+        compose.onNodeWithContentDescription("View Sabzi history").performScrollTo().performClick()
         compose.onAllNodesWithText("Sabzi").assertCountEquals(3) // title plus both recorded purchases
         compose.onNodeWithText(displayMoney(70000)).assertExists()
         compose.onNodeWithText(displayMoney(50000)).assertIsDisplayed()

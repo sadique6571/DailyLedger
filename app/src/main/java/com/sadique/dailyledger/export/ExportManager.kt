@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -75,10 +77,14 @@ object ExportManager {
         val transactions = repo.transactions.first()
             .filter { it.isWithin(from, through) }
             .sortedWith(compareBy<TransactionEntity> { it.date }.thenBy { it.createdAt })
+        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(transactions, from, through))
+    }
+
+    internal fun statementBytes(transactions: List<TransactionEntity>, from: LocalDate?, through: LocalDate?): ByteArray {
         val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amountMinor }
         val expenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor }
-        val firstPageRows = 23
-        val nextPageRows = 26
+        val firstPageRows = 12
+        val nextPageRows = 15
         val pageCount = if (transactions.size <= firstPageRows) 1
         else 1 + (transactions.size - firstPageRows + nextPageRows - 1) / nextPageRows
 
@@ -89,9 +95,9 @@ object ExportManager {
                 val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
                 val canvas = page.canvas
                 drawPageHeader(canvas, pageNumber, from, through, income, expenses, pageNumber == 1)
-                var y = if (pageNumber == 1) 230f else 142f
+                var y = if (pageNumber == 1) 242f else 150f
                 drawTableHeader(canvas, y)
-                y += ROW_HEIGHT
+                y += HEADER_HEIGHT
                 val pageLimit = if (pageNumber == 1) firstPageRows else nextPageRows
                 val rowsOnPage = minOf(pageLimit, transactions.size - rowIndex)
                 repeat(rowsOnPage) { rowOnPage ->
@@ -108,7 +114,7 @@ object ExportManager {
             }
             val buffer = ByteArrayOutputStream()
             doc.writeTo(buffer)
-            save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", buffer.toByteArray())
+            return buffer.toByteArray()
         } finally {
             doc.close()
         }
@@ -123,35 +129,31 @@ object ExportManager {
         expenses: Long,
         showSummary: Boolean,
     ) {
-        val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_BORDER
-            style = Paint.Style.STROKE
-            strokeWidth = 1.2f
+        val header = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(24f, 24f, 571f, 120f, COLOR_NAVY, COLOR_TEAL, Shader.TileMode.CLAMP)
         }
-        canvas.drawRoundRect(RectF(24f, 24f, 571f, 818f), 13f, 13f, border)
-        val title = textPaint(23f, COLOR_NAVY, Typeface.BOLD)
-        val label = textPaint(10f, COLOR_MUTED)
-        canvas.drawText("DAILY LEDGER", 42f, 61f, title)
-        canvas.drawText("ACCOUNT STATEMENT", 42f, 82f, textPaint(11f, COLOR_TEAL, Typeface.BOLD))
-        canvas.drawText("Generated ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}", 42f, 103f, label)
+        canvas.drawRoundRect(RectF(24f, 24f, 571f, 116f), 14f, 14f, header)
+        canvas.drawText("DAILY LEDGER", 42f, 59f, textPaint(22f, Color.WHITE, Typeface.BOLD))
+        canvas.drawText("Your income & expense statement", 42f, 82f, textPaint(10f, Color.WHITE))
+        canvas.drawText("PKR", 536f, 60f, textPaint(12f, Color.WHITE, Typeface.BOLD).apply { textAlign = Paint.Align.RIGHT })
+        canvas.drawText("${LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}  |  Page $pageNumber", 42f, 101f, textPaint(8f, Color.rgb(200, 240, 240)))
         val period = when {
             from == null && through == null -> "All available records"
             from == null -> "Through ${through!!.format(DATE_FORMAT)}"
             through == null -> "From ${from.format(DATE_FORMAT)}"
-            else -> "${from.format(DATE_FORMAT)}  —  ${through.format(DATE_FORMAT)}"
+            else -> "${from.format(DATE_FORMAT)} - ${through.format(DATE_FORMAT)}"
         }
-        canvas.drawText("STATEMENT PERIOD  $period", 42f, 127f, textPaint(10f, COLOR_INK, Typeface.BOLD))
-
+        canvas.drawText(period, 42f, 136f, textPaint(10f, COLOR_INK, Typeface.BOLD))
         if (showSummary) {
-            val cardY = 145f
-            val cardH = 62f
-            val cardW = 165f
-            val gap = 10f
-            drawSummaryCard(canvas, 42f, cardY, cardW, cardH, "MONEY IN", "+ PKR ${plainAmount(income)}", COLOR_GREEN)
-            drawSummaryCard(canvas, 42f + cardW + gap, cardY, cardW, cardH, "MONEY OUT", "− PKR ${plainAmount(expenses)}", COLOR_RED)
+            val cardY = 150f
+            val cardH = 64f
+            val cardW = 163f
+            val gap = 11f
+            drawSummaryCard(canvas, 42f, cardY, cardW, cardH, "MONEY IN", "PKR ${plainAmount(income)}", COLOR_GREEN)
+            drawSummaryCard(canvas, 42f + cardW + gap, cardY, cardW, cardH, "MONEY OUT", "PKR ${plainAmount(expenses)}", COLOR_RED)
             drawSummaryCard(canvas, 42f + (cardW + gap) * 2, cardY, cardW, cardH, "NET MOVEMENT", "PKR ${plainAmount(income - expenses)}", COLOR_NAVY)
+            canvas.drawText("TRANSACTION ACTIVITY", 42f, 232f, textPaint(9f, COLOR_MUTED, Typeface.BOLD))
         }
-        canvas.drawText("Page $pageNumber", 515f, 103f, label)
     }
 
     private fun drawSummaryCard(canvas: Canvas, x: Float, y: Float, width: Float, height: Float, label: String, value: String, color: Int) {
@@ -164,45 +166,42 @@ object ExportManager {
         canvas.drawRoundRect(RectF(x, y, x + width, y + height), 8f, 8f, fill)
         canvas.drawRoundRect(RectF(x, y, x + width, y + height), 8f, 8f, border)
         canvas.drawText(label, x + 10f, y + 20f, textPaint(9f, COLOR_MUTED, Typeface.BOLD))
-        canvas.drawText(fitText(value, textPaint(11f, color, Typeface.BOLD), width - 18f), x + 10f, y + 43f, textPaint(11f, color, Typeface.BOLD))
+        val amountPaint = textPaint(12f, color, Typeface.BOLD)
+        while (amountPaint.measureText(value) > width - 20f && amountPaint.textSize > 6f) amountPaint.textSize -= .5f
+        canvas.drawText(value, x + 10f, y + 44f, amountPaint)
     }
 
     private fun drawTableHeader(canvas: Canvas, y: Float) {
-        val background = Paint().apply { color = COLOR_NAVY }
-        canvas.drawRoundRect(RectF(38f, y, 557f, y + ROW_HEIGHT), 4f, 4f, background)
-        val paint = textPaint(9f, Color.WHITE, Typeface.BOLD)
-        canvas.drawText("DATE", 47f, y + 16f, paint)
-        canvas.drawText("TYPE", 112f, y + 16f, paint)
-        canvas.drawText("CATEGORY", 171f, y + 16f, paint)
-        canvas.drawText("DESCRIPTION", 304f, y + 16f, paint)
-        canvas.drawText("AMOUNT (PKR)", 468f, y + 16f, paint)
+        canvas.drawRoundRect(RectF(38f, y, 557f, y + HEADER_HEIGHT), 6f, 6f, Paint().apply { color = COLOR_NAVY })
+        val paint = textPaint(8.5f, Color.WHITE, Typeface.BOLD)
+        canvas.drawText("DATE", 47f, y + 17f, paint)
+        canvas.drawText("TRANSACTION / CATEGORY", 117f, y + 17f, paint)
+        canvas.drawText("TYPE", 367f, y + 17f, paint)
+        paint.textAlign = Paint.Align.RIGHT
+        canvas.drawText("AMOUNT (PKR)", 546f, y + 17f, paint)
     }
 
     private fun drawRow(canvas: Canvas, y: Float, transaction: TransactionEntity, alternate: Boolean) {
-        if (alternate) {
-            canvas.drawRect(39f, y, 556f, y + ROW_HEIGHT, Paint().apply { color = Color.rgb(247, 250, 253) })
-        }
-        val divider = Paint().apply { color = COLOR_BORDER; strokeWidth = .6f }
-        canvas.drawLine(39f, y + ROW_HEIGHT, 556f, y + ROW_HEIGHT, divider)
-        val body = textPaint(8.5f, COLOR_INK)
-        val typeColor = if (transaction.type == "INCOME") COLOR_GREEN else COLOR_RED
-        canvas.drawText(fitText(transaction.date, body, 57f), 47f, y + 16f, body)
-        canvas.drawText(fitText(transaction.type, textPaint(8f, typeColor, Typeface.BOLD), 52f), 112f, y + 16f, textPaint(8f, typeColor, Typeface.BOLD))
-        canvas.drawText(fitText(transaction.category, body, 125f), 171f, y + 16f, body)
-        canvas.drawText(fitText(transaction.note.ifBlank { "—" }, body, 155f), 304f, y + 16f, body)
-        val sign = if (transaction.type == "EXPENSE") "−" else "+"
-        val amount = "$sign ${plainAmount(transaction.amountMinor)}"
-        val amountPaint = textPaint(8.5f, typeColor, Typeface.BOLD)
-        canvas.drawText(fitText(amount, amountPaint, 79f), 468f, y + 16f, amountPaint)
+        if (alternate) canvas.drawRect(39f, y, 556f, y + ROW_HEIGHT, Paint().apply { color = Color.rgb(244, 249, 250) })
+        canvas.drawLine(39f, y + ROW_HEIGHT, 556f, y + ROW_HEIGHT, Paint().apply { color = COLOR_BORDER; strokeWidth = .5f })
+        val body = textPaint(9f, COLOR_INK)
+        val income = transaction.type == "INCOME"
+        val typeColor = if (income) COLOR_GREEN else COLOR_RED
+        canvas.drawText(transaction.date, 47f, y + 23f, textPaint(8f, COLOR_MUTED))
+        canvas.drawText(fitText(transaction.note.ifBlank { transaction.category }, body, 236f), 117f, y + 16f, body)
+        canvas.drawText(fitText(transaction.category, textPaint(8f, COLOR_MUTED), 236f), 117f, y + 30f, textPaint(8f, COLOR_MUTED))
+        canvas.drawText(if (income) "INCOME" else "EXPENSE", 367f, y + 23f, textPaint(8f, typeColor, Typeface.BOLD))
+        val amount = "${if (income) "+" else "-"} ${plainAmount(transaction.amountMinor)}"
+        val amountPaint = textPaint(10f, typeColor, Typeface.BOLD).apply { textAlign = Paint.Align.RIGHT }
+        while (amountPaint.measureText(amount) > 115f && amountPaint.textSize > 6f) amountPaint.textSize -= .5f
+        canvas.drawText(amount, 546f, y + 23f, amountPaint)
     }
 
     private fun drawFooter(canvas: Canvas, page: Int, totalPages: Int) {
-        val divider = Paint().apply { color = COLOR_BORDER; strokeWidth = .8f }
-        canvas.drawLine(42f, 788f, 553f, 788f, divider)
-        canvas.drawText("Daily Ledger  •  PKR  •  Keep this statement for your records", 42f, 804f, textPaint(8f, COLOR_MUTED))
-        val pageText = "Page $page of $totalPages"
-        val paint = textPaint(8f, COLOR_MUTED)
-        canvas.drawText(pageText, 553f - paint.measureText(pageText), 804f, paint)
+        canvas.drawLine(42f, 794f, 553f, 794f, Paint().apply { color = COLOR_BORDER; strokeWidth = .8f })
+        canvas.drawText("Income & expenses only. Net movement is not your account balance.", 42f, 807f, textPaint(7.5f, COLOR_MUTED))
+        canvas.drawText("Full descriptions and separate ledgers are available in CSV export.", 42f, 819f, textPaint(7.5f, COLOR_MUTED))
+        canvas.drawText("$page / $totalPages", 553f, 819f, textPaint(8f, COLOR_MUTED).apply { textAlign = Paint.Align.RIGHT })
     }
 
     private fun fitText(value: String, paint: Paint, maxWidth: Float): String {
@@ -262,7 +261,8 @@ object ExportManager {
 
     private const val PAGE_WIDTH = 595
     private const val PAGE_HEIGHT = 842
-    private const val ROW_HEIGHT = 22f
+    private const val ROW_HEIGHT = 40f
+    private const val HEADER_HEIGHT = 26f
     private const val COLOR_NAVY = 0xFF12324A.toInt()
     private const val COLOR_TEAL = 0xFF087F8C.toInt()
     private const val COLOR_INK = 0xFF263746.toInt()

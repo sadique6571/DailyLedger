@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.enteringItem
+import com.sadique.dailyledger.ui.enteringItems
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,13 +33,13 @@ fun SavingsScreen(
     val leftover = savings.filter { it.kind == "LEFTOVER" }.sumOf { it.amountMinor }
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            item {
+            enteringItem {
                 Text("Savings", style = MaterialTheme.typography.headlineMedium)
                 Text("Your savings stay separate from salary and kameti.")
                 Spacer(Modifier.height(12.dp))
-                SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${money(direct)} • Leftover: ${money(leftover)}")
+                SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${money(direct)} • Leftover: ${money(leftover)}", onClick = { add = true })
             }
-            items(savings, key = { it.id }) { saving ->
+            enteringItems(savings, key = { it.id }) { saving ->
                 Card(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(14.dp)) {
                         Column(Modifier.weight(1f)) {
@@ -54,7 +57,7 @@ fun SavingsScreen(
 }
 
 @Composable
-private fun SavingDialog(dismiss: () -> Unit, save: (String, Long, String, String) -> Unit) {
+fun SavingDialog(dismiss: () -> Unit, onHistory: (() -> Unit)? = null, save: (String, Long, String, String) -> Unit) {
     var kind by remember { mutableStateOf("DIRECT") }
     var amount by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(LedgerRepository.today()) }
@@ -69,6 +72,7 @@ private fun SavingDialog(dismiss: () -> Unit, save: (String, Long, String, Strin
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
             OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
             OutlinedTextField(note, { note = it }, label = { Text("Note") })
+            onHistory?.let { action -> TextButton(onClick = action) { Text("View history") } }
         }
     }, confirmButton = { Button(enabled = isValidDate(date), onClick = { parseMinor(amount)?.takeIf { it > 0 }?.let { save(kind, it, date.trim(), note) } }) { Text("Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }

@@ -10,7 +10,8 @@ import java.util.Locale
 data class LearnedCategoryRule(val type: String, val phrase: String, val category: String)
 
 object CategoryLearning {
-    fun normalize(text: String): String = text.lowercase(Locale.ROOT)
+    fun normalize(text: String): String = OfflineVocabulary.normalize(EntryText.withoutQuantities(text))
+        .replace(Regex("\\b(?:aaj|aj|today|yesterday|bought|buy|liya|lia|liye|kharida|kharidi|ka|ki|ke|ko|se|hai|mila|mili|rs|pkr|rupees|rupay|rupaye)\\b"), " ")
         .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
         .replace(Regex("\\b\\d+\\b"), " ")
         .replace(Regex("\\s+"), " ")

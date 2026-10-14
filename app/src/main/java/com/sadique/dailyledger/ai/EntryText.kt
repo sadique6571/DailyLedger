@@ -8,6 +8,8 @@ internal object EntryText {
     private val amount = Regex("(?<![\\p{L}\\d.\\-])(\\d{1,11}(?:\\.\\d{1,2})?)(?:\\s*(k|thousand|hazar|hazaar|ہزار|lakh|lac|لاکھ))?(?![\\p{L}\\d.])", RegexOption.IGNORE_CASE)
     private val grouped = Regex("(?<![\\d.,])\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?(?![\\d.]|,\\d)")
     private val separators = Regex("[,;،\\n]+|\\s+(?:aur|and|phir|plus|اور)\\s+", RegexOption.IGNORE_CASE)
+    private val quantity = Regex("(?<![\\p{L}\\d.])(\\d+(?:\\.\\d+)?)\\s*(?:kilograms?|kilos?|kgs?|grams?|g|litres?|liters?|ltr|l|ml|dozens?|darjan|packets?|packs?|pcs|pieces?|bottles?|کلو|گرام|لیٹر|درجن|پیکٹ)(?![\\p{L}\\d])", RegexOption.IGNORE_CASE)
+    fun withoutQuantities(text: String): String = quantity.replace(text) { " ".repeat(it.value.length) }
     data class Part(val range: IntRange, val label: String, val amountMinor: Long)
     fun has(text: String, word: String) = Regex("(?<![\\p{L}\\p{N}])${Regex.escape(word)}(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE).containsMatchIn(text)
     fun normalize(input: String): String {
@@ -16,6 +18,7 @@ internal object EntryText {
     }
     fun parts(masked: String): List<Part>? {
         if (Regex("\\d,\\d|[-−]\\s*\\d").containsMatchIn(masked)) return null
+        if (Regex("(?:@|×|\\b(?:per|each|fi|فی)\\b)", RegexOption.IGNORE_CASE).containsMatchIn(masked)) return null
         val out = mutableListOf<Part>()
         val ranges = mutableListOf<IntRange>()
         var start = 0
@@ -24,7 +27,7 @@ internal object EntryText {
         for (range in ranges) {
             if (range.isEmpty()) continue
             val raw = masked.substring(range)
-            val matches = amount.findAll(raw).toList()
+            val matches = amount.findAll(withoutQuantities(raw)).toList()
             if (matches.isEmpty()) {
                 // Date-only separators are permitted; unknown/missing-amount entries are not discarded.
                 if (raw.replace(Regex("\\b(?:on|ko|date)\\b", RegexOption.IGNORE_CASE), "").isBlank()) continue

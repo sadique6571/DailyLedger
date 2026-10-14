@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +42,8 @@ import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
 import com.sadique.dailyledger.ui.DailyLedgerApp
 import com.sadique.dailyledger.ui.DailyLedgerTheme
-import com.sadique.dailyledger.ui.ShimmerBox
+import com.sadique.dailyledger.ui.CardEntrance
+import com.sadique.dailyledger.ui.LedgerLogo
 import com.sadique.dailyledger.ui.screens.LockedScreen
 import com.sadique.dailyledger.ui.screens.LoginScreen
 import kotlinx.coroutines.Dispatchers
@@ -116,18 +118,12 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun LoadingScreen() {
-        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), contentAlignment = Alignment.Center) {
-            Column(Modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                ShimmerBox(Modifier.fillMaxWidth().height(130.dp), RoundedCornerShape(28.dp))
-                Spacer(Modifier.height(18.dp))
-                ShimmerBox(Modifier.fillMaxWidth(.55f).height(22.dp), RoundedCornerShape(999.dp))
-                Spacer(Modifier.height(10.dp))
-                ShimmerBox(Modifier.fillMaxWidth(.7f).height(18.dp), RoundedCornerShape(999.dp))
-                Spacer(Modifier.height(20.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
-                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
-                    ShimmerBox(Modifier.weight(1f).height(84.dp), RoundedCornerShape(18.dp))
+        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), contentAlignment = Alignment.Center) {
+            CardEntrance {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LedgerLogo(64.dp)
+                    Text("Opening your ledger…", style = MaterialTheme.typography.titleMedium)
+                    LinearProgressIndicator(Modifier.fillMaxWidth(.55f))
                 }
             }
         }

@@ -2,6 +2,9 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.enteringItem
+import com.sadique.dailyledger.ui.enteringItems
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -62,20 +65,20 @@ fun CommitteeScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
+            enteringItem {
                 Text("Kameti", style = MaterialTheme.typography.headlineMedium)
                 Text("Apni installments, receiving, members ke turns aur contacts ek jagah track karein.")
             }
-            item {
+            enteringItem {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SummaryCard("Total paid", payments.sumOf { it.amountMinor }, Icons.Outlined.Payments, Modifier.weight(1f))
                     SummaryCard("Total received", receipts.sumOf { it.amountMinor }, Icons.Outlined.AccountBalanceWallet, Modifier.weight(1f))
                 }
             }
             if (committees.isEmpty()) {
-                item { Text("Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.") }
+                enteringItem { Text("Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.") }
             }
-            items(committees, key = { it.id }) { committee ->
+            enteringItems(committees, key = { it.id }) { committee ->
                 val ps = payments.filter { it.committeeId == committee.id }
                 val rs = receipts.filter { it.committeeId == committee.id }
                 val ms = members.filter { it.committeeId == committee.id }.sortedBy { it.turnNumber }
@@ -217,7 +220,7 @@ fun CommitteeScreen(
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                Text("#${it.installmentNumber} • ${it.month} • ${money(it.amountMinor)} • ${it.method}", style = MaterialTheme.typography.bodySmall)
+                                Text("#${it.installmentNumber} • ${it.month} • ${money(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -242,7 +245,9 @@ fun CommitteeScreen(
 
     paying?.let { (committee, installment) ->
         val month = scheduledMonth(committee, installment)
-        MethodDialog("Pay installment #$installment • $month", { paying = null }) { method ->
+        MethodDialog("Pay installment #$installment • $month", { paying = null },
+            impact = if (month == YearMonth.now().toString()) "${money(committee.monthlyContribution())} will be deducted from your current balance."
+                else "Historical / other-month record: Paid count and total will increase. Your current balance will not change.") { method ->
             onPaid(committee, installment, month, method)
             paying = null
         }
@@ -503,13 +508,14 @@ private fun MemberDialog(
 }
 
 @Composable
-private fun MethodDialog(title: String, dismiss: () -> Unit, save: (String) -> Unit) {
+private fun MethodDialog(title: String, dismiss: () -> Unit, impact: String = "", save: (String) -> Unit) {
     var method by remember { mutableStateOf("Cash") }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (impact.isNotBlank()) Text(impact, style = MaterialTheme.typography.bodyMedium)
                 Text("Payment method")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Cash", "Bank", "Easypaisa", "JazzCash", "Other").forEach { FilterChip(method == it, { method = it }, { Text(it) }) }

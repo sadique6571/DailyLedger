@@ -2,9 +2,13 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.enteringItem
+import com.sadique.dailyledger.ui.enteringItems
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,9 +52,12 @@ fun CreditScreen(
     onSave: suspend (List<CreditDraft>, String) -> Unit,
     onPayment: suspend (String, Long, String, String, String) -> Unit,
     onDelete: (CreditPurchaseEntity) -> Unit,
+    requestAdd: Boolean = false,
+    onAddOpened: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var add by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var aiAdd by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
     val manualBatchId = remember(add) { UUID.randomUUID().toString() }
@@ -70,11 +77,11 @@ fun CreditScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item {
+            enteringItem {
                 Text("Udhar Saman", style = MaterialTheme.typography.headlineMedium)
                 Text("Shop/person se udhar liya hua saman, categories, due dates aur payments alag record honge.")
                 Spacer(Modifier.height(10.dp))
-                LedgerCard(Modifier.fillMaxWidth()) {
+                LedgerCard(Modifier.fillMaxWidth().clickable { add = true }) {
                     Row(
                         Modifier.fillMaxWidth().padding(14.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -102,10 +109,10 @@ fun CreditScreen(
             }
 
             if (credits.isEmpty()) {
-                item { Text("Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.") }
+                enteringItem { Text("Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.") }
             }
 
-            items(credits, key = { it.id }) { credit ->
+            enteringItems(credits, key = { it.id }) { credit ->
                 val history = payments.filter { it.creditId == credit.id }
                 val paid = history.sumOf { it.amountMinor }
                 val left = (credit.amountMinor - paid).coerceAtLeast(0L)
@@ -237,7 +244,6 @@ private fun CreditEntryDialog(
     var note by remember { mutableStateOf(initial?.note.orEmpty()) }
     var phone by remember { mutableStateOf(initial?.phone.orEmpty()) }
     var wa by remember { mutableStateOf(initial?.whatsapp.orEmpty()) }
-    var categoryPicker by remember { mutableStateOf(false) }
 
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
@@ -258,9 +264,7 @@ private fun CreditEntryDialog(
                 OutlinedTextField(wa, { wa = it }, label = { Text("WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                 OutlinedTextField(item, { item = it }, label = { Text("Saman / item") })
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedButton(onClick = { categoryPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (category.isBlank()) "Choose category" else "Category: $category")
-                }
+                CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy)
                 OutlinedTextField(date, { date = it }, label = { Text("Purchase date YYYY-MM-DD") }, isError = !isValidDate(date))
                 OutlinedTextField(due, { due = it }, label = { Text("Due date YYYY-MM-DD (optional)") }, isError = due.isNotBlank() && !isValidDate(due))
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
@@ -285,14 +289,7 @@ private fun CreditEntryDialog(
         dismissButton = { TextButton(onClick = dismiss, enabled = !busy) { Text("Cancel") } },
     )
 
-    if (categoryPicker) {
-        CategoryPicker(
-            type = "EXPENSE",
-            allowCustom = false,
-            onSelect = { category = it; categoryPicker = false },
-            onDismiss = { categoryPicker = false },
-        )
-    }
+
 }
 
 @Composable

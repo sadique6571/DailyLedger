@@ -85,7 +85,7 @@ object SpendingInsights {
 
         var score = 50
         if (summary.salary > 0L) {
-            val available = summary.salary + summary.openingBalanceMinor
+            val available = summary.salary + summary.otherIncome + summary.openingBalanceMinor
             val expenseRate = if (available > 0L) summary.totalOutflow.toDouble() / available.toDouble() else 1.0
             score += when {
                 expenseRate <= 0.60 -> 20
@@ -119,24 +119,36 @@ object SpendingInsights {
                 tips += SpendingTip("Comparison ke liye data chahiye", "Pichle mahine ke pehle $days dinon ki expense entries nahi hain; abhi izafay ka faisla nahi kar sakte.")
             }
 
-            if (potentialSaving > 0L) {
-                tips += SpendingTip("Bachat ka ek option", "Optional food/shopping/entertainment ko 20% kam karein to takreeban ${rs(potentialSaving)} bach sakte hain.")
+            // Compare each category over the same elapsed calendar days, not a full previous month.
+            fun comparableCategories(m: YearMonth) = own.filter {
+                it.type == "EXPENSE" && it.date.startsWith("$m-") && LocalDate.parse(it.date).dayOfMonth <= days
+            }.groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
+            val previousByCategory = comparableCategories(previous)
+            val rise = comparableCategories(month).mapNotNull { (name, amount) ->
+                previousByCategory[name]?.takeIf { it > 0 && amount > it }?.let { Triple(name, amount - it, it) }
+            }.maxByOrNull { it.second }
+            rise?.let { (name, increase, baseline) ->
+                tips += SpendingTip("Category mein izafa", "$name: dono mahino ke pehle $days dinon mein ${rs(increase)} (${(increase.toDouble() / baseline * 100).roundToInt()}%) zyada. Quantity, prices aur repeated purchases ko history mein compare karein.")
             }
 
-            if (summary.salary > 0L && summary.remaining < 0) {
-                tips += SpendingTip("Salary se zyada monthly outflow", "Expenses, kameti aur savings mila kar salary se ${rs(-summary.remaining)} zyada hain. Pehle zaroori bills alag karein, phir optional kharchay kam karein.")
-            } else if (summary.salary + summary.openingBalanceMinor > 0L &&
-                BigDecimal.valueOf(summary.totalOutflow).multiply(BigDecimal(100)) >= BigDecimal.valueOf(summary.salary + summary.openingBalanceMinor).multiply(BigDecimal(85))) {
-                tips += SpendingTip("Budget pressure", "Salary ka 85% ya zyada kharch ho chuka hai. Agle optional kharchay save karne se pehle review karein.")
+            if (potentialSaving > 0L) {
+                tips += SpendingTip("Bachat ka ek option", "Recorded optional categories ko 20% kam karne ka example: ${rs(potentialSaving)}. Yeh mumkin bachat ka scenario hai; zaroori food aur medical costs is mein shamil nahi.")
+            }
+
+            if (summary.remaining < 0) {
+                tips += SpendingTip("Available balance se zyada outflow", "Expenses, kameti aur savings mila kar available income aur carried balance se ${rs(-summary.remaining)} zyada hain. Pehle zaroori bills alag karein, phir optional kharchay kam karein.")
+            } else if (summary.salary + summary.otherIncome + summary.openingBalanceMinor > 0L &&
+                BigDecimal.valueOf(summary.totalOutflow).multiply(BigDecimal(100)) >= BigDecimal.valueOf(summary.salary + summary.otherIncome + summary.openingBalanceMinor).multiply(BigDecimal(85))) {
+                tips += SpendingTip("Budget pressure", "Available income aur carried balance ka 85% ya zyada use ho chuka hai. Agle optional kharchay save karne se pehle review karein.")
             }
 
         }
 
-        if (summary.salary > 0L) {
+        if (summary.salary > 0L && summary.remaining > 0L) {
             val tenPercent = summary.salary / 10
             when {
                 savedThisMonth == 0L -> tips += SpendingTip("Bachat start karein", "Is mahine saving entry nahi hai. Agar mumkin ho to salary ka 10% (${rs(tenPercent)}) target rakh sakte hain.")
-                savedThisMonth < tenPercent -> tips += SpendingTip("Saving target", "Abhi ${rs(savedThisMonth)} save hua hai. 10% salary target tak ${rs(tenPercent - savedThisMonth)} aur chahiye.")
+                savedThisMonth < tenPercent -> tips += SpendingTip("Saving target", "Abhi ${rs(savedThisMonth)} save hua hai. Agar zaroori bills cover hain, 10% ka optional target ${rs(tenPercent)} hai.")
                 else -> tips += SpendingTip("Saving progress", "Is mahine ${rs(savedThisMonth)} save hua hai (${savingRate}% of salary). Consistency maintain karein.")
             }
         }

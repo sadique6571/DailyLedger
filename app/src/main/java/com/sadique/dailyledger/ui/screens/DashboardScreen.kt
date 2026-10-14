@@ -28,10 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sadique.dailyledger.ai.DailySpendingGuide
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.*
+import kotlinx.coroutines.delay
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.Instant
 import java.time.YearMonth
@@ -51,9 +54,16 @@ fun DashboardScreen(
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
     aiStatus: String = "", aiEnabled: Boolean = false, onEnableAi: () -> Unit = {},
     onAllTransactions: (() -> Unit)? = null,
+    onAddOtherIncome: () -> Unit = onAddSalary,
+    onAddCategoryExpense: (String, String) -> Unit = { _, _ -> onAddExpense() },
+    onOpenInsights: () -> Unit = {}, onOpenLoans: () -> Unit = {}, onOpenUdhar: () -> Unit = {},
+    udharOutstanding: Long = 0L,
     onStartNewMonth: () -> Unit = {}, onArchivePreviousMonth: ((Boolean) -> Unit) -> Unit = {},
 ) {
-    val month = YearMonth.now()
+    val today by produceState(initialValue = LocalDate.now()) {
+        while (true) { value = LocalDate.now(); delay(30_000) }
+    }
+    val month = YearMonth.from(today)
     val summary = ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it) }
         ?: monthlySalarySummary(tx, month.toString(), cp, savings)
     val expenseRows = tx.filter {
@@ -64,9 +74,8 @@ fun DashboardScreen(
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
         .sortedByDescending { it.second }
         .take(4)
-    // All categories contribute to the chart total; smaller categories share the final slice.
-    val categories = grouped.take(if (grouped.size > 5) 4 else 5).map { it.key to it.value } +
-        if (grouped.size > 5) listOf("Others" to grouped.drop(4).sumOf { it.value }) else emptyList()
+    val categories = grouped.map { it.key to it.value }
+    var balanceDetails by remember { mutableStateOf(false) }
     var showBalance by remember { mutableStateOf(true) }
     var confirmNewMonth by remember { mutableStateOf(false) }
     var confirmArchive by remember { mutableStateOf(false) }
@@ -80,15 +89,17 @@ fun DashboardScreen(
     val availableForCycle = summary.salary + summary.otherIncome + summary.openingBalanceMinor
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
+    val guide = DailySpendingGuide.calculate(tx, summary, today)
+    val visibleMoney: (Long) -> String = { if (showBalance) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item(key = "greeting") {
+            enteringItem(key = "greeting", index = 0) {
                 Box(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
                     LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(196.dp).height(112.dp))
                     Column(Modifier.padding(top = 6.dp, bottom = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(when (LocalTime.now().hour) { in 5..11 -> "Good morning,"; in 12..16 -> "Good afternoon,"; else -> "Good evening," }, fontSize = 15.sp)
-                        Text(userName.substringBefore(' ').ifBlank { "Friend" } + " 👋", fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                        Text(userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = 27.sp, fontWeight = FontWeight.Bold)
                         if (weatherEnabled && weatherCity.isNotBlank()) {
                             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = .88f)) {
                                 Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -101,8 +112,8 @@ fun DashboardScreen(
                     }
                 }
             }
-            item(key = "balance") {
-                Surface(shape = RoundedCornerShape(23.dp), shadowElevation = 5.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
+            enteringItem(key = "balance", index = 1) {
+                Surface(modifier = Modifier.fillMaxWidth().clickable { balanceDetails = true }.testTag("balance-details"), shape = RoundedCornerShape(24.dp), shadowElevation = 5.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
                     Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(16.dp)) {
                         WalletArtwork(Modifier.align(Alignment.TopEnd).size(90.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -123,28 +134,57 @@ fun DashboardScreen(
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${displayMoney(summary.totalOutflow)} of ${displayMoney(availableForCycle.coerceAtLeast(0L))}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
+                                Text("${visibleMoney(summary.totalOutflow)} of ${visibleMoney(availableForCycle.coerceAtLeast(0L))}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
                                 Text("${100 - spentPct}% left", color = Color.White, fontSize = 10.sp)
                             }
                             if (summary.openingBalanceMinor != 0L) {
-                                Text("Balance carried forward: ${displayMoney(summary.openingBalanceMinor)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
+                                Text("Balance carried forward: ${visibleMoney(summary.openingBalanceMinor)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
                             }
                             if (summary.committeeContributions > 0 || summary.savingsContributions > 0) {
-                                Text(
-                                    "Expenses ${displayMoney(summary.expenses)} · Kameti ${displayMoney(summary.committeeContributions)} · Savings ${displayMoney(summary.savingsContributions)}",
-                                    color = Color(0xFFC0FFEE), fontSize = 10.sp,
-                                )
+                                Text("Expenses ${visibleMoney(summary.expenses)} · Kameti ${visibleMoney(summary.committeeContributions)} · Savings ${visibleMoney(summary.savingsContributions)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
                             }
-                            if (summary.otherIncome > 0) Text("Other income: ${displayMoney(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                            if (summary.otherIncome > 0) Text("Other income: ${visibleMoney(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                            HorizontalDivider(Modifier.padding(vertical = 6.dp), color = Color.White.copy(alpha = .2f))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = Color(0xFFB4FFF1))
+                                Text("Daily spending guide · Offline AI", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Text(
+                                guide.dailyAllowanceMinor?.let { "Around ${visibleMoney(it)} / day until salary" }
+                                    ?: if (guide.lastSalaryDate == null) "Record your salary date to see a daily estimate."
+                                    else "Confirm your next salary before planning more spending.",
+                                color = Color.White, fontSize = 13.sp, modifier = Modifier.testTag("daily-spending-guide"),
+                            )
+                            guide.expectedSalaryDate?.let { expected ->
+                                val days = guide.daysUntilSalary!!
+                                val countdown = when {
+                                    days > 0 -> "$days day${if (days == 1L) "" else "s"} to expected salary"
+                                    days == 0L -> "Salary expected today"
+                                    else -> "Salary expected ${-days} day${if (days == -1L) "" else "s"} ago"
+                                }
+                                Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))}",
+                                    color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
+                                Text("Estimate from your last salary. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                            }
+                            if (guide.lowBalance) {
+                                Surface(color = Color(0xFFFFE5E8), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("low-balance-notice")) {
+                                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.Rounded.WarningAmber, null, Modifier.size(21.dp), tint = Color(0xFFAA1739))
+                                        Text(if (summary.remaining <= 0) "Balance used up. Review essentials before further spending."
+                                            else "Low remaining balance · 10% or less left. Keep essentials first.",
+                                            color = Color(0xFF8E1231), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-            item(key = "monthly-totals") {
+            enteringItem(key = "monthly-totals", index = 2) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).testTag("dashboard-add-salary"), onAddSalary)
-                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f), onAllTransactions ?: onAddSalary)
+                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f), onAddOtherIncome)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f), onAddExpense)
@@ -152,7 +192,7 @@ fun DashboardScreen(
                     }
                 }
             }
-            item(key = "salary-cycle-controls") {
+            enteringItem(key = "salary-cycle-controls", index = 3) {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Button(
                         onClick = { confirmNewMonth = true },
@@ -179,8 +219,8 @@ fun DashboardScreen(
                     if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            item(key = "spending") { SpendingDonutCard(categories, summary.expenses) }
-            if (frequentItems.isNotEmpty()) item(key = "frequent-items") {
+            enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, { onAllTransactions?.invoke() }) }
+            if (frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -189,19 +229,20 @@ fun DashboardScreen(
                     frequentItems.forEachIndexed { index, (label, total) ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .clickable { selectedFrequentCategory = label }
+                                .clickable { onAddCategoryExpense(expenseRows.firstOrNull { it.frequentPurchaseLabel().equals(label, true) }?.category.orEmpty(), label) }
                                 .padding(horizontal = 10.dp, vertical = 8.dp)
                                 .testTag("frequent-item-$index"),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(label.ifBlank { "Other" }, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             Text(displayMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            IconButton(onClick = { selectedFrequentCategory = label }) { Icon(Icons.Rounded.History, "View $label history") }
                         }
                     }
                 }
             }
-            item(key = "recent") {
+            enteringItem(key = "recent", index = 6) {
                 Column {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -217,7 +258,7 @@ fun DashboardScreen(
                         }
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
-                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth().clickable { onAllTransactions?.invoke() }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             GlowIcon(visual.icon, visual.color, size = 38.dp)
                             Column(Modifier.weight(1f)) {
                                 Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -230,8 +271,8 @@ fun DashboardScreen(
                     }
                 }
             }
-            onAutoFill?.let { action -> item { GradientButton("AI Quick Add", action, Modifier.fillMaxWidth(), icon = Icons.Rounded.AutoAwesome) } }
-            item(key = "separate-totals") {
+            enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
+            enteringItem(key = "separate-totals", index = 8) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -250,14 +291,31 @@ fun DashboardScreen(
                     if (loans.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         val outstanding: (String) -> Long = { direction -> loans.filter { it.direction == direction }.sumOf { loan ->
                             (loan.principalMinor - lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0) } }
-                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f))
-                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f))
+                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f), onClick = onOpenLoans)
+                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f), onClick = onOpenLoans)
                     }
                 }
             }
-            snapshot?.let { data -> item(key = "insights") { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi) } }
+            enteringItem(key = "udhar-shortcut", index = 9) {
+                SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
+            }
+            snapshot?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi) } }
         }
     }
+    if (balanceDetails) AlertDialog(
+        onDismissRequest = { balanceDetails = false }, title = { Text("Balance breakdown") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf("Carried forward" to summary.openingBalanceMinor, "Salary" to summary.salary, "Other income" to summary.otherIncome,
+                "Expenses" to -summary.expenses, "Kameti charged this cycle" to -summary.committeeContributions,
+                "Savings set aside" to -summary.savingsContributions, "Remaining balance" to summary.remaining).forEach { (label, amount) ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(label, Modifier.weight(1f)); Text(displayMoney(amount), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        } },
+        confirmButton = { TextButton(onClick = { balanceDetails = false; onAllTransactions?.invoke() }) { Text("View history") } },
+        dismissButton = { TextButton(onClick = { balanceDetails = false }) { Text("Close") } },
+    )
     if (confirmNewMonth) {
         AlertDialog(
             onDismissRequest = { confirmNewMonth = false },
@@ -368,42 +426,53 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 }
 
 @Composable
-private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long) {
-    val palette = listOf(LedgerColors.Green, LedgerColors.Blue, LedgerColors.Amber, LedgerColors.Purple, Color(0xFF8194B2))
+private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onCategory: (String) -> Unit, onHistory: () -> Unit) {
+    var showAll by remember { mutableStateOf(false) }
+    val palette = listOf(LedgerColors.Green, LedgerColors.Blue, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Teal, LedgerColors.Red)
+    val track = MaterialTheme.colorScheme.surfaceContainerHigh
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-            Text("This cycle", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp)
+            Text("This cycle", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
         }
         Spacer(Modifier.height(15.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Box(Modifier.size(125.dp), contentAlignment = Alignment.Center) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(125.dp).clickable(onClick = onHistory).testTag("chart-total"), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
-                    val width = 20.dp.toPx(); val inset = width / 2
-                    drawArc(Color(0xFFE6F0F7), 0f, 360f, false, Offset(inset,inset), Size(size.width-width,size.height-width), style = Stroke(width))
+                    val width = 20.dp.toPx()
+                    val inset = width / 2
+                    drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                     var start = -90f
                     categories.forEachIndexed { i, (_, value) ->
                         val sweep = if (total > 0) 360f * value / total else 0f
                         drawArc(palette[i % palette.size], start, (sweep - 1.2f).coerceAtLeast(0f), false,
-                            Offset(inset,inset), Size(size.width-width,size.height-width), style = Stroke(width))
+                            Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                         start += sweep
                     }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(displayMoney(total), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("Spent", fontSize = 11.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(90.dp)) {
+                    Text(displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                    Text("Total spent", fontSize = 11.sp)
                 }
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                categories.forEachIndexed { i, (name,value) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.weight(1f)) {
+                if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
+                (if (showAll) categories else categories.take(5)).forEachIndexed { i, (name, value) ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { onCategory(name) }.testTag("chart-category-$name"),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(9.dp).background(palette[i % palette.size], CircleShape))
-                        Text(name, Modifier.weight(1f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Column(Modifier.weight(1f)) {
+                            Text(name, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(displayMoney(value), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 11.sp)
                     }
+                }
+                if (categories.size > 5) TextButton(onClick = { showAll = !showAll }) {
+                    Text(if (showAll) "Show less" else "All ${categories.size} categories")
                 }
             }
         }
+        TextButton(onClick = onHistory) { Text("View expense history") }
     }
 }

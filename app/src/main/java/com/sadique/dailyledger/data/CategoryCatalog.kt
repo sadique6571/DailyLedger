@@ -10,6 +10,6 @@ object CategoryCatalog {
             val a=JSONArray(reader.readText())
             (0 until a.length()).map { i -> val r=a.getJSONObject(i);val words=r.getJSONArray("aliases")
                 LedgerCategory(r.getString("group"),r.getString("label"),r.getString("type"),(0 until words.length()).map{words.getString(it)}) }
-        }.also{cached=it}
+        }.let { base -> (ItemCategories.entries + base).distinctBy { it.type to it.label } }.also{cached=it}
     }
 }

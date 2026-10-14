@@ -51,28 +51,44 @@ class LedgerTotalsTest {
         assertEquals(5500L, summary.remaining)
     }
     @Test fun manualSalaryCycleKeepsOpeningBalanceAndOnlyCountsNewEntries() {
-        val cycle = LedgerCycleEntity("owner", 100, 700)
+        val start = java.time.LocalDate.parse("2026-10-01").atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val cycle = LedgerCycleEntity("owner", start + 100, 700)
         val transactions = listOf(
-            tx("INCOME", 9000, "Salary").copy(createdAt = 99),
-            tx("INCOME", 10000, "Salary").copy(createdAt = 100),
-            tx("INCOME", 2000, "Bonus").copy(createdAt = 120),
-            tx("EXPENSE", 3000, "Food").copy(createdAt = 130),
+            tx("INCOME", 9000, "Salary").copy(createdAt = start + 99),
+            tx("INCOME", 10000, "Salary").copy(createdAt = start + 100),
+            tx("INCOME", 2000, "Bonus").copy(createdAt = start + 120),
+            tx("EXPENSE", 3000, "Food").copy(createdAt = start + 130),
         )
         val payments = listOf(
-            CommitteePaymentEntity("old", "owner", "c", 1, "2026-10", 400, 99),
-            CommitteePaymentEntity("new", "owner", "c", 2, "2026-10", 500, 135),
+            CommitteePaymentEntity("old", "owner", "c", 1, "2026-10", 400, start + 99),
+            CommitteePaymentEntity("new", "owner", "c", 2, "2026-10", 500, start + 135),
         )
         val savings = listOf(
-            SavingEntity("old", "owner", "DIRECT", 200, "2026-10-01", "", 99),
-            SavingEntity("new", "owner", "DIRECT", 600, "2026-10-02", "", 140),
+            SavingEntity("old", "owner", "DIRECT", 200, "2026-10-01", "", start + 99),
+            SavingEntity("new", "owner", "DIRECT", 600, "2026-10-02", "", start + 140),
         )
-        val summary = ledgerCycleSummary(transactions, payments, savings, cycle, now = 150)
+        val summary = ledgerCycleSummary(transactions, payments, savings, cycle, now = start + 150)
         assertEquals(10000L, summary.salary)
         assertEquals(2000L, summary.otherIncome)
         assertEquals(3000L, summary.expenses)
         assertEquals(500L, summary.committeeContributions)
         assertEquals(600L, summary.savingsContributions)
         assertEquals(8600L, summary.remaining)
+    }
+    @Test fun oldInstallmentRecordedTodayDoesNotReduceThisCycleButStillCountsAsPaid() {
+        val zone = java.time.ZoneId.systemDefault()
+        fun time(day: String) = java.time.LocalDate.parse(day).atStartOfDay(zone).toInstant().toEpochMilli()
+        val cycle = LedgerCycleEntity("owner", time("2026-10-01"), 10000)
+        val historical = CommitteePaymentEntity("old", "owner", "c", 1, "2026-09", 1000, time("2026-10-14"))
+        val current = historical.copy(id = "new", month = "2026-10", installmentNumber = 2)
+        val payments = listOf(historical, current)
+        assertEquals(2, payments.size)
+        assertEquals(2000L, payments.sumOf { it.amountMinor })
+        assertFalse(historical.chargesSalaryBalance(zone))
+        assertEquals(9000L, ledgerCycleSummary(emptyList(), payments, emptyList(), cycle, time("2026-10-15")).remaining)
+        // Crossing a calendar month cannot return a previously charged installment to the balance.
+        assertEquals(9000L, ledgerCycleSummary(emptyList(), payments, emptyList(), cycle, time("2026-11-02")).remaining)
+        assertEquals(10000L, ledgerCycleSummary(emptyList(), listOf(historical), emptyList(), cycle, time("2026-10-15")).remaining)
     }
     @Test fun twoKametisReceiveOneAtATime() {
         val c = committee()
