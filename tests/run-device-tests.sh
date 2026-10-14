@@ -6,5 +6,5 @@ ledger_test_status=0
 mkdir -p ui-previews
 while IFS= read -r ledger_preview; do
   [[ -n "$ledger_preview" ]] && adb pull "$ledger_preview" ui-previews/
-done < <(adb shell ls '/data/local/tmp/dailyledger-*.png' | tr -d '\r')
+done < <(adb shell ls '/data/local/tmp/dailyledger-*.png' '/data/local/tmp/dailyledger-*.pdf' | tr -d '\r')
 exit "$ledger_test_status"

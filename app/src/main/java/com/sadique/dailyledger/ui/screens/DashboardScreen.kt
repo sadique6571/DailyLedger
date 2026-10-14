@@ -428,7 +428,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 @Composable
 private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onCategory: (String) -> Unit, onHistory: () -> Unit) {
     var showAll by remember { mutableStateOf(false) }
-    val palette = listOf(LedgerColors.Green, LedgerColors.Blue, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Teal, LedgerColors.Red)
+    val colorFor: (String) -> Color = { Color.hsv(Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), 360).toFloat(), .65f, .78f) }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -443,9 +443,9 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                     val inset = width / 2
                     drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                     var start = -90f
-                    categories.forEachIndexed { i, (_, value) ->
+                    categories.forEach { (name, value) ->
                         val sweep = if (total > 0) 360f * value / total else 0f
-                        drawArc(palette[i % palette.size], start, (sweep - 1.2f).coerceAtLeast(0f), false,
+                        drawArc(colorFor(name), start, (sweep - 1.2f).coerceAtLeast(0f), false,
                             Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                         start += sweep
                     }
@@ -460,7 +460,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                 (if (showAll) categories else categories.take(5)).forEachIndexed { i, (name, value) ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { onCategory(name) }.testTag("chart-category-$name"),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.size(9.dp).background(palette[i % palette.size], CircleShape))
+                        Box(Modifier.size(9.dp).background(colorFor(name), CircleShape))
                         Column(Modifier.weight(1f)) {
                             Text(name, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(displayMoney(value), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

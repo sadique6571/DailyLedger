@@ -112,7 +112,17 @@ fun GradientButton(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 data class CategoryVisual(val icon: ImageVector, val color: Color)
 
 fun categoryVisual(category: String, type: String = "EXPENSE"): CategoryVisual {
-    val name = category.lowercase().replace("&", "and")
+    val name = category.lowercase(java.util.Locale.ROOT).replace("&", "and")
+    val itemGroup = com.sadique.dailyledger.data.ItemCategories.entries.firstOrNull { it.label.equals(category, true) }?.group
+    when (itemGroup) {
+        "Lentils & grains" -> return CategoryVisual(Icons.Rounded.Grain, LedgerColors.Amber)
+        "Vegetables", "Fruit" -> return CategoryVisual(Icons.Rounded.Spa, LedgerColors.Green)
+        "Meat & fish", "Breakfast & dairy" -> return CategoryVisual(Icons.Rounded.Restaurant, LedgerColors.Amber)
+        "Cleaning items" -> return CategoryVisual(Icons.Rounded.CleaningServices, LedgerColors.Teal)
+        "School items" -> return CategoryVisual(Icons.Rounded.School, LedgerColors.Purple)
+        "Personal items" -> return CategoryVisual(Icons.Rounded.ShoppingBag, LedgerColors.Purple)
+        "Pets" -> return CategoryVisual(Icons.Rounded.Pets, LedgerColors.Amber)
+    }
     return when {
         listOf("other income", "other expense", "other").any { name == it } ->
             CategoryVisual(Icons.Rounded.Category, Color(0xFF7C92AE))
