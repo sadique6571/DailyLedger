@@ -263,7 +263,6 @@ private fun CreditEntryDialog(
                 }
                 OutlinedTextField(creditor, { creditor = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("Shop / person") }, singleLine = true)
-                Text("Saman ki category", style = MaterialTheme.typography.labelLarge)
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag("udhar-category"))
                 OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth(),
