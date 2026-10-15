@@ -89,9 +89,11 @@ fun LedgerBrandHeader(subtitle: String, modifier: Modifier = Modifier, actions: 
 @Composable
 fun GlowIcon(icon: ImageVector, color: Color, modifier: Modifier = Modifier, size: Dp = 42.dp, description: String? = null) {
     val dark = ledgerIsDark()
-    Box(modifier.size(size).background(Brush.linearGradient(listOf(color.copy(alpha = if (dark) 0.28f else 0.22f),
+    val display = LocalDisplayPreferences.current!!
+    val scaledSize = size * display.iconMultiplier
+    Box(modifier.size(scaledSize).background(Brush.linearGradient(listOf(color.copy(alpha = if (dark) 0.28f else 0.22f),
         color.copy(alpha = if (dark) 0.10f else 0.06f))), CircleShape).border(1.dp, Color.White.copy(alpha = if (dark) 0.05f else 0.7f), CircleShape), contentAlignment = Alignment.Center) {
-        Icon(icon, description, Modifier.size(size * 0.56f), tint = color)
+        Icon(icon, description, Modifier.size(scaledSize * 0.56f), tint = color)
     }
 }
 
