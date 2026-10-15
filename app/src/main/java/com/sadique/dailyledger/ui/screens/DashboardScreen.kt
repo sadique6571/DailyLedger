@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.sadique.dailyledger.ai.DailySpendingGuide
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
@@ -52,7 +54,7 @@ fun DashboardScreen(
     committeeMembers: List<CommitteeMemberEntity> = emptyList(), savings: List<SavingEntity>, userName: String,
     weatherEnabled: Boolean, weatherCity: String, weatherTemperature: String, weatherCondition: String,
     ledgerCycle: LedgerCycleEntity? = null, ledgerArchives: List<LedgerArchiveEntity> = emptyList(),
-    onAddSalary: () -> Unit, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
+    onAddSalary: () -> Unit, onAddSalaryWithAmount: (String) -> Unit = { onAddSalary() }, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
     aiStatus: String = "", aiEnabled: Boolean = false, onEnableAi: () -> Unit = {},
     aiBusy: Boolean = false, onRefreshAi: () -> Unit = {},
@@ -84,6 +86,7 @@ fun DashboardScreen(
     var showBalance by remember { mutableStateOf(true) }
     var confirmNewMonth by remember { mutableStateOf(false) }
     var confirmArchive by remember { mutableStateOf(false) }
+    var salaryAmountInput by remember { mutableStateOf("") }
     var receiveSalarySelected by remember { mutableStateOf(true) }
     var archivePreviousSelected by remember { mutableStateOf(false) }
     var showArchives by remember { mutableStateOf(false) }
@@ -204,7 +207,15 @@ fun DashboardScreen(
             enteringItem(key = "salary-cycle-controls", index = 3) {
                 LedgerCard(Modifier.fillMaxWidth()) {
                     Text("Salary received & cycle options", fontWeight = FontWeight.Bold)
-                    Text("Choose the actions you want. Salary amount is entered in the existing salary form.", style = MaterialTheme.typography.bodySmall)
+                    Text("Select actions; salary amount will be verified in the existing salary entry form.", style = MaterialTheme.typography.bodySmall)
+                    if (receiveSalarySelected) OutlinedTextField(
+                        value = salaryAmountInput,
+                        onValueChange = { salaryAmountInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Salary received amount (Rs)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = receiveSalarySelected, onCheckedChange = { receiveSalarySelected = it })
                         Text("Receive salary", modifier = Modifier.weight(1f))
@@ -216,9 +227,9 @@ fun DashboardScreen(
                     Button(
                         onClick = {
                             when {
-                                receiveSalarySelected && ledgerCycle != null -> confirmNewMonth = true
                                 archivePreviousSelected -> confirmArchive = true
-                                receiveSalarySelected -> onAddSalary()
+                                receiveSalarySelected && ledgerCycle != null -> confirmNewMonth = true
+                                receiveSalarySelected -> onAddSalaryWithAmount(salaryAmountInput)
                             }
                         },
                         enabled = receiveSalarySelected || archivePreviousSelected,
@@ -340,7 +351,7 @@ fun DashboardScreen(
             title = { Text("Start a new salary month?") },
             text = { Text("The current salary period will be archived. Its remaining balance (${displayMoney(summary.remaining)}) will carry forward; no money or transaction will be deleted. Start the new period before entering your next salary.") },
             confirmButton = {
-                TextButton(onClick = { confirmNewMonth = false; onStartNewMonth() }) { Text("Archive & start") }
+                TextButton(onClick = { confirmNewMonth = false; onStartNewMonth(); if (receiveSalarySelected) onAddSalaryWithAmount(salaryAmountInput) }) { Text("Archive & start") }
             },
             dismissButton = { TextButton(onClick = { confirmNewMonth = false }) { Text("Cancel") } },
         )
@@ -356,6 +367,7 @@ fun DashboardScreen(
                     confirmArchive = false
                     onArchivePreviousMonth { archived ->
                         archiveMessage = if (archived) "$previousMonth archived. Original entries were kept." else "$previousMonth was already archived."
+                        if (receiveSalarySelected) { if (ledgerCycle != null) confirmNewMonth = true else onAddSalaryWithAmount(salaryAmountInput) }
                     }
                 }) { Text("Archive month") }
             },
