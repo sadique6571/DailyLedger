@@ -48,7 +48,7 @@ object LedgerColors {
 fun LedgerBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val dark = ledgerIsDark()
     Box(modifier.background(Brush.verticalGradient(if (dark) listOf(Color(0xFF102C43), MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background)
-        else listOf(Color(0xFFC9F4FA), Color(0xFFF2FAFF), Color(0xFFF9FCFF)), endY = 1500f)), content = content)
+        else listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f), MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background), endY = 1500f)), content = content)
 }
 
 @Composable

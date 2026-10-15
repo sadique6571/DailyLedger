@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -262,11 +263,12 @@ fun SettingsScreen(
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
     LazyColumn(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
             .imePadding()
             .testTag("settings-list"),
+        state = rememberLazyListState(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -410,12 +412,16 @@ fun SettingsScreen(
                         placeholder = { Text("YYYY-MM-DD") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        isError = exportFrom.isNotBlank() && runCatching { LocalDate.parse(exportFrom.trim()) }.isFailure,
+                        supportingText = { Text("Use YYYY-MM-DD, or leave blank") },
                     )
                     OutlinedTextField(
                         exportThrough,
                         { exportThrough = it },
                         label = { Text("To date (optional)") },
                         placeholder = { Text("YYYY-MM-DD") },
+                        isError = exportThrough.isNotBlank() && runCatching { LocalDate.parse(exportThrough.trim()) }.isFailure,
+                        supportingText = { Text("Use YYYY-MM-DD, or leave blank") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -424,6 +430,7 @@ fun SettingsScreen(
                 Text(if (exportPdf) "PDF includes income, expenses and a separate kameti statement with paid installments and each receiving. Payments follow their installment month; undated receiving appears in All records. It does not replace a backup."
                     else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (busy) Text("Working on your request…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

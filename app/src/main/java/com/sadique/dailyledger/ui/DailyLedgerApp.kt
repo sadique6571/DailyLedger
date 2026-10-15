@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -114,9 +115,11 @@ fun DailyLedgerApp(
     var tab by rememberSaveable(user.id) { mutableIntStateOf(0) }
     var settingsOpen by rememberSaveable(user.id) { mutableStateOf(false) }
     var settingsReturn by rememberSaveable(user.id) { mutableStateOf(false) }
+    var moreReturn by rememberSaveable(user.id) { mutableStateOf(false) }
+    val moreListState = rememberLazyListState()
     val settingsState = rememberSaveableStateHolder()
     fun returnToSettings() { settingsReturn = false; settingsOpen = true }
-    fun closeSettings() { settingsOpen = false; settingsReturn = false; tab = 0 }
+    fun closeSettings() { settingsOpen = false; settingsReturn = false; tab = if (moreReturn) 6 else 0; moreReturn = false }
     var remindersOpen by remember { mutableStateOf(false) }
     var autoFillOpen by remember(user.id) { mutableStateOf(false) }
     var creditAiOpen by remember(user.id) { mutableStateOf(false) }
@@ -270,7 +273,11 @@ fun DailyLedgerApp(
             } }, confirmButton = { TextButton(onClick = { remindersOpen = false }) { Text("Close") } })
     }
     BackHandler(enabled = !settingsOpen && (tab != 0 || settingsReturn)) {
-        if (settingsReturn) returnToSettings() else tab = 0
+        when {
+            settingsReturn -> returnToSettings()
+            moreReturn && tab != 6 -> { tab = 6; moreReturn = false }
+            else -> { tab = 0; moreReturn = false }
+        }
     }
 
     BackHandler(enabled = settingsOpen) { closeSettings() }
@@ -342,7 +349,7 @@ fun DailyLedgerApp(
                     if (settingsReturn) IconButton(onClick = ::returnToSettings, modifier = Modifier.testTag("return-to-settings")) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Settings")
                     }
-                    IconButton(onClick = { historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
+                    IconButton(onClick = { moreReturn = false; historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
                     IconButton(onClick = { if (tab == 6) settingsOpen = true else remindersOpen = true }) {
                         Icon(if (tab == 6) Icons.Rounded.Settings else Icons.Rounded.NotificationsNone,
                             if (tab == 6) "Settings" else "Reminders", Modifier.size(23.dp))
@@ -359,7 +366,7 @@ fun DailyLedgerApp(
                 tabs.forEachIndexed { i, t ->
                     val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6); else -> false }
                     NavigationBarItem(selected = selected,
-                        onClick = { settingsReturn = false; when (i) { 0 -> tab = 0; 1 -> tab = 7; 2 -> tab = 3; 3 -> tab = 4; else -> tab = 6 } },
+                        onClick = { settingsReturn = false; moreReturn = false; when (i) { 0 -> tab = 0; 1 -> tab = 7; 2 -> tab = 3; 3 -> tab = 4; else -> tab = 6 } },
                         icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
                         label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
@@ -463,7 +470,16 @@ fun DailyLedgerApp(
                 7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
-                else -> MoreScreen({ historyQuery = ""; historyFilter = "ALL"; tab = 1 }, { tab = 2 }, { tab = 3 }, { tab = 4 }, { settingsOpen = true }, { tab = 7 }, { tab = 5 })
+                else -> MoreScreen(
+                    onTransactions = { moreReturn = true; historyQuery = ""; historyFilter = "ALL"; tab = 1 },
+                    onLoans = { moreReturn = true; tab = 2 },
+                    onKameti = { moreReturn = true; tab = 3 },
+                    onSavings = { moreReturn = true; tab = 4 },
+                    onSettings = { moreReturn = true; settingsOpen = true },
+                    onCredit = { moreReturn = true; tab = 7 },
+                    onInsights = { moreReturn = true; tab = 5 },
+                    listState = moreListState,
+                )
             }
         }
     }

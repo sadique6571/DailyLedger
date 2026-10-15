@@ -12,6 +12,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import android.provider.Settings
 import androidx.compose.ui.unit.dp
 
 /** One entrance per page/item, independent of amounts and normal recomposition.
@@ -21,11 +23,14 @@ import androidx.compose.ui.unit.dp
 fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     var entered by rememberSaveable { mutableStateOf(false) }
     val progress = remember { Animatable(if (entered) 1f else 0f) }
-    val distance = with(LocalDensity.current) { 72.dp.toPx() }
+    val distance = with(LocalDensity.current) { 48.dp.toPx() }
+    val context = LocalContext.current
+    val reduceMotion = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     LaunchedEffect(Unit) {
         if (!entered) {
             entered = true
-            progress.animateTo(1f, tween(320, delayMillis = (index.coerceIn(0, 5) * 55), easing = FastOutSlowInEasing))
+            if (reduceMotion) progress.snapTo(1f)
+            else progress.animateTo(1f, tween(220, delayMillis = (index.coerceIn(0, 4) * 40), easing = FastOutSlowInEasing))
         }
     }
     Column(modifier.graphicsLayer {

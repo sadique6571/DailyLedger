@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,8 +40,10 @@ fun TransactionsScreen(
 ) {
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
-    var query by remember(initialQuery) { mutableStateOf(initialQuery) }
-    var filter by remember(initialFilter) { mutableStateOf(initialFilter) }
+    var pendingDelete by remember { mutableStateOf<TransactionEntity?>(null) }
+    var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
+    var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
+    val listState = rememberLazyListState()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
             (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true))
@@ -46,23 +51,27 @@ fun TransactionsScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { edit = null; show = true }) { Icon(Icons.Default.Add, null) }
+            FloatingActionButton(onClick = { edit = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
         }
     ) { pad ->
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
+            state = listState,
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             enteringItem {
                 Text("Transactions", style = MaterialTheme.typography.headlineMedium)
                 onAutoFill?.let { action -> FilledTonalButton(onClick = action) { Text("AI Auto Fill") } }
-                OutlinedTextField(query, { query = it }, label = { Text("Search") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(query, { query = it }, label = { Text("Search categories or notes") }, modifier = Modifier.fillMaxWidth(), singleLine = true, trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear search") } })
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("ALL", "EXPENSE", "INCOME").forEach {
                         FilterChip(filter == it, { filter = it }, { Text(it.lowercase().replaceFirstChar(Char::uppercase)) })
                     }
                 }
+            }
+            if (filtered.isEmpty()) {
+                item { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 28.dp)) }
             }
             enteringItems(filtered, key = { it.id }) { x ->
                 Card(onClick = { edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
@@ -76,12 +85,21 @@ fun TransactionsScreen(
                         }
                         Column {
                             Text(money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
-                            IconButton(onClick = { onDelete(x) }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }
+                            IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
                     }
                 }
             }
         }
+    }
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete transaction?") },
+            text = { Text("Delete ${target.category} (${money(target.amountMinor)}) from ${target.date}? This action cannot be undone.") },
+            confirmButton = { TextButton(onClick = { pendingDelete = null; onDelete(target) }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+        )
     }
     if (show) {
         TransactionDialog(edit, { show = false }, save = { type, amount, cat, note, date ->
@@ -122,11 +140,11 @@ fun TransactionDialog(
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
                     }
                 }
-                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
-                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+                OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
             }
         },
         confirmButton = {

@@ -5,9 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -96,13 +98,14 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem(key = "greeting", index = 0) {
-                Box(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
-                    LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(196.dp).height(112.dp))
+                BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
+                    val compact = maxWidth < 370.dp
+                    LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(if (compact) 112.dp else 196.dp).height(112.dp))
                     Column(Modifier.padding(top = 6.dp, bottom = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(when (LocalTime.now().hour) { in 5..11 -> "Good morning,"; in 12..16 -> "Good afternoon,"; else -> "Good evening," }, fontSize = 15.sp)
-                        Text(userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                        Text(userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = if (compact) 23.sp else 27.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(if (compact) .65f else .85f))
                         if (weatherEnabled && weatherCity.isNotBlank()) {
                             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = .88f)) {
                                 Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -126,7 +129,7 @@ fun DashboardScreen(
                                     Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                                 }
                             }
-                            Text(if (showBalance) displayMoney(summary.remaining) else "Rs •••••", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Bold,
+                            Text(if (showBalance) displayMoney(summary.remaining) else "Rs •••••", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
                             Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                             Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
