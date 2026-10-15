@@ -8,6 +8,7 @@ import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.screens.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -107,6 +108,38 @@ class LedgerScreensTest {
         compose.onNodeWithTag("frequent-history-entry-veg-1").assertHasNoClickAction()
         compose.onNodeWithTag("frequent-history-entry-veg-2").assertHasNoClickAction()
         assertFalse(edited); screenshot("frequent-current-month")
+    }
+
+    @Test fun dashboardFrequentRecentAndMoneySpaceTilesHaveVisibleGaps() {
+        val rows = listOf(
+            TransactionEntity("s", "test", "INCOME", 1000000, "Salary", "", "$month-01", 1, 1),
+            TransactionEntity("a", "test", "EXPENSE", 15000, "Food", "Vegetables", "$month-02", 2, 2),
+            TransactionEntity("b", "test", "EXPENSE", 12000, "Bills", "Internet", "$month-03", 3, 3),
+        )
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
+            )
+        } }
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
+        val frequent0 = compose.onNodeWithTag("frequent-item-0").fetchSemanticsNode().boundsInRoot
+        val frequent1 = compose.onNodeWithTag("frequent-item-1").fetchSemanticsNode().boundsInRoot
+        assertTrue("Frequent purchases must have a gap", frequent1.top > frequent0.bottom + 2f)
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("recent")
+        val recent0 = compose.onNodeWithTag("recent-transaction-0").fetchSemanticsNode().boundsInRoot
+        val recent1 = compose.onNodeWithTag("recent-transaction-1").fetchSemanticsNode().boundsInRoot
+        assertTrue("Recent transactions must have a gap", recent1.top > recent0.bottom + 2f)
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        val first = compose.onNodeWithTag("money-space-first").fetchSemanticsNode().boundsInRoot
+        val second = compose.onNodeWithTag("money-space-second").fetchSemanticsNode().boundsInRoot
+        assertTrue("Money spaces must have horizontal or vertical breathing room",
+            second.top > first.bottom + 2f || second.left > first.right + 2f)
     }
 
     @Test fun firstKametiCanBeReceivedBeforeSecond() {
