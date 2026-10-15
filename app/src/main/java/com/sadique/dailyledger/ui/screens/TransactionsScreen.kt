@@ -56,6 +56,8 @@ fun TransactionsScreen(
     var selectedDay by rememberSaveable { mutableStateOf("") }
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
     var expandedNoteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var compactRows by rememberSaveable { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf<TransactionEntity?>(null) }
     val today = LocalDate.now()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
@@ -109,6 +111,10 @@ fun TransactionsScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TextButton(onClick = { query = ""; filter = "ALL"; dateRange = "ALL"; selectedDay = ""; sortOrder = "NEWEST" }) { Text("Clear all filters") }
+                    TextButton(onClick = { compactRows = !compactRows }) { Text(if (compactRows) "Comfortable rows" else "Compact rows") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("ALL", "EXPENSE", "INCOME").forEach {
                         FilterChip(filter == it, { filter = it }, { Text(it.lowercase().replaceFirstChar(Char::uppercase)) })
                     }
@@ -119,10 +125,11 @@ fun TransactionsScreen(
             }
             enteringItems(sorted, key = { it.id }) { x ->
                 Card(onClick = { edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(Modifier.padding(if (compactRows) 7.dp else 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text("${x.category} • ${x.type}")
                             Text(x.date, style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { showDetails = x }, contentPadding = PaddingValues(0.dp)) { Text("Details") }
                             if (x.note.isNotBlank()) {
                                 Text(x.note, modifier = Modifier.clickable { expandedNoteId = if (expandedNoteId == x.id) null else x.id }, maxLines = if (expandedNoteId == x.id) Int.MAX_VALUE else 2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -135,6 +142,20 @@ fun TransactionsScreen(
                 }
             }
         }
+    }
+    showDetails?.let { detail ->
+        AlertDialog(
+            onDismissRequest = { showDetails = null },
+            title = { Text("Transaction details") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Category: ${detail.category}")
+                Text("Type: ${detail.type}")
+                Text("Date: ${detail.date}")
+                Text("Amount: ${if (display.privateAmounts) "Rs •••••" else money(detail.amountMinor)}")
+                if (detail.note.isNotBlank()) Text("Note: ${detail.note}")
+            } },
+            confirmButton = { TextButton(onClick = { showDetails = null }) { Text("Close") } },
+        )
     }
     pendingDelete?.let { target ->
         AlertDialog(
