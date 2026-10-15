@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.sadique.dailyledger.ui.isValidDate
 import com.sadique.dailyledger.ui.plainAmount
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.TransactionEntity
@@ -269,6 +270,8 @@ fun TransactionDialog(
     )
     AlertDialog(
         onDismissRequest = safeDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.97f).testTag("wide-transaction-entry"),
         title = { Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
