@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 
@@ -157,7 +159,8 @@ fun DailyLedgerTheme(
     mode: String,
     content: @Composable () -> Unit,
 ) {
-    val displayPrefs = LocalDisplayPreferences.current
+    val appContext = LocalContext.current
+    val displayPrefs = LocalDisplayPreferences.current ?: remember { DisplayPreferences(appContext.applicationContext) }
     val deviceDensity = LocalDensity.current
     val adjustedDensity = Density(deviceDensity.density, deviceDensity.fontScale * displayPrefs.fontMultiplier)
     val normalized = mode.uppercase()
@@ -187,7 +190,7 @@ fun DailyLedgerTheme(
         surfaceContainerHigh = lerp(scheme.surface, scheme.primaryContainer, 0.35f),
         surfaceContainerHighest = lerp(scheme.surface, scheme.primaryContainer, 0.45f),
         outline = lerp(scheme.onSurface, scheme.surface, 0.55f))
-    CompositionLocalProvider(LocalDensity provides adjustedDensity) {
+    CompositionLocalProvider(LocalDisplayPreferences provides displayPrefs, LocalDensity provides adjustedDensity) {
     MaterialTheme(colorScheme = readable,
         shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)),
         typography = Typography(
