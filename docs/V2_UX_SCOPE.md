@@ -163,6 +163,44 @@ Implement and verify or explicitly mark each deferred, with a regression test an
 - Offline indicator, large-history speed, screenshot protection, accessibility presets
 - Final UI regression coverage across multiple screen sizes and large text
 
+
+## Additional approved UX improvements 122–151 (not all implemented)
+122. Dashboard lock mode
+123. Read-only chart mode — basic donut interaction removed in v2
+124. Custom category symbols
+125. Stable category colors — donut currently derives deterministic color from category label
+126. Recent action history
+127. Confirm before overwrite
+128. Smart empty states
+129. Custom dashboard header
+130. Per-screen font preferences
+131. Dashboard grid density
+132. Compact transaction rows — initial local toggle implemented
+133. Transaction details and copying — details initially implemented, copying pending
+134. Expand/collapse all
+135. Filter presets
+136. Search history clearing
+137. Payment status iconography
+138. Theme accent picker
+139. OLED black theme
+140. Keep screen awake during entry
+141. Keyboard Done flow
+142. Currency numeric spacing
+143. Card-specific amount visibility
+144. Haptic intensity/off
+145. Horizontal scroll affordances
+146. Consistent confirmation styles
+147. Contextual tooltips
+148. Clear active filters — initial implementation
+149. Dashboard section dividers
+150. Robust long-name wrapping/truncation
+151. UI settings preview/export
+
+## Current feature implementation ledger
+- Implemented on v2 branch but **not compiled/tested**: transaction sort, quick amounts, note expansion, duplicate guard, unsaved changes prompt, quick dates, amount/date search, compact rows, transaction details, clear filters, read-only donut/chart legend, More menu deduplication.
+- Existing from v1.x and requiring audit: dashboard size preferences, privacy masking of selected screens, theme, some charts and navigation.
+- Everything else above is pending implementation and verification. Scope inclusion does NOT mean implementation.
+
 ## Definition of done
 - Every selected scope item has status Done + proof/test or is honestly documented Deferred.
 - No data regression, signing change or broken in-place upgrade.
