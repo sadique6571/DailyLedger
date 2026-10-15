@@ -350,12 +350,12 @@ fun DashboardScreen(
                         first = { cardModifier ->
                             if (display.savingsFirst) {
                                 SummaryCard("Savings total", savings.sumOf { it.amountMinor },
-                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings)
+                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings, compact = true)
                             } else {
                                 SummaryCard("Kameti paid", cp.sumOf { it.amountMinor },
                                     Icons.Rounded.Groups, cardModifier,
                                     "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}",
-                                    onOpenKameti)
+                                    onOpenKameti, compact = true)
                             }
                         },
                         second = { cardModifier ->
@@ -363,19 +363,48 @@ fun DashboardScreen(
                                 SummaryCard("Kameti paid", cp.sumOf { it.amountMinor },
                                     Icons.Rounded.Groups, cardModifier,
                                     "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}",
-                                    onOpenKameti)
+                                    onOpenKameti, compact = true)
                             } else {
                                 SummaryCard("Savings total", savings.sumOf { it.amountMinor },
-                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings)
+                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings, compact = true)
                             }
                         },
                     )
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
                         runCatching { YearMonth.parse(member.turnMonth) }.getOrNull()?.let { it to member }
                     }.filter { !it.first.isBefore(month) }.minByOrNull { it.first }?.let { (turn, _) ->
-                        LedgerCard(Modifier.fillMaxWidth().clickable(onClick = onOpenKameti)) {
-                            Text("Your kameti turn • $turn", fontWeight = FontWeight.SemiBold)
-                            Text(if (turn == month) "Your receiving month is here" else "Upcoming personal turn", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        val shape = RoundedCornerShape(16.dp)
+                        val accent = MaterialTheme.colorScheme.tertiary
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().testTag("kameti-turn-card")
+                                .clickable(onClick = onOpenKameti),
+                            shape = shape,
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .38f)),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(shape)
+                                    .background(
+                                        Brush.horizontalGradient(listOf(
+                                            accent.copy(alpha = .13f),
+                                            MaterialTheme.colorScheme.surface,
+                                        )),
+                                        shape = shape,
+                                    ).padding(horizontal = 12.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                            ) {
+                                GlowIcon(Icons.Rounded.EventAvailable, accent, size = 30.dp)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Your kameti turn • $turn", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(
+                                        if (turn == month) "Your receiving month is here" else "Upcoming personal turn",
+                                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Icon(Icons.Rounded.ChevronRight, null, tint = accent)
+                            }
                         }
                     }
                     if (loans.isNotEmpty()) {
@@ -388,11 +417,11 @@ fun DashboardScreen(
                         MoneySpacePair(
                             first = { cardModifier ->
                                 SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake,
-                                    cardModifier, onClick = onOpenLoans)
+                                    cardModifier, onClick = onOpenLoans, compact = true)
                             },
                             second = { cardModifier ->
                                 SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance,
-                                    cardModifier, onClick = onOpenLoans)
+                                    cardModifier, onClick = onOpenLoans, compact = true)
                             },
                         )
                     }
@@ -571,22 +600,22 @@ fun DashboardScreen(
     }
 }
 
-/** Stack money cards on narrow screens to prevent clipped titles, amounts and square overlaps. */
+/** Responsive compact tiles. Stack only on very narrow screens; keep 14dp gaps. */
 @Composable
 private fun MoneySpacePair(
     first: @Composable (Modifier) -> Unit,
     second: @Composable (Modifier) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth < 410.dp) {
+        if (maxWidth < 275.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                first(Modifier.fillMaxWidth().heightIn(min = 160.dp).testTag("money-space-first"))
-                second(Modifier.fillMaxWidth().heightIn(min = 160.dp).testTag("money-space-second"))
+                first(Modifier.fillMaxWidth().heightIn(min = 126.dp).testTag("money-space-first"))
+                second(Modifier.fillMaxWidth().heightIn(min = 126.dp).testTag("money-space-second"))
             }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                first(Modifier.weight(1f).heightIn(min = 190.dp).testTag("money-space-first"))
-                second(Modifier.weight(1f).heightIn(min = 190.dp).testTag("money-space-second"))
+                first(Modifier.weight(1f).heightIn(min = 134.dp).testTag("money-space-first"))
+                second(Modifier.weight(1f).heightIn(min = 134.dp).testTag("money-space-second"))
             }
         }
     }
