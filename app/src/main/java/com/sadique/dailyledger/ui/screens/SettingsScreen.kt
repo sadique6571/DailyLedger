@@ -408,6 +408,18 @@ fun SettingsScreen(
                     Text("Savings before loans", Modifier.weight(1f))
                     Switch(checked = display.savingsFirst, onCheckedChange = display::updateSavingsFirst)
                 }
+                Text("Live preview", style = MaterialTheme.typography.titleMedium)
+                LedgerCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GlowIcon(Icons.Rounded.AccountBalanceWallet, MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Sample balance card", style = MaterialTheme.typography.titleMedium)
+                            Text(if (display.privateAmounts) "Rs •••••" else "Rs 45,500",
+                                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text("Changes apply immediately", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 OutlinedButton(onClick = display::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset display settings") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Biometric / device lock", Modifier.weight(1f))
