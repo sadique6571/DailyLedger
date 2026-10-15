@@ -82,7 +82,7 @@ class RefreshScreensTest {
                     com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, "", "", "", 0L, false, {})
             } }
             compose.onNodeWithText("More").performClick()
-            compose.onNodeWithText("Settings & backup").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Settings").performClick()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-savings")
             compose.onNodeWithText("View savings").performScrollTo().performClick()
             compose.onNodeWithTag("return-to-settings").assertIsDisplayed()
