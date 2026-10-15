@@ -95,7 +95,7 @@ fun DashboardScreen(
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
     val guide = DailySpendingGuide.calculate(tx, summary, today)
-    val display = LocalDisplayPreferences.current
+    val display = LocalDisplayPreferences.current!!
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
