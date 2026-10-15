@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import java.time.LocalDate
 import android.app.DatePickerDialog
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -55,6 +57,7 @@ fun TransactionsScreen(
     val listState = rememberLazyListState()
     val display = LocalDisplayPreferences.current!!
     val dateContext = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val favoritesStore = remember(dateContext) { dateContext.applicationContext.getSharedPreferences("transaction_favorites_v2", android.content.Context.MODE_PRIVATE) }
     var favoriteIds by remember { mutableStateOf(favoritesStore.getStringSet("ids", emptySet())?.toSet() ?: emptySet()) }
     fun toggleFavorite(id: String) {
@@ -67,11 +70,13 @@ fun TransactionsScreen(
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
     var expandedNoteId by rememberSaveable { mutableStateOf<String?>(null) }
     var compactRows by rememberSaveable { mutableStateOf(false) }
+    var favoritesOnly by rememberSaveable { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf<TransactionEntity?>(null) }
     var quickTemplate by remember { mutableStateOf<TransactionEntity?>(null) }
     val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
     val filtered = items.filter {
+        (!favoritesOnly || it.id in favoriteIds) &&
         (filter == "ALL" || it.type == filter) &&
             (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
             when (dateRange) {
@@ -140,7 +145,8 @@ fun TransactionsScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TextButton(onClick = { query = ""; filter = "ALL"; dateRange = "ALL"; selectedDay = ""; sortOrder = "NEWEST" }) { Text("Clear all filters") }
+                    TextButton(onClick = { query = ""; filter = "ALL"; dateRange = "ALL"; selectedDay = ""; sortOrder = "NEWEST"; favoritesOnly = false }) { Text("Clear all filters") }
+                    TextButton(onClick = { favoritesOnly = !favoritesOnly }) { Text(if (favoritesOnly) "Show all entries" else "Favorites only") }
                     TextButton(onClick = { compactRows = !compactRows }) { Text(if (compactRows) "Comfortable rows" else "Compact rows") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -185,6 +191,7 @@ fun TransactionsScreen(
                 Text("Date: ${detail.date}")
                 Text("Amount: ${if (display.privateAmounts) "Rs •••••" else money(detail.amountMinor)}")
                 if (detail.note.isNotBlank()) Text("Note: ${detail.note}")
+                TextButton(onClick = { clipboard.setText(AnnotatedString(detail.category + " • " + detail.date + " • " + (if (display.privateAmounts) "Rs •••••" else money(detail.amountMinor)) + (if (detail.note.isNotBlank()) " • " + detail.note else ""))) }) { Text("Copy details") }
             } },
             confirmButton = { TextButton(onClick = { showDetails = null }) { Text("Close") } },
         )
