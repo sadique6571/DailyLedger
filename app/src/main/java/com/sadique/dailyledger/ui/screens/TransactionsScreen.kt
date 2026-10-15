@@ -185,11 +185,13 @@ fun TransactionsScreen(
         dismissButton = { TextButton(onClick = { duplicateWarning = false; pendingSave = null }) { Text("Review") } },
     )
     if (show) {
+        key(edit?.id, quickTemplate?.id) {
         TransactionDialog(edit, { show = false }, save = { type, amount, cat, note, date ->
             val action = { onSave(type, amount, cat, note, date, edit); show = false; Unit }
             val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
             if (duplicate) { pendingSave = action; duplicateWarning = true } else action()
         }, initialType = quickTemplate?.type ?: "EXPENSE", initialCategory = quickTemplate?.category ?: "", initialAmount = quickTemplate?.let { plainAmount(it.amountMinor) } ?: "")
+        }
     }
 }
 
