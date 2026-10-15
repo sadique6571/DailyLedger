@@ -290,7 +290,7 @@ fun DashboardScreen(
                                 Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(entry.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text((if (entry.type == "INCOME") "+ " else "− ") + displayMoney(entry.amountMinor), fontSize = 13.sp,
+                            Text((if (entry.type == "INCOME") "+ " else "− ") + visibleMoney(entry.amountMinor), fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium, color = if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red)
                         }
                         if (index < recent.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
@@ -305,9 +305,9 @@ fun DashboardScreen(
                     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (display.savingsFirst) {
                         SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
                         } else {
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
                         SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
                         }
                     }
@@ -340,7 +340,7 @@ fun DashboardScreen(
                 "Expenses" to -summary.expenses, "Kameti charged this cycle" to -summary.committeeContributions,
                 "Savings set aside" to -summary.savingsContributions, "Remaining balance" to summary.remaining).forEach { (label, amount) ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(label, Modifier.weight(1f)); Text(displayMoney(amount), fontWeight = FontWeight.SemiBold)
+                    Text(label, Modifier.weight(1f)); Text(visibleMoney(amount), fontWeight = FontWeight.SemiBold)
                 }
             }
         } },
@@ -408,7 +408,7 @@ fun DashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("Current month · ${purchases.size} entries", style = MaterialTheme.typography.bodySmall)
-                    Text("Total this month: ${displayMoney(total)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Total this month: ${visibleMoney(total)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     purchases.forEachIndexed { index, purchase ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 5.dp).testTag("frequent-history-entry-${purchase.id}"),
@@ -426,12 +426,12 @@ fun DashboardScreen(
                                 }.getOrDefault(purchase.date)
                                 Text(displayDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(displayMoney(purchase.amountMinor), fontWeight = FontWeight.SemiBold)
+                            Text(visibleMoney(purchase.amountMinor), fontWeight = FontWeight.SemiBold)
                         }
                         if (index < purchases.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     HorizontalDivider()
-                    Text("Total: ${displayMoney(total)}", Modifier.align(Alignment.End), fontWeight = FontWeight.Bold)
+                    Text("Total: ${visibleMoney(total)}", Modifier.align(Alignment.End), fontWeight = FontWeight.Bold)
                 }
             },
             confirmButton = { TextButton(onClick = { selectedFrequentCategory = null }) { Text("Close") } },
