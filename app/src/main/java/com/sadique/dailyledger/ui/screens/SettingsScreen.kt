@@ -430,6 +430,7 @@ fun SettingsScreen(
                 Text(if (exportPdf) "PDF includes income, expenses and a separate kameti statement with paid installments and each receiving. Payments follow their installment month; undated receiving appears in All records. It does not replace a backup."
                     else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (busy) Text("Working on your request…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
