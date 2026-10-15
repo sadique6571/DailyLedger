@@ -56,18 +56,23 @@ fun LedgerCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.(
     val display = LocalDisplayPreferences.current!!
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
+    val shape = RoundedCornerShape(if (display.compact) 14.dp else 22.dp)
     Surface(
-        modifier, shape = RoundedCornerShape(if (display.compact) 14.dp else 22.dp),
-        color = scheme.surface, shadowElevation = 5.dp,
+        modifier.clip(shape), shape = shape,
+        color = scheme.surface, shadowElevation = 4.dp,
         border = androidx.compose.foundation.BorderStroke(
             1.dp, scheme.primary.copy(alpha = if (dark) .28f else .17f),
         ),
     ) {
         Column(
-            Modifier.background(Brush.verticalGradient(listOf(
-                scheme.primaryContainer.copy(alpha = if (dark) .20f else .23f),
-                scheme.surface,
-            ))).padding(display.cardPadding.dp),
+            Modifier.fillMaxWidth().clip(shape)
+                .background(
+                    Brush.verticalGradient(listOf(
+                        scheme.primaryContainer.copy(alpha = if (dark) .15f else .17f),
+                        scheme.surface,
+                    )),
+                    shape = shape,
+                ).padding(display.cardPadding.dp),
             content = content,
         )
     }
