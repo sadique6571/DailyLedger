@@ -140,6 +140,33 @@ class LedgerScreensTest {
         val second = compose.onNodeWithTag("money-space-second").fetchSemanticsNode().boundsInRoot
         assertTrue("Money spaces must have horizontal or vertical breathing room",
             second.top > first.bottom + 2f || second.left > first.right + 2f)
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        assertTrue("Money space cards should stay compact", first.height < 166f * density && second.height < 166f * density)
+        val screenWidthDp = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.widthPixels / density
+        if (screenWidthDp >= 360f) {
+            assertTrue("Money spaces should use two columns on standard phones",
+                kotlin.math.abs(first.top - second.top) <= 3f * density)
+        }
+    }
+
+    @Test fun upcomingKametiTurnIsABoxedClickableTile() {
+        var opened = false
+        val member = CommitteeMemberEntity(
+            id = "me", ownerId = "test", committeeId = "k", name = "Me",
+            turnNumber = 1, turnMonth = month, isMe = true, createdAt = 1,
+        )
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = emptyList(), loans = emptyList(), lp = emptyList(),
+                committees = listOf(kameti), cp = emptyList(), receipts = emptyList(),
+                committeeMembers = listOf(member), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = { opened = true },
+            )
+        } }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        compose.onNodeWithTag("kameti-turn-card").performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("Boxed Kameti turn should open Kameti", opened)
     }
 
     @Test fun firstKametiCanBeReceivedBeforeSecond() {
