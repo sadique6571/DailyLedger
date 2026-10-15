@@ -61,11 +61,14 @@ class RefreshScreensTest {
         compose.onNodeWithText("View savings").performScrollTo().performClick()
         assertEquals("savings", action)
     }
-    @Test fun udharAndOtherLedgersRemainAccessibleFromMore() {
+    @Test fun moreKeepsOnlyScreensWithoutDedicatedTabs() {
         var action = ""
-        compose.setContent { DailyLedgerTheme("AQUA") { MoreScreen({}, {}, {}, {}, {}, { action = "credit" }) } }
-        compose.onNodeWithText("Udhar Saman").performScrollTo().performClick()
-        assertEquals("credit", action)
+        compose.setContent { DailyLedgerTheme("AQUA") { MoreScreen({}, { action = "loans" }, {}, {}, {}, {}) } }
+        compose.onNodeWithText("Udhar Saman").assertDoesNotExist()
+        compose.onNodeWithText("Kameti").assertDoesNotExist()
+        compose.onNodeWithText("Savings").assertDoesNotExist()
+        compose.onNodeWithText("Loans").performScrollTo().performClick()
+        assertEquals("loans", action)
         shot("aqua-more")
     }
     @Test fun settingsChildrenReturnToSettingsBeforeHome() {
