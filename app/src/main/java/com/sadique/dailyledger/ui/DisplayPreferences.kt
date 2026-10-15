@@ -49,4 +49,4 @@ class DisplayPreferences(context: Context) {
     val iconMultiplier: Float get() = floatArrayOf(0.85f, 1f, 1.2f)[iconSize]
     val cardPadding: Int get() = if (compact) 10 else intArrayOf(10, 16, 22)[cardSize]
 }
-val LocalDisplayPreferences = staticCompositionLocalOf<DisplayPreferences> { error("Display preferences not provided") }
+val LocalDisplayPreferences = staticCompositionLocalOf<DisplayPreferences?> { null }
