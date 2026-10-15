@@ -85,6 +85,8 @@ class MainActivity : FragmentActivity() {
                 if (current != null) unlocked = !current.biometric
             }
 
+            val displayPrefs = remember { com.sadique.dailyledger.ui.DisplayPreferences(applicationContext) }
+            androidx.compose.runtime.CompositionLocalProvider(com.sadique.dailyledger.ui.LocalDisplayPreferences provides displayPrefs) {
             DailyLedgerTheme(current?.theme ?: "AQUA") {
                 Surface(Modifier.fillMaxSize()) {
                     when {
@@ -113,6 +115,7 @@ class MainActivity : FragmentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }

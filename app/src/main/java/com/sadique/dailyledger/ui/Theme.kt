@@ -15,6 +15,11 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 
 private val LedgerLightColors = lightColorScheme(
     primary = Color(0xFF0F766E),
@@ -154,6 +159,10 @@ fun DailyLedgerTheme(
     mode: String,
     content: @Composable () -> Unit,
 ) {
+    val appContext = LocalContext.current
+    val displayPrefs = LocalDisplayPreferences.current ?: remember { DisplayPreferences(appContext.applicationContext) }
+    val deviceDensity = LocalDensity.current
+    val adjustedDensity = Density(deviceDensity.density, deviceDensity.fontScale * displayPrefs.fontMultiplier)
     val normalized = mode.uppercase()
     val dark = when (normalized) {
         "DARK", "MIDNIGHT" -> true
@@ -181,6 +190,7 @@ fun DailyLedgerTheme(
         surfaceContainerHigh = lerp(scheme.surface, scheme.primaryContainer, 0.35f),
         surfaceContainerHighest = lerp(scheme.surface, scheme.primaryContainer, 0.45f),
         outline = lerp(scheme.onSurface, scheme.surface, 0.55f))
+    CompositionLocalProvider(LocalDisplayPreferences provides displayPrefs, LocalDensity provides adjustedDensity) {
     MaterialTheme(colorScheme = readable,
         shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)),
         typography = Typography(
@@ -194,4 +204,5 @@ fun DailyLedgerTheme(
             bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, lineHeight = 19.sp),
             bodySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp)
         ), content = content)
+    }
 }

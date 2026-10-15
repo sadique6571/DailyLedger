@@ -95,10 +95,11 @@ fun DashboardScreen(
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
     val guide = DailySpendingGuide.calculate(tx, summary, today)
-    val visibleMoney: (Long) -> String = { if (showBalance) displayMoney(it) else "Rs •••••" }
+    val display = LocalDisplayPreferences.current!!
+    val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 7.dp else 12.dp)) {
             enteringItem(key = "greeting", index = 0) {
                 BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
                     val compact = maxWidth < 370.dp
@@ -129,7 +130,7 @@ fun DashboardScreen(
                                     Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                                 }
                             }
-                            Text(if (showBalance) displayMoney(summary.remaining) else "Rs •••••", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
+                            Text(visibleMoney(summary.remaining), color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
                             Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                             Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
@@ -188,13 +189,13 @@ fun DashboardScreen(
             }
             enteringItem(key = "monthly-totals", index = 2) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).testTag("dashboard-add-salary"), onAddSalary)
-                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f), onAddOtherIncome)
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-salary"), onAddSalary)
+                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f).fillMaxHeight(), onAddOtherIncome)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f), onAddExpense)
-                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f), onOpenSavings)
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f).fillMaxHeight(), onAddExpense)
+                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f).fillMaxHeight(), onOpenSavings)
                     }
                 }
             }
@@ -225,7 +226,7 @@ fun DashboardScreen(
                     if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
+            if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
             if (frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -242,13 +243,13 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text(displayMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(visibleMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                             IconButton(onClick = { selectedFrequentCategory = label }) { Icon(Icons.Rounded.History, "View $label history") }
                         }
                     }
                 }
             }
-            enteringItem(key = "recent", index = 6) {
+            if (display.showRecent) enteringItem(key = "recent", index = 6) {
                 Column {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -278,13 +279,18 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
-            enteringItem(key = "separate-totals", index = 8) {
+            if (display.showSpaces) enteringItem(key = "separate-totals", index = 8) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f), "All saved amounts", onOpenSavings)
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (display.savingsFirst) {
+                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        } else {
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
+                        }
                     }
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
                         runCatching { YearMonth.parse(member.turnMonth) }.getOrNull()?.let { it to member }
@@ -294,18 +300,18 @@ fun DashboardScreen(
                             Text(if (turn == month) "Your receiving month is here" else "Upcoming personal turn", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                    if (loans.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (loans.isNotEmpty()) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         val outstanding: (String) -> Long = { direction -> loans.filter { it.direction == direction }.sumOf { loan ->
                             (loan.principalMinor - lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0) } }
-                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f), onClick = onOpenLoans)
-                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f), onClick = onOpenLoans)
+                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
+                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
                     }
                 }
             }
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
+            snapshot?.takeIf { display.showInsights }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
         }
     }
     if (balanceDetails) AlertDialog(
@@ -419,6 +425,7 @@ private fun TransactionEntity.frequentPurchaseLabel(): String =
 @Composable
 private fun DashboardStat(title: String, amount: Long, detail: String, icon: ImageVector, color: Color, modifier: Modifier, action: () -> Unit) {
     val dark = ledgerIsDark()
+    val hidden = LocalDisplayPreferences.current!!.privateAmounts
     Surface(modifier.clickable(onClick = action), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (dark) .08f else 1f))) {
         Column(Modifier.background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), Color.Transparent))).padding(10.dp)) {
@@ -426,7 +433,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
                 GlowIcon(icon, color, size = 27.dp)
                 Text(title, fontSize = 11.sp, maxLines = 1)
             }
-            Text(displayMoney(amount), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+            Text(if (hidden) "Rs •••••" else displayMoney(amount), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
             Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }

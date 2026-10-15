@@ -91,6 +91,7 @@ fun SettingsScreen(
     var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
     var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
     val settingsStore = remember { SettingsStore(context.applicationContext) }
+    val display = LocalDisplayPreferences.current!!
     val savings by vm.savings.collectAsState()
     val backupReady = driveEnabled && lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
@@ -365,6 +366,61 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Text("Font size", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Small", "Medium", "Large", "XL").forEachIndexed { index, label ->
+                        FilterChip(selected = display.fontSize == index, onClick = { display.updateFontSize(index) }, label = { Text(label) })
+                    }
+                }
+                Text("Icon size", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Small", "Medium", "Large").forEachIndexed { index, label ->
+                        FilterChip(selected = display.iconSize == index, onClick = { display.updateIconSize(index) }, label = { Text(label) })
+                    }
+                }
+                Text("Card size", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Compact", "Normal", "Spacious").forEachIndexed { index, label ->
+                        FilterChip(selected = display.cardSize == index, onClick = { display.updateCardSize(index) }, label = { Text(label) })
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Compact layout", Modifier.weight(1f))
+                    Switch(checked = display.compact, onCheckedChange = display::updateCompact)
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Hide financial amounts (privacy)", Modifier.weight(1f))
+                    Switch(checked = display.privateAmounts, onCheckedChange = display::updatePrivateAmounts)
+                }
+                Text("Dashboard cards", style = MaterialTheme.typography.titleMedium)
+                listOf(
+                    Triple("Spending chart", display.showSpending, display::updateShowSpending),
+                    Triple("Recent transactions", display.showRecent, display::updateShowRecent),
+                    Triple("Savings, kameti & loans", display.showSpaces, display::updateShowSpaces),
+                    Triple("AI insights", display.showInsights, display::updateShowInsights),
+                ).forEach { (label, checked, change) ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, Modifier.weight(1f))
+                        Switch(checked = checked, onCheckedChange = change)
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Savings before loans", Modifier.weight(1f))
+                    Switch(checked = display.savingsFirst, onCheckedChange = display::updateSavingsFirst)
+                }
+                Text("Live preview", style = MaterialTheme.typography.titleMedium)
+                LedgerCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GlowIcon(Icons.Rounded.AccountBalanceWallet, MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Sample balance card", style = MaterialTheme.typography.titleMedium)
+                            Text(if (display.privateAmounts) "Rs •••••" else "Rs 45,500",
+                                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text("Changes apply immediately", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                OutlinedButton(onClick = display::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset display settings") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Biometric / device lock", Modifier.weight(1f))
                     Switch(biometric, onCheckedChange = onBiometric)

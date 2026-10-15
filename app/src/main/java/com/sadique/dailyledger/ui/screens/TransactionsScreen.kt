@@ -4,6 +4,10 @@ import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import java.time.LocalDate
+import android.app.DatePickerDialog
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,9 +48,21 @@ fun TransactionsScreen(
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
     val listState = rememberLazyListState()
+    val display = LocalDisplayPreferences.current!!
+    val dateContext = LocalContext.current
+    var dateRange by rememberSaveable { mutableStateOf("ALL") }
+    var selectedDay by rememberSaveable { mutableStateOf("") }
+    val today = LocalDate.now()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
-            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true))
+            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true)) &&
+            when (dateRange) {
+                "TODAY" -> it.date == today.toString()
+                "WEEK" -> runCatching { LocalDate.parse(it.date) }.getOrNull()?.let { d -> !d.isBefore(today.minusDays(6)) && !d.isAfter(today) } == true
+                "MONTH" -> it.date.startsWith(today.toString().take(7))
+                "DAY" -> it.date == selectedDay
+                else -> true
+            }
     }
 
     Scaffold(
@@ -57,13 +73,25 @@ fun TransactionsScreen(
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
             state = listState,
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             enteringItem {
                 Text("Transactions", style = MaterialTheme.typography.headlineMedium)
                 onAutoFill?.let { action -> FilledTonalButton(onClick = action) { Text("AI Auto Fill") } }
                 OutlinedTextField(query, { query = it }, label = { Text("Search categories or notes") }, modifier = Modifier.fillMaxWidth(), singleLine = true, trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear search") } })
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("ALL" to "All dates", "TODAY" to "Today", "WEEK" to "Last 7 days", "MONTH" to "This month").forEach { (value, label) ->
+                        FilterChip(selected = dateRange == value, onClick = { dateRange = value }, label = { Text(label) })
+                    }
+                    FilterChip(selected = dateRange == "DAY", onClick = {
+                        val date = runCatching { LocalDate.parse(selectedDay) }.getOrDefault(today)
+                        DatePickerDialog(dateContext, { _, year, month, day ->
+                            selectedDay = LocalDate.of(year, month + 1, day).toString()
+                            dateRange = "DAY"
+                        }, date.year, date.monthValue - 1, date.dayOfMonth).show()
+                    }, label = { Text(if (dateRange == "DAY") selectedDay else "Pick date") })
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("ALL", "EXPENSE", "INCOME").forEach {
                         FilterChip(filter == it, { filter = it }, { Text(it.lowercase().replaceFirstChar(Char::uppercase)) })
@@ -84,7 +112,7 @@ fun TransactionsScreen(
                             }
                         }
                         Column {
-                            Text(money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
+                            Text(if (display.privateAmounts) "Rs •••••" else money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
                             IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
                     }
