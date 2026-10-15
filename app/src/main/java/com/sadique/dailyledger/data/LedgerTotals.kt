@@ -18,8 +18,8 @@ data class SalarySummary(
     val savingsContributions: Long = 0,
     val openingBalanceMinor: Long = 0,
 ) {
-    val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions
-    val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions
+    val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions - udharPayments
+    val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions + udharPayments
 }
 
 fun ledgerCycleSummary(
@@ -28,6 +28,7 @@ fun ledgerCycleSummary(
     savings: List<SavingEntity>,
     cycle: LedgerCycleEntity,
     now: Long = System.currentTimeMillis(),
+    creditPayments: List<CreditPaymentEntity> = emptyList(),
 ): SalarySummary {
     val currentTransactions = transactions.filter { it.createdAt in cycle.startAt..now }
     return SalarySummary(
@@ -39,6 +40,7 @@ fun ledgerCycleSummary(
         }.sumOf { it.amountMinor },
         savingsContributions = savings.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
         openingBalanceMinor = cycle.openingBalanceMinor,
+        udharPayments = creditPayments.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
     )
 }
 
@@ -51,6 +53,7 @@ fun monthlySalarySummary(
     month: String,
     committeePayments: List<CommitteePaymentEntity> = emptyList(),
     savings: List<SavingEntity> = emptyList(),
+    creditPayments: List<CreditPaymentEntity> = emptyList(),
 ): SalarySummary {
     val current = transactions.filter { it.date.startsWith("$month-") }
     return SalarySummary(
@@ -59,6 +62,7 @@ fun monthlySalarySummary(
         otherIncome = current.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
         committeeContributions = committeePayments.filter { it.month == month }.sumOf { it.amountMinor },
         savingsContributions = savings.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },
+        udharPayments = creditPayments.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },
     )
 }
 
