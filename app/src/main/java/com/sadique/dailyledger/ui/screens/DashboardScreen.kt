@@ -96,6 +96,7 @@ fun DashboardScreen(
     var archiveMessage by remember { mutableStateOf("") }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
     var frequentExpanded by rememberSaveable { mutableStateOf(true) }
+    var showStartupInsight by rememberSaveable { mutableStateOf(true) }
     val recent = tx.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.updatedAt }).take(4)
     val cycleStartLabel = ledgerCycle?.let {
         Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate().toString()
@@ -138,6 +139,32 @@ fun DashboardScreen(
                         } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+                }
+            }
+            if (showStartupInsight && snapshot != null && display.showInsights) {
+                enteringItem(key = "startup-insight", index = 1) {
+                    LedgerCard(Modifier.fillMaxWidth().testTag("startup-insight-preview")) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(21.dp),
+                                tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(7.dp))
+                            Text("Your offline money insight", fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { showStartupInsight = false }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Rounded.Close, "Dismiss insight", Modifier.size(18.dp))
+                            }
+                        }
+                        Text(
+                            if (snapshot.count > 0)
+                                "${snapshot.count} recorded entries · Saving rate ${snapshot.savingRatePercent}%. Review your spending patterns."
+                            else "Add an income or expense to get your first spending insight.",
+                            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = {
+                            showStartupInsight = false
+                            onOpenInsights()
+                        }) { Text("Open full insights") }
+                    }
                 }
             }
             enteringItem(key = "balance", index = 1) {
