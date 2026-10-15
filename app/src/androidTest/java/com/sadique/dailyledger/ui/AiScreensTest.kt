@@ -1,5 +1,6 @@
 package com.sadique.dailyledger.ui
 import android.os.ParcelFileDescriptor
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -22,6 +23,24 @@ import java.time.LocalDate
  @Test fun themesAndAutomaticInsights(){val today=LocalDate.now();val date=today.toString();val tx=listOf(TransactionEntity("s","owner","INCOME",10000000,"Salary","",date,1,1),TransactionEntity("e","owner","EXPENSE",600000,"Restaurant","",date,1,1));val snap=SpendingInsights.calculate("owner",tx,today)
   compose.setContent{DailyLedgerTheme("AQUA"){DashboardScreen(tx=tx,loans=emptyList(),lp=emptyList(),committees=emptyList(),cp=emptyList(),receipts=emptyList(),savings=listOf(SavingEntity("s","owner","DIRECT",200000,date,"",1)),userName="Owner",weatherEnabled=false,weatherCity="",weatherTemperature="",weatherCondition="",onAddSalary={},onAddExpense={},onOpenSavings={},onOpenKameti={},onAutoFill={},snapshot=snap)}}
   compose.onNodeWithText(money(9200000)).assertIsDisplayed();shot("aqua-home");compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals");compose.onNodeWithText("Savings total").performScrollTo().assertIsDisplayed();shot("wallet-savings");compose.onNodeWithTag("dashboard-list").performScrollToKey("insights");compose.onNodeWithText("Mini AI • Offline",useUnmergedTree=true).assertIsDisplayed();shot("saving-insights")
+ }
+ @Test fun onlineSuggestionsRequestOnlyOnRefreshAndDisableTheButtonWhileBusy() {
+  var calls = 0
+  val busy = androidx.compose.runtime.mutableStateOf(false)
+  val status = androidx.compose.runtime.mutableStateOf("Tap Refresh to get online suggestions.")
+  val today = LocalDate.now()
+  val snap = SpendingInsights.calculate("owner", listOf(TransactionEntity("e", "owner", "EXPENSE", 10000, "Milk", "", today.toString(), 1, 1)), today)
+  compose.setContent { DailyLedgerTheme("AQUA") {
+   androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+    InsightsCard(snap, emptyList(), status.value, true, {}, busy.value, { calls++; busy.value = true })
+   }
+  } }
+  compose.onNodeWithTag("online-ai-refresh").performScrollTo().assertIsEnabled()
+  compose.runOnIdle { status.value = "Records changed. Tap Refresh." }
+  compose.runOnIdle { assertEquals(0, calls) }
+  compose.onNodeWithTag("online-ai-refresh").performClick().assertIsNotEnabled()
+  compose.runOnIdle { assertEquals(1, calls); busy.value = false }
+  compose.onNodeWithTag("online-ai-refresh").assertIsEnabled(); shot("online-manual-refresh")
  }
  private fun shot(name:String){compose.waitForIdle();val fd=InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png");ParcelFileDescriptor.AutoCloseInputStream(fd).use{it.readBytes()}}
 }

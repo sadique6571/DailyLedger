@@ -2,6 +2,7 @@ package com.sadique.dailyledger.ai
 
 import android.content.Context
 import com.sadique.dailyledger.data.TransactionDraft
+import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.security.SecureSecretStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,7 +12,7 @@ data class LearnedCategoryRule(val type: String, val phrase: String, val categor
 
 object CategoryLearning {
     fun normalize(text: String): String = OfflineVocabulary.normalize(EntryText.withoutQuantities(text))
-        .replace(Regex("\\b(?:aaj|aj|today|yesterday|bought|buy|liya|lia|liye|kharida|kharidi|ka|ki|ke|ko|se|hai|mila|mili|rs|pkr|rupees|rupay|rupaye)\\b"), " ")
+        .replace(Regex("\\b(?:aaj|aj|kal|parson|parso|today|yesterday|tomorrow|subah|raat|آج|کل|پرسوں|خریدا|خریدی|لیا|لیے|bought|buy|liya|lia|liye|kharida|kharidi|kharcha|spent|paid|diya|ka|ki|ke|ko|se|hai|mila|mili|rs|pkr|rupees|rupay|rupaye)\\b"), " ")
         .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
         .replace(Regex("\\b\\d+\\b"), " ")
         .replace(Regex("\\s+"), " ")
@@ -23,13 +24,26 @@ object CategoryLearning {
         return rules.asSequence()
             .filter { it.type == type }
             .map { it to normalize(it.phrase) }
-            .filter { (_, phrase) -> phrase.isNotBlank() && " $normalized ".contains(" $phrase ") }
+            .filter { (_, phrase) -> phrase.isNotBlank() && phrase.split(" ").all { " $normalized ".contains(" $it ") } }
             .maxByOrNull { (_, phrase) -> phrase.length }
             ?.first?.category
     }
 
-    fun apply(draft: TransactionDraft, rules: List<LearnedCategoryRule>): TransactionDraft {
-        val learned = match(draft.type, draft.note, rules) ?: return draft
+    /** Learn only repeated, consistently categorized saved items. Explicit corrections win. */
+    fun fromHistory(transactions: List<TransactionEntity>, ownerId: String): List<LearnedCategoryRule> =
+        transactions.asSequence().filter {
+            it.ownerId == ownerId && it.note.isNotBlank() && it.type in listOf("INCOME", "EXPENSE") &&
+                it.category.isNotBlank() && it.category !in listOf("Other", "Other income")
+        }.sortedByDescending { it.createdAt }.take(3000)
+            .groupBy { it.type to normalize(it.note) }
+            .mapNotNull { (key, rows) ->
+                val (type, phrase) = key
+                if (phrase.isBlank() || rows.size < 2 || rows.map { it.category }.distinct().size != 1) null
+                else LearnedCategoryRule(type, phrase, rows.first().category)
+            }.take(200)
+
+    fun apply(draft: TransactionDraft, rules: List<LearnedCategoryRule>, history: List<LearnedCategoryRule> = emptyList()): TransactionDraft {
+        val learned = match(draft.type, draft.note, rules) ?: match(draft.type, draft.note, history) ?: return draft
         return draft.copy(category = learned).validated()
     }
 }

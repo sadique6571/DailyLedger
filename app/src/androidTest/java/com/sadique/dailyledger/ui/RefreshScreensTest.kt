@@ -68,6 +68,44 @@ class RefreshScreensTest {
         assertEquals("credit", action)
         shot("aqua-more")
     }
+    @Test fun settingsChildrenReturnToSettingsBeforeHome() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val owner = "settings-navigation-preview"
+        val repo = com.sadique.dailyledger.data.LedgerRepository(com.sadique.dailyledger.data.AppDatabase.get(context), owner)
+        kotlinx.coroutines.runBlocking {
+            com.sadique.dailyledger.data.AppDatabase.get(context).ledgerDao().upsertTransaction(
+                com.sadique.dailyledger.data.TransactionEntity("settings-preview-entry", owner, "EXPENSE", 10000, "Milk", "", java.time.LocalDate.now().toString(), 1, 1))
+        }
+        try {
+            compose.setContent { DailyLedgerTheme("AQUA") {
+                DailyLedgerApp(com.sadique.dailyledger.auth.UserProfile(owner, "preview@example.com", "Preview"),
+                    com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, "", "", "", 0L, false, {})
+            } }
+            compose.onNodeWithText("More").performClick()
+            compose.onNodeWithText("Settings & backup").performScrollTo().performClick()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-savings")
+            compose.onNodeWithText("View savings").performScrollTo().performClick()
+            compose.onNodeWithTag("return-to-settings").assertIsDisplayed()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("settings-list").assertExists()
+            compose.onNodeWithText("View savings").assertIsDisplayed()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-header")
+            compose.onNodeWithContentDescription("AI Auto Fill").performClick()
+            compose.onNodeWithTag("autofill-list").assertExists()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("settings-list").assertExists()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-personalization")
+            compose.onNodeWithText("Change").performScrollTo().performClick()
+            compose.onNodeWithText("Weather location").performScrollTo().assertIsDisplayed()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("settings-list").assertExists()
+            compose.onNodeWithText("Weather location").assertDoesNotExist()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-export")
+            compose.onNodeWithTag("export-save").performScrollTo().assertIsEnabled(); shot("settings-export")
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithText("Remaining balance").assertIsDisplayed()
+        } finally { kotlinx.coroutines.runBlocking { repo.clearAllForOwner() } }
+    }
     private fun shot(name: String) {
         compose.waitForIdle()
         val fd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png")

@@ -27,7 +27,7 @@ class DatedAiTest {
         assertTrue(future.message.contains("Year omitted: 2026"))
     }
     @Test fun invalidOrAmbiguousDatesNeverBecomeTodayOrMoney() {
-        for (text in listOf("31/02/2026 doodh 150", "2026-02-29 petrol 500", "31 April doodh 150", "kal doodh 150", "doodh 150 on 01/10")) {
+        for (text in listOf("31/02/2026 doodh 150", "2026-02-29 petrol 500", "31 April doodh 150", "doodh 150 on 01/10")) {
             assertTrue(text, runCatching { OfflineMiniAi.drafts(text, today) }.exceptionOrNull() is AiException)
         }
         assertEquals("2024-02-29", OfflineMiniAi.drafts("29/02/2024 doodh 150", today)!!.entries.single().date)

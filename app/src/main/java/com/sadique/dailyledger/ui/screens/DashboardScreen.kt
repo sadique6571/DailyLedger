@@ -53,6 +53,7 @@ fun DashboardScreen(
     onAddSalary: () -> Unit, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
     aiStatus: String = "", aiEnabled: Boolean = false, onEnableAi: () -> Unit = {},
+    aiBusy: Boolean = false, onRefreshAi: () -> Unit = {},
     onAllTransactions: (() -> Unit)? = null,
     onExpenseHistory: () -> Unit = { onAllTransactions?.invoke() },
     onAddOtherIncome: () -> Unit = onAddSalary,
@@ -71,7 +72,8 @@ fun DashboardScreen(
         it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }
     val grouped = expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value }
-    val frequentItems = expenseRows.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
+    val currentMonthExpenses = tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") }
+    val frequentItems = currentMonthExpenses.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
         .sortedByDescending { it.second }
         .take(4)
@@ -225,12 +227,12 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        Text("This cycle", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("This month", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     frequentItems.forEachIndexed { index, (label, total) ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .clickable { onAddCategoryExpense(expenseRows.firstOrNull { it.frequentPurchaseLabel().equals(label, true) }?.category.orEmpty(), label) }
+                                .clickable { selectedFrequentCategory = label }
                                 .padding(horizontal = 10.dp, vertical = 8.dp)
                                 .testTag("frequent-item-$index"),
                             verticalAlignment = Alignment.CenterVertically,
@@ -300,7 +302,7 @@ fun DashboardScreen(
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi) } }
+            snapshot?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
         }
     }
     if (balanceDetails) AlertDialog(
@@ -365,7 +367,7 @@ fun DashboardScreen(
         )
     }
     selectedFrequentCategory?.let { category ->
-        val purchases = expenseRows.filter { it.frequentPurchaseLabel().equals(category, ignoreCase = true) }
+        val purchases = currentMonthExpenses.filter { it.frequentPurchaseLabel().equals(category, ignoreCase = true) }
             .sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.createdAt })
         val total = purchases.sumOf { it.amountMinor }
         AlertDialog(
@@ -376,10 +378,11 @@ fun DashboardScreen(
                     Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Total this cycle: ${displayMoney(total)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Current month · ${purchases.size} entries", style = MaterialTheme.typography.bodySmall)
+                    Text("Total this month: ${displayMoney(total)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     purchases.forEachIndexed { index, purchase ->
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                            Modifier.fillMaxWidth().padding(vertical = 5.dp).testTag("frequent-history-entry-${purchase.id}"),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {

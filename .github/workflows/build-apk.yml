@@ -8,6 +8,7 @@ on:
       - master
       - codex/build-apk-20261005
       - codex/ledger-ui-offline-20261014
+      - codex/ledger-fixes-20261015
 
 permissions:
   contents: read

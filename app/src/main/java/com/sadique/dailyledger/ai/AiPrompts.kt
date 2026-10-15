@@ -12,7 +12,9 @@ internal object AiPrompts {
             Never invent amounts, dates or transactions. Preserve every explicitly provided date exactly.
             A date attached to one entry applies only to that entry. A single date for the whole list applies to all.
             Resolve relative dates; use today if omitted. DD/MM/YYYY is day-first. If a year is omitted use the current year.
-            The word kal is ambiguous; ask for an explicit date. Invalid dates must return no transactions.
+            For recorded entries, bare kal/کل means yesterday and parson/parso/پرسوں means two days ago.
+            Explicit tomorrow/aane wala kal means tomorrow; day after tomorrow/aane wala parson means two days ahead.
+            Kal raat/last night means yesterday; aaj subah/this morning means today. Invalid dates must return no transactions.
             amount_pkr is a positive rupee decimal STRING with at most two decimal places, no commas, at most 10000000000.
             Salary/tankhwah is INCOME with category Salary. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.

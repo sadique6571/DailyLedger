@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.screens.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -75,28 +76,27 @@ class LedgerScreensTest {
         assertEquals("archive", action)
     }
 
-    @Test fun frequentPurchaseOpensDatedEntriesAndTotals() {
+    @Test fun frequentPurchaseShowsOnlyCurrentMonthReadOnlyEntriesAndTotal() {
+        var edited = false
         val tx = listOf(
             TransactionEntity("veg-1", "test", "EXPENSE", 50000, "Vegetables", "Sabzi", "$month-01", 1, 1),
             TransactionEntity("veg-2", "test", "EXPENSE", 20000, "Vegetables", "Sabzi", "$month-02", 2, 2),
+            TransactionEntity("old", "test", "EXPENSE", 30000, "Vegetables", "Sabzi", "${YearMonth.parse(month).minusMonths(1)}-01", 3, 3),
         )
-        compose.setContent {
-            DailyLedgerTheme("LIGHT") {
-                DashboardScreen(
-                    tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
-                    receipts = emptyList(), savings = emptyList(), userName = "Test",
-                    weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
-                    onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
-                )
-            }
-        }
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
+                receipts = emptyList(), savings = emptyList(), userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = { edited = true }, onOpenSavings = {}, onOpenKameti = {},
+                onAddCategoryExpense = { _, _ -> edited = true }, ledgerCycle = LedgerCycleEntity("test", 1, 0))
+        } }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
-        compose.onNodeWithContentDescription("View Sabzi history").performScrollTo().performClick()
-        compose.onAllNodes(hasText("Sabzi") and hasAnyAncestor(isDialog())).assertCountEquals(3) // title plus both recorded purchases
-        compose.onNode(hasText("Total this cycle: ${displayMoney(70000)}") and hasAnyAncestor(isDialog())).assertIsDisplayed()
-        compose.onNodeWithText(displayMoney(50000)).assertIsDisplayed()
-        compose.onNodeWithText(displayMoney(20000)).assertIsDisplayed()
-        compose.onNodeWithText("Total this cycle: ${displayMoney(70000)}").assertIsDisplayed()
+        compose.onNodeWithTag("frequent-item-0").performScrollTo().performClick()
+        compose.onAllNodes(hasText("Sabzi") and hasAnyAncestor(isDialog())).assertCountEquals(3)
+        compose.onNode(hasText("Total this month: ${displayMoney(70000)}") and hasAnyAncestor(isDialog())).assertIsDisplayed()
+        compose.onNodeWithTag("frequent-history-entry-old").assertDoesNotExist()
+        compose.onNodeWithTag("frequent-history-entry-veg-1").assertHasNoClickAction()
+        compose.onNodeWithTag("frequent-history-entry-veg-2").assertHasNoClickAction()
+        assertFalse(edited); screenshot("frequent-current-month")
     }
 
     @Test fun firstKametiCanBeReceivedBeforeSecond() {

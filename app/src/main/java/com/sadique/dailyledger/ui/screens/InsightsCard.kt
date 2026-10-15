@@ -9,9 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
@@ -24,6 +27,8 @@ fun InsightsCard(
     status: String,
     enabled: Boolean,
     onEnable: () -> Unit,
+    busy: Boolean = false,
+    onRefresh: () -> Unit = {},
 ) {
     Card(
         Modifier.fillMaxWidth(),
@@ -53,6 +58,15 @@ fun InsightsCard(
             }
 
             HorizontalDivider()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Online AI", style = MaterialTheme.typography.titleMedium)
+                if (enabled) OutlinedButton(onClick = onRefresh, enabled = !busy && snapshot.count > 0,
+                    modifier = Modifier.testTag("online-ai-refresh")) {
+                    Icon(Icons.Outlined.Refresh, null)
+                    Text(if (busy) "Refreshing…" else "Refresh", Modifier.padding(start = 6.dp))
+                }
+            }
             if (!enabled) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.Lightbulb, null, tint = MaterialTheme.colorScheme.primary)
@@ -61,7 +75,8 @@ fun InsightsCard(
                 Text("Cloud AI is optional for complex wording; the ledger and local suggestions do not depend on it.", style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = onEnable) { Text("Enable optional Cloud AI") }
             } else {
-                Text(status.ifBlank { "Optional cloud suggestions appear when available." }, style = MaterialTheme.typography.bodySmall)
+                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
                 cloudTips.forEach { tip ->
                     Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Text(tip.detail)

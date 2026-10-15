@@ -106,7 +106,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                             GlowIcon(Icons.Rounded.SmartToy, LedgerColors.Purple, size = 32.dp)
-                            Text("Mini AI finds amounts and categories on your phone. Review every entry before saving.", fontSize = 11.sp,
+                            Text("Kal = yesterday; parson = 2 days ago. Mini AI learns your category corrections and repeated saved items on this phone. Review every date and amount before saving.", fontSize = 11.sp,
                                 lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 10.dp))

@@ -23,7 +23,7 @@ class OfflineEvolutionTest {
         assertEquals(listOf("2026-10-12", "2026-10-09", "2026-10-19"), rows.map { it.date })
         assertEquals(listOf(15000L, 50000L, 30000L), rows.map { it.amountMinor })
         assertEquals("2026-10-13", OfflineMiniAi.drafts("guzra kal doodh 150", today)!!.entries.single().date)
-        assertTrue(runCatching { OfflineMiniAi.drafts("parson petrol 500", today) }.exceptionOrNull() is AiException)
+        assertEquals("2026-10-12", OfflineMiniAi.drafts("parson petrol 500", today)!!.entries.single().date)
     }
     @Test fun receivingGoodsIsNotIncomeAndAmbiguousDirectionNeedsReview() {
         assertEquals("EXPENSE", OfflineMiniAi.drafts("doodh 150 ka mila", today)!!.entries.single().type)

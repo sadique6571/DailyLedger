@@ -8,9 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.testTag
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.*
@@ -87,12 +88,12 @@ fun SettingsScreen(
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
     var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
-    var cityInput by remember(weatherCity) { mutableStateOf(weatherCity) }
+    var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
     val settingsStore = remember { SettingsStore(context.applicationContext) }
     val savings by vm.savings.collectAsState()
     val backupReady = driveEnabled && lastSync > 0L
-    var backupDetails by remember { mutableStateOf(false) }
-    var cityEditor by remember { mutableStateOf(false) }
+    var backupDetails by rememberSaveable { mutableStateOf(false) }
+    var cityEditor by rememberSaveable { mutableStateOf(false) }
     fun export(pdf: Boolean) {
         if (busy) return
         busy = true
@@ -250,165 +251,208 @@ fun SettingsScreen(
         )
     }
 
+    fun backFromSettings() {
+        when {
+            cityEditor -> cityEditor = false
+            backupDetails -> backupDetails = false
+            else -> onBack()
+        }
+    }
+    BackHandler(enabled = cityEditor || backupDetails) { backFromSettings() }
+
     LedgerBackdrop(Modifier.fillMaxSize()) {
-    Column(
+    LazyColumn(
         Modifier
             .fillMaxSize()
             .safeDrawingPadding()
             .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .testTag("settings-list"),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-            LedgerLogo(34.dp)
-            Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                Text("Daily Ledger", fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text("Your account & preferences", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = onAutoFill, enabled = !busy) { Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill") }
-        }
-
-        AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
-            driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails })
-        if (backupDetails) SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
-            Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
-            Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
-            Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
-        }
-
-        PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
-            { cityEditor = !cityEditor }, { TransactionSoundPlayer.playBatchSuccess(context) })
-        if (cityEditor) SectionCard("Weather location", "Choose your city. No GPS permission is needed.") {
-            OutlinedTextField(cityInput, { cityInput = it }, label = { Text("City") }, placeholder = { Text("Gujranwala, Pakistan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            if (weatherTemperature.isNotBlank()) Text("$weatherTemperature · $weatherCondition", style = MaterialTheme.typography.bodySmall)
-            Button(onClick = {
-                busy = true; message = null
-                scope.launch {
-                    try {
-                        settingsStore.setWeatherCity(cityInput)
-                        val weather = WeatherService().currentForCity(cityInput)
-                        settingsStore.setWeatherSnapshot(weather.city, weather.temperature, weather.condition, weather.fetchedAt)
-                        cityInput = weather.city; message = "Weather updated for ${weather.city}."; cityEditor = false
-                    } catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { message = e.message ?: "Could not update weather. Try again when online." }
-                    finally { busy = false }
+        enteringItem(key = "settings-header", index = 0) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = ::backFromSettings, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                LedgerLogo(34.dp)
+                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                    Text("Daily Ledger", fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text("Your account & preferences", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }, enabled = !busy && cityInput.trim().length >= 2) { Text("Save city & refresh weather") }
-            Text("Weather data by Open-Meteo.", style = MaterialTheme.typography.bodySmall)
+                IconButton(onClick = onAutoFill, enabled = !busy) { Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill") }
+            }
         }
-        SavingsSettingsCard(savings.sumOf { it.amountMinor }, onOpenSavings)
-        EncryptionBanner()
 
-        if (offlineProfiles.isNotEmpty()) {
-            SectionCard("Previous offline data", "Choose an old profile on this phone to add its records to this account.") {
-                offlineProfiles.forEachIndexed { index, profile ->
-                    OutlinedButton(onClick = { offlineImport = profile.ownerId }, enabled = !busy) {
-                        Text("Import profile ${index + 1} (${profile.records} records)")
+        enteringItem(key = "settings-backup", index = 1) {
+            AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
+                driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false })
+        }
+
+        if (backupDetails) enteringItem(key = "settings-backup-details", index = 2) {
+            SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
+                Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
+                Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
+                Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        enteringItem(key = "settings-personalization", index = 2) {
+            PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
+                { cityEditor = !cityEditor; backupDetails = false }, { TransactionSoundPlayer.playBatchSuccess(context) })
+        }
+
+        if (cityEditor) enteringItem(key = "settings-weather", index = 3) {
+            SectionCard("Weather location", "Choose your city. No GPS permission is needed.") {
+                OutlinedTextField(cityInput, { cityInput = it }, label = { Text("City") }, placeholder = { Text("Gujranwala, Pakistan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                if (weatherTemperature.isNotBlank()) Text("$weatherTemperature · $weatherCondition", style = MaterialTheme.typography.bodySmall)
+                Button(onClick = {
+                    busy = true; message = null
+                    scope.launch {
+                        try {
+                            settingsStore.setWeatherCity(cityInput)
+                            val weather = WeatherService().currentForCity(cityInput)
+                            settingsStore.setWeatherSnapshot(weather.city, weather.temperature, weather.condition, weather.fetchedAt)
+                            cityInput = weather.city; message = "Weather updated for ${weather.city}."; cityEditor = false
+                        } catch (e: CancellationException) { throw e }
+                        catch (e: Exception) { message = e.message ?: "Could not update weather. Try again when online." }
+                        finally { busy = false }
                     }
-                }
+                }, enabled = !busy && cityInput.trim().length >= 2) { Text("Save city & refresh weather") }
+                Text("Weather data by Open-Meteo.", style = MaterialTheme.typography.bodySmall)
             }
         }
 
-        SectionCard("Mini AI & Auto Fill", "Offline Mini AI and saving suggestions work without internet or API cost. Cloud AI is optional for complex wording.") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Optional Cloud AI", Modifier.weight(1f))
-                Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
-            }
+        enteringItem(key = "settings-savings", index = 3) {
+            SavingsSettingsCard(savings.sumOf { it.amountMinor }, onOpenSavings)
         }
 
-        AppVerificationCard(context)
-
-        SectionCard("Appearance", null) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("SYSTEM", "LIGHT", "DARK", "AQUA", "SUNSET", "FOREST", "ROSE", "MIDNIGHT").forEach {
-                    FilterChip(
-                        selected = theme == it,
-                        onClick = { onTheme(it) },
-                        label = { Text(it.lowercase().replaceFirstChar(Char::uppercase)) },
-                    )
-                }
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Biometric / device lock", Modifier.weight(1f))
-                Switch(biometric, onCheckedChange = onBiometric)
-            }
+        enteringItem(key = "settings-encryption", index = 4) {
+            EncryptionBanner()
         }
 
-        SectionCard("Export your ledger", "A statement to share, or a spreadsheet to work with.") {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
-                    Surface(
-                        modifier = Modifier.weight(1f).clickable(enabled = !busy) { exportPdf = pdf },
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (exportPdf == pdf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (exportPdf == pdf) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                    ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(if (pdf) Icons.Rounded.PictureAsPdf else Icons.Rounded.TableChart, null, tint = MaterialTheme.colorScheme.primary)
-                            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(if (pdf) "Designed for reading" else "Full descriptions & ledgers", fontSize = 11.sp)
+        if (offlineProfiles.isNotEmpty()) enteringItem(key = "settings-offline-import", index = 5) {
+                SectionCard("Previous offline data", "Choose an old profile on this phone to add its records to this account.") {
+                    offlineProfiles.forEachIndexed { index, profile ->
+                        OutlinedButton(onClick = { offlineImport = profile.ownerId }, enabled = !busy) {
+                            Text("Import profile ${index + 1} (${profile.records} records)")
                         }
                     }
                 }
-            }
-            Text("Statement period", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(
-                    ExportPeriod.CURRENT_MONTH to "Current month",
-                    ExportPeriod.ALL_TIME to "All records",
-                    ExportPeriod.CUSTOM to "Choose dates",
-                ).forEach { (period, label) ->
-                    FilterChip(
-                        selected = exportPeriod == period,
-                        onClick = { exportPeriod = period },
-                        label = { Text(label) },
-                    )
+        }
+
+        enteringItem(key = "settings-ai", index = 5) {
+            SectionCard("Mini AI & Auto Fill", "Offline Mini AI and saving suggestions work without internet or API cost. Online suggestions update only when you tap Refresh. Cloud AI is optional for complex wording.") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Optional Cloud AI", Modifier.weight(1f))
+                    Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
                 }
             }
-            if (exportPeriod == ExportPeriod.CUSTOM) {
-                OutlinedTextField(
-                    exportFrom,
-                    { exportFrom = it },
-                    label = { Text("From date (optional)") },
-                    placeholder = { Text("YYYY-MM-DD") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    exportThrough,
-                    { exportThrough = it },
-                    label = { Text("To date (optional)") },
-                    placeholder = { Text("YYYY-MM-DD") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-                Text("Leave either date empty to include records before or after the entered date.", style = MaterialTheme.typography.bodySmall)
+        }
+
+        enteringItem(key = "settings-verification", index = 6) {
+            AppVerificationCard(context)
+        }
+
+        enteringItem(key = "settings-appearance", index = 7) {
+            SectionCard("Appearance", null) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("SYSTEM", "LIGHT", "DARK", "AQUA", "SUNSET", "FOREST", "ROSE", "MIDNIGHT").forEach {
+                        FilterChip(
+                            selected = theme == it,
+                            onClick = { onTheme(it) },
+                            label = { Text(it.lowercase().replaceFirstChar(Char::uppercase)) },
+                        )
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Biometric / device lock", Modifier.weight(1f))
+                    Switch(biometric, onCheckedChange = onBiometric)
+                }
             }
-            Text(if (exportPdf) "PDF includes income, expenses and period totals. It does not replace a backup."
-                else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
-                Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
-            Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
-            Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
-            Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        enteringItem(key = "settings-export", index = 8) {
+            SectionCard("Export your ledger", "A statement to share, or a spreadsheet to work with.") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
+                        Surface(
+                            modifier = Modifier.weight(1f).clickable(enabled = !busy) { exportPdf = pdf },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (exportPdf == pdf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (exportPdf == pdf) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(if (pdf) Icons.Rounded.PictureAsPdf else Icons.Rounded.TableChart, null, tint = MaterialTheme.colorScheme.primary)
+                                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                Text(if (pdf) "Designed for reading" else "Full descriptions & ledgers", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+                Text("Statement period", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        ExportPeriod.CURRENT_MONTH to "Current month",
+                        ExportPeriod.ALL_TIME to "All records",
+                        ExportPeriod.CUSTOM to "Choose dates",
+                    ).forEach { (period, label) ->
+                        FilterChip(
+                            selected = exportPeriod == period,
+                            onClick = { exportPeriod = period },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                if (exportPeriod == ExportPeriod.CUSTOM) {
+                    OutlinedTextField(
+                        exportFrom,
+                        { exportFrom = it },
+                        label = { Text("From date (optional)") },
+                        placeholder = { Text("YYYY-MM-DD") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        exportThrough,
+                        { exportThrough = it },
+                        label = { Text("To date (optional)") },
+                        placeholder = { Text("YYYY-MM-DD") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Text("Leave either date empty to include records before or after the entered date.", style = MaterialTheme.typography.bodySmall)
+                }
+                Text(if (exportPdf) "PDF includes income, expenses and a separate kameti statement with paid installments and each receiving. Payments follow their installment month; undated receiving appears in All records. It does not replace a backup."
+                    else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
+                    Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
+                Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
 
-        SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
-            OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
+        enteringItem(key = "settings-info", index = 9) {
+            SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
+                Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
+                Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
 
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-        Spacer(Modifier.height(8.dp))
-        Text(user.name, style = MaterialTheme.typography.titleMedium)
-        Text(user.email, style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = onLogout, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
+        enteringItem(key = "settings-reset", index = 10) {
+            SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
+                OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
+            }
+        }
+
+        enteringItem(key = "settings-account", index = 11) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+                Spacer(Modifier.height(8.dp))
+                Text(user.name, style = MaterialTheme.typography.titleMedium)
+                Text(user.email, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = onLogout, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
+            }
+        }
     }
     }
     exportResult?.let { result ->

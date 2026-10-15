@@ -15,6 +15,9 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.TransactionEntity
+import com.sadique.dailyledger.data.CommitteeEntity
+import com.sadique.dailyledger.data.CommitteePaymentEntity
+import com.sadique.dailyledger.data.CommitteeReceiptEntity
 import com.sadique.dailyledger.ui.plainAmount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -23,7 +26,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 enum class ExportPeriod { CURRENT_MONTH, ALL_TIME, CUSTOM }
@@ -74,50 +76,47 @@ object ExportManager {
         through: LocalDate? = null,
     ): String = withContext(Dispatchers.IO) {
         require(from == null || through == null || !from.isAfter(through)) { "Start date must be on or before end date." }
-        val transactions = repo.transactions.first()
-            .filter { it.isWithin(from, through) }
-            .sortedWith(compareBy<TransactionEntity> { it.date }.thenBy { it.createdAt })
-        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(transactions, from, through))
+        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(repo, from, through))
     }
+    internal suspend fun statementBytes(repo: LedgerRepository, from: LocalDate?, through: LocalDate?): ByteArray =
+        statementBytes(repo.transactions.first(), from, through,
+            repo.committees.first(), repo.committeePayments.first(), repo.committeeReceipts.first())
 
-    internal fun statementBytes(transactions: List<TransactionEntity>, from: LocalDate?, through: LocalDate?): ByteArray {
-        val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amountMinor }
-        val expenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor }
-        val firstPageRows = 12
-        val nextPageRows = 15
-        val pageCount = if (transactions.size <= firstPageRows) 1
-        else 1 + (transactions.size - firstPageRows + nextPageRows - 1) / nextPageRows
-
+    internal fun statementBytes(
+        transactions: List<TransactionEntity>, from: LocalDate?, through: LocalDate?,
+        committees: List<CommitteeEntity> = emptyList(), payments: List<CommitteePaymentEntity> = emptyList(),
+        receipts: List<CommitteeReceiptEntity> = emptyList(),
+    ): ByteArray {
+        val sections = StatementData.sections(transactions, committees, payments, receipts, from, through)
+        val pageCount = sections.sumOf { it.pages().size }
         val doc = PdfDocument()
         try {
-            var rowIndex = 0
-            for (pageNumber in 1..pageCount) {
-                val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
-                val canvas = page.canvas
-                drawPageHeader(canvas, pageNumber, from, through, income, expenses, pageNumber == 1)
-                var y = if (pageNumber == 1) 242f else 150f
-                drawTableHeader(canvas, y)
-                y += HEADER_HEIGHT
-                val pageLimit = if (pageNumber == 1) firstPageRows else nextPageRows
-                val rowsOnPage = minOf(pageLimit, transactions.size - rowIndex)
-                repeat(rowsOnPage) { rowOnPage ->
-                    drawRow(canvas, y, transactions[rowIndex], rowOnPage % 2 == 1)
-                    y += ROW_HEIGHT
-                    rowIndex++
+            var pageNumber = 0
+            sections.forEach { section ->
+                section.pages().forEachIndexed { index, rows ->
+                    pageNumber++
+                    val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
+                    val canvas = page.canvas
+                    drawPageHeader(canvas, pageNumber, from, through, section, index == 0)
+                    var y = if (index == 0) 242f else 150f
+                    drawTableHeader(canvas, y, section.kameti)
+                    y += HEADER_HEIGHT
+                    rows.forEachIndexed { rowOnPage, row ->
+                        drawRow(canvas, y, row, rowOnPage % 2 == 1)
+                        y += ROW_HEIGHT
+                    }
+                    if (rows.isEmpty()) {
+                        val label = if (section.kameti) "kameti payments or receiving" else "income or expenses"
+                        canvas.drawText("No $label found for the selected period.", 42f, y + 28f, textPaint(11f, COLOR_MUTED))
+                    }
+                    drawFooter(canvas, pageNumber, pageCount, section.kameti)
+                    doc.finishPage(page)
                 }
-                if (transactions.isEmpty()) {
-                    val paint = textPaint(12f, COLOR_MUTED)
-                    canvas.drawText("No transactions found for the selected period.", 42f, y + 28f, paint)
-                }
-                drawFooter(canvas, pageNumber, pageCount)
-                doc.finishPage(page)
             }
             val buffer = ByteArrayOutputStream()
             doc.writeTo(buffer)
             return buffer.toByteArray()
-        } finally {
-            doc.close()
-        }
+        } finally { doc.close() }
     }
 
     private fun drawPageHeader(
@@ -125,8 +124,7 @@ object ExportManager {
         pageNumber: Int,
         from: LocalDate?,
         through: LocalDate?,
-        income: Long,
-        expenses: Long,
+        section: StatementSection,
         showSummary: Boolean,
     ) {
         val header = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -134,7 +132,7 @@ object ExportManager {
         }
         canvas.drawRoundRect(RectF(24f, 24f, 571f, 116f), 14f, 14f, header)
         canvas.drawText("DAILY LEDGER", 42f, 59f, textPaint(22f, Color.WHITE, Typeface.BOLD))
-        canvas.drawText("Your income & expense statement", 42f, 82f, textPaint(10f, Color.WHITE))
+        canvas.drawText(if (section.kameti) "Kameti statement · payments & receiving" else "Your income & expense statement", 42f, 82f, textPaint(10f, Color.WHITE))
         canvas.drawText("PKR", 536f, 60f, textPaint(12f, Color.WHITE, Typeface.BOLD).apply { textAlign = Paint.Align.RIGHT })
         canvas.drawText("${LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}  |  Page $pageNumber", 42f, 101f, textPaint(8f, Color.rgb(200, 240, 240)))
         val period = when {
@@ -149,10 +147,11 @@ object ExportManager {
             val cardH = 64f
             val cardW = 163f
             val gap = 11f
-            drawSummaryCard(canvas, 42f, cardY, cardW, cardH, "MONEY IN", "PKR ${plainAmount(income)}", COLOR_GREEN)
-            drawSummaryCard(canvas, 42f + cardW + gap, cardY, cardW, cardH, "MONEY OUT", "PKR ${plainAmount(expenses)}", COLOR_RED)
-            drawSummaryCard(canvas, 42f + (cardW + gap) * 2, cardY, cardW, cardH, "NET MOVEMENT", "PKR ${plainAmount(income - expenses)}", COLOR_NAVY)
-            canvas.drawText("TRANSACTION ACTIVITY", 42f, 232f, textPaint(9f, COLOR_MUTED, Typeface.BOLD))
+            drawSummaryCard(canvas, 42f, cardY, cardW, cardH, if (section.kameti) "RECEIVED" else "MONEY IN", "PKR ${plainAmount(section.moneyIn)}", COLOR_GREEN)
+            drawSummaryCard(canvas, 42f + cardW + gap, cardY, cardW, cardH, if (section.kameti) "PAID" else "MONEY OUT", "PKR ${plainAmount(section.moneyOut)}", COLOR_RED)
+            drawSummaryCard(canvas, 42f + (cardW + gap) * 2, cardY, cardW, cardH, if (section.kameti) "ENTRIES" else "NET MOVEMENT",
+                if (section.kameti) "${section.rows.size}" else "PKR ${plainAmount(section.moneyIn - section.moneyOut)}", COLOR_NAVY)
+            canvas.drawText(if (section.kameti) "KAMETI ACTIVITY · SEPARATE FROM SALARY" else "TRANSACTION ACTIVITY", 42f, 232f, textPaint(9f, COLOR_MUTED, Typeface.BOLD))
         }
     }
 
@@ -171,36 +170,36 @@ object ExportManager {
         canvas.drawText(value, x + 10f, y + 44f, amountPaint)
     }
 
-    private fun drawTableHeader(canvas: Canvas, y: Float) {
+    private fun drawTableHeader(canvas: Canvas, y: Float, kameti: Boolean) {
         canvas.drawRoundRect(RectF(38f, y, 557f, y + HEADER_HEIGHT), 6f, 6f, Paint().apply { color = COLOR_NAVY })
         val paint = textPaint(8.5f, Color.WHITE, Typeface.BOLD)
-        canvas.drawText("DATE", 47f, y + 17f, paint)
-        canvas.drawText("TRANSACTION / CATEGORY", 117f, y + 17f, paint)
+        canvas.drawText(if (kameti) "DATE / MONTH" else "DATE", 47f, y + 17f, paint)
+        canvas.drawText(if (kameti) "KAMETI / INSTALLMENT" else "TRANSACTION / CATEGORY", 117f, y + 17f, paint)
         canvas.drawText("TYPE", 367f, y + 17f, paint)
         paint.textAlign = Paint.Align.RIGHT
         canvas.drawText("AMOUNT (PKR)", 546f, y + 17f, paint)
     }
 
-    private fun drawRow(canvas: Canvas, y: Float, transaction: TransactionEntity, alternate: Boolean) {
+    private fun drawRow(canvas: Canvas, y: Float, transaction: StatementRow, alternate: Boolean) {
         if (alternate) canvas.drawRect(39f, y, 556f, y + ROW_HEIGHT, Paint().apply { color = Color.rgb(244, 249, 250) })
         canvas.drawLine(39f, y + ROW_HEIGHT, 556f, y + ROW_HEIGHT, Paint().apply { color = COLOR_BORDER; strokeWidth = .5f })
         val body = textPaint(9f, COLOR_INK)
-        val income = transaction.type == "INCOME"
+        val income = transaction.moneyIn
         val typeColor = if (income) COLOR_GREEN else COLOR_RED
         canvas.drawText(transaction.date, 47f, y + 23f, textPaint(8f, COLOR_MUTED))
-        canvas.drawText(fitText(transaction.note.ifBlank { transaction.category }, body, 236f), 117f, y + 16f, body)
-        canvas.drawText(fitText(transaction.category, textPaint(8f, COLOR_MUTED), 236f), 117f, y + 30f, textPaint(8f, COLOR_MUTED))
-        canvas.drawText(if (income) "INCOME" else "EXPENSE", 367f, y + 23f, textPaint(8f, typeColor, Typeface.BOLD))
-        val amount = "${if (income) "+" else "-"} ${plainAmount(transaction.amountMinor)}"
+        canvas.drawText(fitText(transaction.title, body, 236f), 117f, y + 16f, body)
+        canvas.drawText(fitText(transaction.detail, textPaint(8f, COLOR_MUTED), 236f), 117f, y + 30f, textPaint(8f, COLOR_MUTED))
+        canvas.drawText(transaction.type, 367f, y + 23f, textPaint(8f, typeColor, Typeface.BOLD))
+        val amount = "${if (income) "+" else "-"} ${plainAmount(transaction.amount)}"
         val amountPaint = textPaint(10f, typeColor, Typeface.BOLD).apply { textAlign = Paint.Align.RIGHT }
         while (amountPaint.measureText(amount) > 115f && amountPaint.textSize > 6f) amountPaint.textSize -= .5f
         canvas.drawText(amount, 546f, y + 23f, amountPaint)
     }
 
-    private fun drawFooter(canvas: Canvas, page: Int, totalPages: Int) {
+    private fun drawFooter(canvas: Canvas, page: Int, totalPages: Int, kameti: Boolean) {
         canvas.drawLine(42f, 794f, 553f, 794f, Paint().apply { color = COLOR_BORDER; strokeWidth = .8f })
-        canvas.drawText("Income & expenses only. Net movement is not your account balance.", 42f, 807f, textPaint(7.5f, COLOR_MUTED))
-        canvas.drawText("Full descriptions and separate ledgers are available in CSV export.", 42f, 819f, textPaint(7.5f, COLOR_MUTED))
+        canvas.drawText(if (kameti) "Kameti totals stay separate from income and expenses." else "Net movement is not your account balance. Kameti has its own statement section.", 42f, 807f, textPaint(7.5f, COLOR_MUTED))
+        canvas.drawText(if (kameti) "Payments use installment month. Undated receiving appears in All records only." else "Full descriptions and other ledgers are available in CSV export.", 42f, 819f, textPaint(7.5f, COLOR_MUTED))
         canvas.drawText("$page / $totalPages", 553f, 819f, textPaint(8f, COLOR_MUTED).apply { textAlign = Paint.Align.RIGHT })
     }
 
@@ -246,15 +245,7 @@ object ExportManager {
         return file.absolutePath
     }
 
-    private fun String.isWithin(from: LocalDate?, through: LocalDate?): Boolean {
-        if (from == null && through == null) return true
-        val date = try {
-            if (length == 7) YearMonth.parse(this).atDay(1) else LocalDate.parse(this)
-        } catch (_: Exception) {
-            return false
-        }
-        return (from == null || !date.isBefore(from)) && (through == null || !date.isAfter(through))
-    }
+    private fun String.isWithin(from: LocalDate?, through: LocalDate?) = inStatementPeriod(from, through)
 
     private fun TransactionEntity.isWithin(from: LocalDate?, through: LocalDate?) = date.isWithin(from, through)
     private fun esc(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""

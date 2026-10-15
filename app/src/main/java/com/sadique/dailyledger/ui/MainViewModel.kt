@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.sadique.dailyledger.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
 import com.sadique.dailyledger.ai.*
 import com.sadique.dailyledger.sync.SyncScheduler
 import com.sadique.dailyledger.sync.BackupLock
@@ -63,24 +62,21 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
     private val categoryLearning=CategoryLearningStore(app,ownerId)
-    val aiEnabled=MutableStateFlow(aiPrefs.enabled)
-    val aiTips=MutableStateFlow<List<SpendingTip>>(emptyList())
-    val aiStatus=MutableStateFlow("")
-    private var aiJob:Job?=null
-    private var requestedHash=""
-    fun setAiEnabled(value:Boolean){aiPrefs.enabled=value;aiEnabled.value=value;aiJob?.cancel();aiTips.value=emptyList();aiStatus.value=""}
+    private val manualInsights = ManualInsights(viewModelScope, aiPrefs.enabled, aiPrefs::cached, aiPrefs::save)
+    val aiEnabled = manualInsights.enabled
+    val aiTips = manualInsights.tips
+    val aiStatus = manualInsights.status
+    val aiBusy = manualInsights.busy
+    fun setAiEnabled(value: Boolean) { aiPrefs.enabled = value; manualInsights.setEnabled(value) }
     private fun checkAccount(){check(FirebaseRuntime.auth(getApplication<Application>()).currentUser?.uid==ownerId){"Please sign in again."}}
-    fun refreshInsights(snapshot:SpendingSnapshot){
-        if(!aiEnabled.value||snapshot.count==0){aiTips.value=emptyList();return}
-        val hash=AiPreferences.digest(AiProtocol.context(snapshot).toString());requestedHash=hash
-        aiPrefs.cached(hash)?.let{aiTips.value=it;aiStatus.value="AI suggestions • recorded totals";return}
-        aiTips.value=emptyList()
-        if(aiJob?.isActive==true)return
-        if(System.currentTimeMillis()-aiPrefs.attemptedAt<60*60000L){aiStatus.value="Local insights are current. Cloud suggestions refresh later to limit cloud usage.";return}
-        aiJob=viewModelScope.launch{
-            aiPrefs.attemptedAt=System.currentTimeMillis();aiStatus.value="Preparing AI suggestions…"
-            try{checkAccount();val tips=aiService.insights(snapshot);checkAccount();if(aiEnabled.value&&requestedHash==hash){aiPrefs.save(hash,tips);aiTips.value=tips;aiStatus.value="AI suggestions • recorded totals"}}
-            catch(e:CancellationException){throw e}catch(e:Exception){aiStatus.value=(e as? AiException)?.message?:"AI suggestions are unavailable. Local insights still work."}
+    private fun insightKey(snapshot: SpendingSnapshot) = AiPreferences.digest(AiProtocol.context(snapshot).toString())
+    fun updateInsightContext(snapshot: SpendingSnapshot) {
+        manualInsights.updateContext(insightKey(snapshot), snapshot.count > 0)
+    }
+    fun refreshInsights(snapshot: SpendingSnapshot) {
+        manualInsights.refresh(insightKey(snapshot), snapshot.count > 0) {
+            checkAccount()
+            aiService.insights(snapshot).also { checkAccount() }
         }
     }
     suspend fun autoFill(input:String):AiDraftResult{
@@ -91,7 +87,11 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             aiService.drafts(input).also { checkAccount() }
         }
         val learnedRules = categoryLearning.rules()
-        return result.copy(entries = result.entries.map { CategoryLearning.apply(it, learnedRules) })
+        val historyRules = CategoryLearning.fromHistory(repo.transactions.first(), ownerId)
+        val entries = result.entries.map { CategoryLearning.apply(it, learnedRules, historyRules) }
+        val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
+        return result.copy(entries = entries, message = result.message +
+            if (learnedCount > 0) " $learnedCount categories matched your earlier corrections or saved purchases." else "")
     }
     fun rememberCategory(type:String,phrase:String,category:String):String? = try{
         checkAccount()

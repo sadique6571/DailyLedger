@@ -39,8 +39,9 @@ object OfflineMiniAi {
             TransactionDraft(type, part.amountMinor, CategoryRules.infer(type, part.label), part.label.take(500),
                 EntryDateParser.forPart(part.range, dates, today).toString()).validated()
         }
+        val relativeHint = if (listOf("kal", "کل", "parson", "parso", "پرسوں").any { EntryText.has(clean, it) }) " Kal = yesterday; parson = 2 days ago. Future date ke liye tomorrow ya exact date likhein." else ""
         val reviewHint = if (rows.any { it.category == "Other" || it.category == "Other income" }) " Unrecognized item: choose its category before saving." else ""
         val yearHint = if (dates.any { it.yearOmitted }) " Year omitted: ${today.year} used." else ""
-        return AiDraftResult("Offline Mini AI • ${rows.size} entries. Amount, category aur har entry ki date review karein.$yearHint$reviewHint", rows)
+        return AiDraftResult("Offline Mini AI • ${rows.size} entries. Amount, category aur har entry ki date review karein.$yearHint$relativeHint$reviewHint", rows)
     }
 }

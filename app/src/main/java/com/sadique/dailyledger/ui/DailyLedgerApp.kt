@@ -38,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -109,8 +111,12 @@ fun DailyLedgerApp(
     val ledgerCycle by vm.ledgerCycle.collectAsState()
     val ledgerArchives by vm.ledgerArchives.collectAsState()
     CompositionLocalProvider(LocalCategoryHistory provides tx) {
-    var tab by remember { mutableIntStateOf(0) }
-    var settingsOpen by remember { mutableStateOf(false) }
+    var tab by rememberSaveable(user.id) { mutableIntStateOf(0) }
+    var settingsOpen by rememberSaveable(user.id) { mutableStateOf(false) }
+    var settingsReturn by rememberSaveable(user.id) { mutableStateOf(false) }
+    val settingsState = rememberSaveableStateHolder()
+    fun returnToSettings() { settingsReturn = false; settingsOpen = true }
+    fun closeSettings() { settingsOpen = false; settingsReturn = false; tab = 0 }
     var remindersOpen by remember { mutableStateOf(false) }
     var autoFillOpen by remember(user.id) { mutableStateOf(false) }
     var creditAiOpen by remember(user.id) { mutableStateOf(false) }
@@ -122,6 +128,7 @@ fun DailyLedgerApp(
     val aiEnabled by vm.aiEnabled.collectAsState()
     val aiTips by vm.aiTips.collectAsState()
     val aiStatus by vm.aiStatus.collectAsState()
+    val aiBusy by vm.aiBusy.collectAsState()
     val snapshot = remember(tx, savings, loans, lp, cp, ledgerCycle, user.id) {
         SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle)
     }
@@ -129,7 +136,7 @@ fun DailyLedgerApp(
     var restoreBusy by remember(user.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(snapshot, aiEnabled) { vm.refreshInsights(snapshot) }
+    LaunchedEffect(snapshot, aiEnabled) { vm.updateInsightContext(snapshot) }
     LaunchedEffect(user.id) {
         if (!vm.repo.hasRecords()) {
             val driveEmail = user.googleEmail ?: user.email
@@ -262,11 +269,14 @@ fun DailyLedgerApp(
                 reminders.forEach { Text(it) }
             } }, confirmButton = { TextButton(onClick = { remindersOpen = false }) { Text("Close") } })
     }
-    BackHandler(enabled = !settingsOpen && tab != 0) { tab = 0 }
+    BackHandler(enabled = !settingsOpen && (tab != 0 || settingsReturn)) {
+        if (settingsReturn) returnToSettings() else tab = 0
+    }
 
-    BackHandler(enabled = settingsOpen) { settingsOpen = false }
+    BackHandler(enabled = settingsOpen) { closeSettings() }
 
     if (settingsOpen) {
+        settingsState.SaveableStateProvider("settings-${user.id}") {
         SettingsScreen(
             context = context,
             vm = vm,
@@ -282,9 +292,9 @@ fun DailyLedgerApp(
             weatherCondition = weatherCondition,
             weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
-            onBack = { settingsOpen = false },
+            onBack = ::closeSettings,
             onAutoFill = { autoFillOpen = true },
-            onOpenSavings = { settingsOpen = false; tab = 4 },
+            onOpenSavings = { settingsReturn = true; settingsOpen = false; tab = 4 },
             onTheme = { scope.launch { settings.setTheme(it) } },
             onBiometric = { enable ->
                 if (enable && Biometrics.pick(context) == null) {
@@ -314,6 +324,7 @@ fun DailyLedgerApp(
                 }
             },
         )
+        }
         return@CompositionLocalProvider
     }
 
@@ -328,6 +339,9 @@ fun DailyLedgerApp(
                         else -> "Your money, a brighter tomorrow"
                     }, modifier = Modifier.statusBarsPadding(),
                 ) {
+                    if (settingsReturn) IconButton(onClick = ::returnToSettings, modifier = Modifier.testTag("return-to-settings")) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Settings")
+                    }
                     IconButton(onClick = { historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
                     IconButton(onClick = { if (tab == 6) settingsOpen = true else remindersOpen = true }) {
                         Icon(if (tab == 6) Icons.Rounded.Settings else Icons.Rounded.NotificationsNone,
@@ -345,7 +359,7 @@ fun DailyLedgerApp(
                 tabs.forEachIndexed { i, t ->
                     val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6); else -> false }
                     NavigationBarItem(selected = selected,
-                        onClick = { when (i) { 0 -> tab = 0; 1 -> tab = 7; 2 -> tab = 3; 3 -> tab = 4; else -> tab = 6 } },
+                        onClick = { settingsReturn = false; when (i) { 0 -> tab = 0; 1 -> tab = 7; 2 -> tab = 3; 3 -> tab = 4; else -> tab = 6 } },
                         icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
                         label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
@@ -393,6 +407,8 @@ fun DailyLedgerApp(
                     aiTips = aiTips,
                     aiStatus = aiStatus,
                     aiEnabled = aiEnabled,
+                    aiBusy = aiBusy,
+                    onRefreshAi = { vm.refreshInsights(snapshot) },
                     onEnableAi = { aiConsent = true },
                 )
                 1 -> TransactionsScreen(
@@ -440,7 +456,8 @@ fun DailyLedgerApp(
                 5 -> LedgerBackdrop(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("Your monthly insights", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        InsightsCard(snapshot, aiTips, aiStatus, aiEnabled) { aiConsent = true }
+                        InsightsCard(snapshot, aiTips, aiStatus, aiEnabled, onEnable = { aiConsent = true },
+                            busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) })
                     }
                 }
                 7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,
