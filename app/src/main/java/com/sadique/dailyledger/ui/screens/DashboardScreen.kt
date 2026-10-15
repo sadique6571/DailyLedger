@@ -84,6 +84,8 @@ fun DashboardScreen(
     var showBalance by remember { mutableStateOf(true) }
     var confirmNewMonth by remember { mutableStateOf(false) }
     var confirmArchive by remember { mutableStateOf(false) }
+    var receiveSalarySelected by remember { mutableStateOf(true) }
+    var archivePreviousSelected by remember { mutableStateOf(false) }
     var showArchives by remember { mutableStateOf(false) }
     var archiveMessage by remember { mutableStateOf("") }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
@@ -105,14 +107,14 @@ fun DashboardScreen(
                     val compact = maxWidth < 370.dp
                     LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(if (compact) 112.dp else 196.dp).height(112.dp))
                     Column(Modifier.padding(top = 6.dp, bottom = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(when (LocalTime.now().hour) { in 5..11 -> "Good morning,"; in 12..16 -> "Good afternoon,"; else -> "Good evening," }, fontSize = 15.sp)
-                        Text(userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = if (compact) 23.sp else 27.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(if (compact) .65f else .85f))
+                        Text(when (LocalTime.now().hour) { in 5..11 -> "🌅 Good morning,"; in 12..16 -> "☀️ Good afternoon,"; in 17..20 -> "🌆 Good evening,"; else -> "🌙 Good night," }, fontSize = 15.sp)
+                        Text("👋 " + userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = if (compact) 23.sp else 27.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(if (compact) .65f else .85f))
                         if (weatherEnabled && weatherCity.isNotBlank()) {
                             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = .88f)) {
                                 Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Rounded.Place, null, Modifier.size(14.dp), tint = LedgerColors.Teal)
+                                    Text(when { weatherCondition.contains("rain", true) -> "🌧️"; weatherCondition.contains("cloud", true) -> "☁️"; weatherCondition.contains("storm", true) -> "⛈️"; weatherCondition.contains("snow", true) -> "❄️"; LocalTime.now().hour !in 6..18 -> "🌙"; else -> "☀️" }, fontSize = 20.sp)
                                     Text(listOf(weatherCity, weatherTemperature, weatherCondition).filter { it.isNotBlank() }.joinToString(" • "),
-                                        fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 255.dp))
+                                        fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 270.dp))
                                 }
                             }
                         } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -200,24 +202,28 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "salary-cycle-controls", index = 3) {
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                LedgerCard(Modifier.fillMaxWidth()) {
+                    Text("Salary received & cycle options", fontWeight = FontWeight.Bold)
+                    Text("Choose the actions you want. Salary amount is entered in the existing salary form.", style = MaterialTheme.typography.bodySmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = receiveSalarySelected, onCheckedChange = { receiveSalarySelected = it })
+                        Text("Receive salary", modifier = Modifier.weight(1f))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = archivePreviousSelected, onCheckedChange = { archivePreviousSelected = it })
+                        Text("Archive previous calendar month", modifier = Modifier.weight(1f))
+                    }
                     Button(
-                        onClick = { confirmNewMonth = true },
-                        enabled = ledgerCycle != null,
-                        modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
-                    ) {
-                        Icon(Icons.Rounded.Autorenew, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Salary received • Start new month")
-                    }
-                    OutlinedButton(
-                        onClick = { confirmArchive = true },
-                        modifier = Modifier.fillMaxWidth().testTag("archive-last-month"),
-                    ) {
-                        Icon(Icons.Rounded.Archive, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("Archive last month")
-                    }
+                        onClick = {
+                            when {
+                                receiveSalarySelected && ledgerCycle != null -> confirmNewMonth = true
+                                archivePreviousSelected -> confirmArchive = true
+                                receiveSalarySelected -> onAddSalary()
+                            }
+                        },
+                        enabled = receiveSalarySelected || archivePreviousSelected,
+                        modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month")
+                    ) { Text("Continue selected actions") }
                     if (ledgerArchives.isNotEmpty()) {
                         TextButton(onClick = { showArchives = true }, modifier = Modifier.align(Alignment.End)) {
                             Text("View archives (${ledgerArchives.size})")
