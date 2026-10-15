@@ -189,13 +189,13 @@ fun DashboardScreen(
             }
             enteringItem(key = "monthly-totals", index = 2) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).testTag("dashboard-add-salary"), onAddSalary)
-                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f), onAddOtherIncome)
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-salary"), onAddSalary)
+                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f).fillMaxHeight(), onAddOtherIncome)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f), onAddExpense)
-                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f), onOpenSavings)
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f).fillMaxHeight(), onAddExpense)
+                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f).fillMaxHeight(), onOpenSavings)
                     }
                 }
             }
@@ -283,13 +283,13 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         if (display.savingsFirst) {
-                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f), "All saved amounts", onOpenSavings)
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
                         } else {
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
-                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f), "All saved amounts", onOpenSavings)
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
                         }
                     }
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
@@ -300,11 +300,11 @@ fun DashboardScreen(
                             Text(if (turn == month) "Your receiving month is here" else "Upcoming personal turn", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                    if (loans.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (loans.isNotEmpty()) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         val outstanding: (String) -> Long = { direction -> loans.filter { it.direction == direction }.sumOf { loan ->
                             (loan.principalMinor - lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0) } }
-                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f), onClick = onOpenLoans)
-                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f), onClick = onOpenLoans)
+                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
+                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
                     }
                 }
             }
