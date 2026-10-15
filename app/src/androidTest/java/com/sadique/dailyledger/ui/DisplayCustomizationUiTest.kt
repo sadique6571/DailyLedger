@@ -17,11 +17,11 @@ class DisplayCustomizationUiTest {
     @Test fun displayPreferencesArePersistentAndResettable() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val first = DisplayPreferences(context)
-        first.setFontSize(3)
-        first.setIconSize(2)
-        first.setCardSize(0)
-        first.setCompact(true)
-        first.setPrivateAmounts(true)
+        first.updateFontSize(3)
+        first.updateIconSize(2)
+        first.updateCardSize(0)
+        first.updateCompact(true)
+        first.updatePrivateAmounts(true)
         val restored = DisplayPreferences(context)
         assertEquals(3, restored.fontSize)
         assertEquals(2, restored.iconSize)
