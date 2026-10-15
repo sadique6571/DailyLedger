@@ -40,6 +40,7 @@ fun TransactionsScreen(
 ) {
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
+    var pendingDelete by remember { mutableStateOf<TransactionEntity?>(null) }
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
     val listState = rememberLazyListState()
@@ -84,12 +85,21 @@ fun TransactionsScreen(
                         }
                         Column {
                             Text(money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
-                            IconButton(onClick = { onDelete(x) }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
+                            IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
                     }
                 }
             }
         }
+    }
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete transaction?") },
+            text = { Text("Delete ${target.category} (${money(target.amountMinor)}) from ${target.date}? This action cannot be undone.") },
+            confirmButton = { TextButton(onClick = { pendingDelete = null; onDelete(target) }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+        )
     }
     if (show) {
         TransactionDialog(edit, { show = false }, save = { type, amount, cat, note, date ->
@@ -130,11 +140,11 @@ fun TransactionDialog(
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
                     }
                 }
-                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
-                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+                OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
             }
         },
         confirmButton = {
