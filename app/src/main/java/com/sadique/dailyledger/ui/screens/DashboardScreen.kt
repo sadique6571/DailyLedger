@@ -351,7 +351,7 @@ fun DashboardScreen(
         AlertDialog(
             onDismissRequest = { confirmNewMonth = false },
             title = { Text("Start a new salary month?") },
-            text = { Text("The current salary period will be archived. Its remaining balance (${displayMoney(summary.remaining)}) will carry forward; no money or transaction will be deleted. Start the new period before entering your next salary.") },
+            text = { Text("The current salary period will be archived. Its remaining balance (${visibleMoney(summary.remaining)}) will carry forward; no money or transaction will be deleted. Start the new period before entering your next salary.") },
             confirmButton = {
                 TextButton(onClick = { confirmNewMonth = false; onStartNewMonth(); if (receiveSalarySelected) onAddSalaryWithAmount(salaryAmountInput) }) { Text("Archive & start") }
             },
@@ -385,9 +385,9 @@ fun DashboardScreen(
                     ledgerArchives.forEach { archive ->
                         LedgerCard(Modifier.fillMaxWidth()) {
                             Text(archive.label, fontWeight = FontWeight.SemiBold)
-                            Text("Salary ${displayMoney(archive.salaryMinor)} · Other income ${displayMoney(archive.otherIncomeMinor)}", fontSize = 11.sp)
-                            Text("Expenses ${displayMoney(archive.expensesMinor)} · Kameti ${displayMoney(archive.committeeMinor)} · Savings ${displayMoney(archive.savingsMinor)}", fontSize = 11.sp)
-                            Text("Closing balance ${displayMoney(archive.closingBalanceMinor)}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Salary ${visibleMoney(archive.salaryMinor)} · Other income ${visibleMoney(archive.otherIncomeMinor)}", fontSize = 11.sp)
+                            Text("Expenses ${visibleMoney(archive.expensesMinor)} · Kameti ${visibleMoney(archive.committeeMinor)} · Savings ${visibleMoney(archive.savingsMinor)}", fontSize = 11.sp)
+                            Text("Closing balance ${visibleMoney(archive.closingBalanceMinor)}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
