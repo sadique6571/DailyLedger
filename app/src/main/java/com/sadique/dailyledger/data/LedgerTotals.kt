@@ -17,6 +17,7 @@ data class SalarySummary(
     val committeeContributions: Long = 0,
     val savingsContributions: Long = 0,
     val openingBalanceMinor: Long = 0,
+    val udharPayments: Long = 0L,
 ) {
     val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions - udharPayments
     val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions + udharPayments
