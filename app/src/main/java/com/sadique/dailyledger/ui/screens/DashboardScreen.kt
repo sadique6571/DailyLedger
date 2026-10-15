@@ -219,11 +219,11 @@ fun DashboardScreen(
                         singleLine = true,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = receiveSalarySelected, onCheckedChange = { receiveSalarySelected = it })
+                        Checkbox(checked = receiveSalarySelected, onCheckedChange = { receiveSalarySelected = it }, modifier = Modifier.testTag("salary-received-option"))
                         Text("Receive salary", modifier = Modifier.weight(1f))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = archivePreviousSelected, onCheckedChange = { archivePreviousSelected = it })
+                        Checkbox(checked = archivePreviousSelected, onCheckedChange = { archivePreviousSelected = it }, modifier = Modifier.testTag("archive-previous-option"))
                         Text("Archive previous calendar month", modifier = Modifier.weight(1f))
                     }
                     Button(
