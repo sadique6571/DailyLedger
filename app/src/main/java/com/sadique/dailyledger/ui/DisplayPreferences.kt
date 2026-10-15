@@ -30,20 +30,20 @@ class DisplayPreferences(context: Context) {
     var savingsFirst by mutableStateOf(store.getBoolean("savings_first", true))
         private set
 
-    fun setFontSize(value: Int) { fontSize = value.coerceIn(0, 3); store.edit().putInt("font", fontSize).apply() }
-    fun setIconSize(value: Int) { iconSize = value.coerceIn(0, 2); store.edit().putInt("icons", iconSize).apply() }
-    fun setCardSize(value: Int) { cardSize = value.coerceIn(0, 2); store.edit().putInt("cards", cardSize).apply() }
-    fun setCompact(value: Boolean) { compact = value; store.edit().putBoolean("compact", value).apply() }
-    fun setPrivateAmounts(value: Boolean) { privateAmounts = value; store.edit().putBoolean("private_amounts", value).apply() }
-    fun setShowSpending(value: Boolean) { showSpending = value; store.edit().putBoolean("spending", value).apply() }
-    fun setShowRecent(value: Boolean) { showRecent = value; store.edit().putBoolean("recent", value).apply() }
-    fun setShowSpaces(value: Boolean) { showSpaces = value; store.edit().putBoolean("spaces", value).apply() }
-    fun setShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
-    fun setSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
+    fun updateFontSize(value: Int) { fontSize = value.coerceIn(0, 3); store.edit().putInt("font", fontSize).apply() }
+    fun updateIconSize(value: Int) { iconSize = value.coerceIn(0, 2); store.edit().putInt("icons", iconSize).apply() }
+    fun updateCardSize(value: Int) { cardSize = value.coerceIn(0, 2); store.edit().putInt("cards", cardSize).apply() }
+    fun updateCompact(value: Boolean) { compact = value; store.edit().putBoolean("compact", value).apply() }
+    fun updatePrivateAmounts(value: Boolean) { privateAmounts = value; store.edit().putBoolean("private_amounts", value).apply() }
+    fun updateShowSpending(value: Boolean) { showSpending = value; store.edit().putBoolean("spending", value).apply() }
+    fun updateShowRecent(value: Boolean) { showRecent = value; store.edit().putBoolean("recent", value).apply() }
+    fun updateShowSpaces(value: Boolean) { showSpaces = value; store.edit().putBoolean("spaces", value).apply() }
+    fun updateShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
+    fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
-        setFontSize(1); setIconSize(1); setCardSize(1); setCompact(false)
-        setPrivateAmounts(false); setShowSpending(true); setShowRecent(true)
-        setShowSpaces(true); setShowInsights(true); setSavingsFirst(true)
+        updateFontSize(1); updateIconSize(1); updateCardSize(1); updateCompact(false)
+        updatePrivateAmounts(false); updateShowSpending(true); updateShowRecent(true)
+        updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true)
     }
     val fontMultiplier: Float get() = floatArrayOf(0.9f, 1f, 1.15f, 1.3f)[fontSize]
     val iconMultiplier: Float get() = floatArrayOf(0.85f, 1f, 1.2f)[iconSize]
