@@ -32,7 +32,6 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Triple("Transactions", "Search, edit and manage your entries", Icons.Rounded.Description) to onTransactions,
                 Triple("Udhar Saman", "Goods on credit, due dates and partial payments", Icons.Rounded.ShoppingCart) to onCredit,
                 Triple("Loans", "Borrowed, lent and payment history", Icons.Rounded.Handshake) to onLoans,
-                Triple("Kameti", "Shares, turns and partial receipts", Icons.Rounded.Groups) to onKameti,
                 Triple("Savings", "Your savings in their own space", Icons.Rounded.AccountBalanceWallet) to onSavings,
                 Triple("Settings & backup", "Account, themes and Google Drive backup", Icons.Rounded.Settings) to onSettings,
             )
