@@ -91,7 +91,7 @@ fun SettingsScreen(
     var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
     var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
     val settingsStore = remember { SettingsStore(context.applicationContext) }
-    val display = LocalDisplayPreferences.current
+    val display = LocalDisplayPreferences.current!!
     val savings by vm.savings.collectAsState()
     val backupReady = driveEnabled && lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
