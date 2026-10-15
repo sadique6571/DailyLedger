@@ -369,35 +369,35 @@ fun SettingsScreen(
                 Text("Font size", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Small", "Medium", "Large", "XL").forEachIndexed { index, label ->
-                        FilterChip(selected = display.fontSize == index, onClick = { display.setFontSize(index) }, label = { Text(label) })
+                        FilterChip(selected = display.fontSize == index, onClick = { display.updateFontSize(index) }, label = { Text(label) })
                     }
                 }
                 Text("Icon size", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Small", "Medium", "Large").forEachIndexed { index, label ->
-                        FilterChip(selected = display.iconSize == index, onClick = { display.setIconSize(index) }, label = { Text(label) })
+                        FilterChip(selected = display.iconSize == index, onClick = { display.updateIconSize(index) }, label = { Text(label) })
                     }
                 }
                 Text("Card size", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Compact", "Normal", "Spacious").forEachIndexed { index, label ->
-                        FilterChip(selected = display.cardSize == index, onClick = { display.setCardSize(index) }, label = { Text(label) })
+                        FilterChip(selected = display.cardSize == index, onClick = { display.updateCardSize(index) }, label = { Text(label) })
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Compact layout", Modifier.weight(1f))
-                    Switch(checked = display.compact, onCheckedChange = display::setCompact)
+                    Switch(checked = display.compact, onCheckedChange = display::updateCompact)
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Hide financial amounts (privacy)", Modifier.weight(1f))
-                    Switch(checked = display.privateAmounts, onCheckedChange = display::setPrivateAmounts)
+                    Switch(checked = display.privateAmounts, onCheckedChange = display::updatePrivateAmounts)
                 }
                 Text("Dashboard cards", style = MaterialTheme.typography.titleMedium)
                 listOf(
-                    Triple("Spending chart", display.showSpending, display::setShowSpending),
-                    Triple("Recent transactions", display.showRecent, display::setShowRecent),
-                    Triple("Savings, kameti & loans", display.showSpaces, display::setShowSpaces),
-                    Triple("AI insights", display.showInsights, display::setShowInsights),
+                    Triple("Spending chart", display.showSpending, display::updateShowSpending),
+                    Triple("Recent transactions", display.showRecent, display::updateShowRecent),
+                    Triple("Savings, kameti & loans", display.showSpaces, display::updateShowSpaces),
+                    Triple("AI insights", display.showInsights, display::updateShowInsights),
                 ).forEach { (label, checked, change) ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, Modifier.weight(1f))
@@ -406,7 +406,7 @@ fun SettingsScreen(
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Savings before loans", Modifier.weight(1f))
-                    Switch(checked = display.savingsFirst, onCheckedChange = display::setSavingsFirst)
+                    Switch(checked = display.savingsFirst, onCheckedChange = display::updateSavingsFirst)
                 }
                 OutlinedButton(onClick = display::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset display settings") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
