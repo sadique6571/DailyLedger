@@ -412,12 +412,16 @@ fun SettingsScreen(
                         placeholder = { Text("YYYY-MM-DD") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        isError = exportFrom.isNotBlank() && runCatching { LocalDate.parse(exportFrom.trim()) }.isFailure,
+                        supportingText = { Text("Use YYYY-MM-DD, or leave blank") },
                     )
                     OutlinedTextField(
                         exportThrough,
                         { exportThrough = it },
                         label = { Text("To date (optional)") },
                         placeholder = { Text("YYYY-MM-DD") },
+                        isError = exportThrough.isNotBlank() && runCatching { LocalDate.parse(exportThrough.trim()) }.isFailure,
+                        supportingText = { Text("Use YYYY-MM-DD, or leave blank") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
