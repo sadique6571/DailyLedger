@@ -95,10 +95,11 @@ fun DashboardScreen(
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
     val guide = DailySpendingGuide.calculate(tx, summary, today)
-    val visibleMoney: (Long) -> String = { if (showBalance) displayMoney(it) else "Rs •••••" }
+    val display = LocalDisplayPreferences.current
+    val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 7.dp else 12.dp)) {
             enteringItem(key = "greeting", index = 0) {
                 BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
                     val compact = maxWidth < 370.dp
@@ -129,7 +130,7 @@ fun DashboardScreen(
                                     Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                                 }
                             }
-                            Text(if (showBalance) displayMoney(summary.remaining) else "Rs •••••", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
+                            Text(visibleMoney(summary.remaining), color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
                             Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                             Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
@@ -225,7 +226,7 @@ fun DashboardScreen(
                     if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
+            if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
             if (frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -248,7 +249,7 @@ fun DashboardScreen(
                     }
                 }
             }
-            enteringItem(key = "recent", index = 6) {
+            if (display.showRecent) enteringItem(key = "recent", index = 6) {
                 Column {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -278,7 +279,7 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
-            enteringItem(key = "separate-totals", index = 8) {
+            if (display.showSpaces) enteringItem(key = "separate-totals", index = 8) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -305,7 +306,7 @@ fun DashboardScreen(
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
+            snapshot?.takeIf { display.showInsights }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
         }
     }
     if (balanceDetails) AlertDialog(
