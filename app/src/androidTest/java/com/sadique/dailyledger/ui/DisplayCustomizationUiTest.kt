@@ -22,14 +22,20 @@ class DisplayCustomizationUiTest {
         first.updateCardSize(0)
         first.updateCompact(true)
         first.updatePrivateAmounts(true)
+        first.updateShowRecent(false)
+        first.updateSavingsFirst(false)
         val restored = DisplayPreferences(context)
         assertEquals(3, restored.fontSize)
         assertEquals(2, restored.iconSize)
         assertEquals(0, restored.cardSize)
         assertEquals(true, restored.compact)
         assertEquals(true, restored.privateAmounts)
+        assertEquals(false, restored.showRecent)
+        assertEquals(false, restored.savingsFirst)
         restored.reset()
         assertEquals(false, DisplayPreferences(context).privateAmounts)
+        assertEquals(true, DisplayPreferences(context).showRecent)
+        assertEquals(true, DisplayPreferences(context).savingsFirst)
     }
 
     @Test fun transactionDateFiltersAreAvailableWithoutChangingRecords() {
