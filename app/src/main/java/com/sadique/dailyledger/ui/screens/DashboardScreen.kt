@@ -345,15 +345,30 @@ fun DashboardScreen(
                 LedgerCard(Modifier.fillMaxWidth()) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (display.savingsFirst) {
-                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
-                        } else {
-                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f).fillMaxHeight(), "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
-                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f).fillMaxHeight(), "All saved amounts", onOpenSavings)
-                        }
-                    }
+                    MoneySpacePair(
+                        first = { cardModifier ->
+                            if (display.savingsFirst) {
+                                SummaryCard("Savings total", savings.sumOf { it.amountMinor },
+                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings)
+                            } else {
+                                SummaryCard("Kameti paid", cp.sumOf { it.amountMinor },
+                                    Icons.Rounded.Groups, cardModifier,
+                                    "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}",
+                                    onOpenKameti)
+                            }
+                        },
+                        second = { cardModifier ->
+                            if (display.savingsFirst) {
+                                SummaryCard("Kameti paid", cp.sumOf { it.amountMinor },
+                                    Icons.Rounded.Groups, cardModifier,
+                                    "Received: ${visibleMoney(receipts.sumOf { it.amountMinor })}\nPending: ${visibleMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}",
+                                    onOpenKameti)
+                            } else {
+                                SummaryCard("Savings total", savings.sumOf { it.amountMinor },
+                                    Icons.Rounded.AccountBalanceWallet, cardModifier, "All saved amounts", onOpenSavings)
+                            }
+                        },
+                    )
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
                         runCatching { YearMonth.parse(member.turnMonth) }.getOrNull()?.let { it to member }
                     }.filter { !it.first.isBefore(month) }.minByOrNull { it.first }?.let { (turn, _) ->
@@ -362,11 +377,23 @@ fun DashboardScreen(
                             Text(if (turn == month) "Your receiving month is here" else "Upcoming personal turn", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                    if (loans.isNotEmpty()) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        val outstanding: (String) -> Long = { direction -> loans.filter { it.direction == direction }.sumOf { loan ->
-                            (loan.principalMinor - lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0) } }
-                        SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
-                        SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance, Modifier.weight(1f).fillMaxHeight(), onClick = onOpenLoans)
+                    if (loans.isNotEmpty()) {
+                        val outstanding: (String) -> Long = { direction ->
+                            loans.filter { it.direction == direction }.sumOf { loan ->
+                                (loan.principalMinor - lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor })
+                                    .coerceAtLeast(0)
+                            }
+                        }
+                        MoneySpacePair(
+                            first = { cardModifier ->
+                                SummaryCard("I owe", outstanding("BORROWED"), Icons.Rounded.Handshake,
+                                    cardModifier, onClick = onOpenLoans)
+                            },
+                            second = { cardModifier ->
+                                SummaryCard("Owed to me", outstanding("LENT"), Icons.Rounded.AccountBalance,
+                                    cardModifier, onClick = onOpenLoans)
+                            },
+                        )
                     }
                 }
             }
@@ -540,6 +567,27 @@ fun DashboardScreen(
             },
             confirmButton = { TextButton(onClick = { selectedFrequentCategory = null }) { Text("Close") } },
         )
+    }
+}
+
+/** Stack money cards on narrow screens to prevent clipped titles, amounts and square overlaps. */
+@Composable
+private fun MoneySpacePair(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 345.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                first(Modifier.fillMaxWidth().heightIn(min = 140.dp))
+                second(Modifier.fillMaxWidth().heightIn(min = 140.dp))
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                first(Modifier.weight(1f).height(170.dp))
+                second(Modifier.weight(1f).height(170.dp))
+            }
+        }
     }
 }
 
