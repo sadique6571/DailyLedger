@@ -614,11 +614,17 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 @Composable
 private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
-    var showAll by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
-    val categoryTones = listOf(scheme.primary, scheme.secondary, scheme.tertiary, scheme.error)
-    val colorFor: (String) -> Color = {
-        categoryTones[Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), categoryTones.size)]
+    // Keep neighboring slices distinguishable; a four-color theme palette caused repeated hues.
+    val categoryTones = listOf(
+        LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Green,
+        LedgerColors.Purple, LedgerColors.Red, Color(0xFFDE639D), Color(0xFF6683B7),
+    )
+    val colorFor: (Int) -> Color = { index ->
+        androidx.compose.ui.graphics.lerp(
+            categoryTones[index % categoryTones.size],
+            scheme.primary, 0.10f,
+        )
     }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
     LedgerCard(Modifier.fillMaxWidth()) {
@@ -627,16 +633,18 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
             Text("This cycle", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
         }
         Spacer(Modifier.height(15.dp))
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.size(125.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 350.dp
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
+            Box(Modifier.size(if (compact) 103.dp else 122.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val width = 20.dp.toPx()
                     val inset = width / 2
                     drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                     var start = -90f
-                    categories.forEach { (name, value) ->
+                    categories.forEachIndexed { index, (_, value) ->
                         val sweep = if (total > 0) 360f * value / total else 0f
-                        drawArc(colorFor(name), start, (sweep - 1.2f).coerceAtLeast(0f), false,
+                        drawArc(colorFor(index), start, (sweep - 1.2f).coerceAtLeast(0f), false,
                             Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                         start += sweep
                     }
@@ -648,18 +656,22 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
-                (if (showAll) categories else categories.take(5)).forEachIndexed { i, (name, value) ->
-                    val tint = colorFor(name)
+                categories.forEachIndexed { i, (name, value) ->
+                    val tint = colorFor(i)
                     Surface(
-                        modifier = Modifier.fillMaxWidth().testTag("chart-category-$name"),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .testTag("chart-category-$name"),
                         shape = RoundedCornerShape(12.dp),
                         color = scheme.surface,
                         border = androidx.compose.foundation.BorderStroke(1.dp, tint.copy(alpha = .29f)),
                     ) {
                         Row(
-                            Modifier.fillMaxWidth()
-                                .background(Brush.horizontalGradient(listOf(tint.copy(alpha = .14f), tint.copy(alpha = .03f))))
-                                .padding(horizontal = 8.dp, vertical = 9.dp),
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.horizontalGradient(listOf(tint.copy(alpha = .13f), tint.copy(alpha = .03f))),
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
@@ -673,9 +685,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                         }
                     }
                 }
-                if (categories.size > 5) TextButton(onClick = { showAll = !showAll }) {
-                    Text(if (showAll) "Show less" else "All ${categories.size} categories")
-                }
+            }
             }
         }
         TextButton(onClick = onHistory) { Text("View expense history") }
