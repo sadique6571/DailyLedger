@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -281,11 +282,6 @@ fun TransactionDialog(
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
                     }
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(100, 500, 1000).forEach { value ->
-                        OutlinedButton(onClick = { amount = value.toString() }) { Text("Rs $value") }
-                    }
-                }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
@@ -296,15 +292,25 @@ fun TransactionDialog(
                         AssistChip(onClick = { note = if (note.isBlank()) preset else "$note • $preset" }, label = { Text(preset) })
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { date = LocalDate.now().toString() }) { Text("Today") }
-                    OutlinedButton(onClick = { date = LocalDate.now().minusDays(1).toString() }) { Text("Yesterday") }
-                    OutlinedButton(onClick = {
-                        val selected = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
-                        DatePickerDialog(formContext, { _, year, month, day ->
-                            date = LocalDate.of(year, month + 1, day).toString()
-                        }, selected.year, selected.monthValue - 1, selected.dayOfMonth).show()
-                    }) { Text("Calendar") }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TextButton(onClick = { date = LocalDate.now().toString() },
+                        contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Today") }
+                    TextButton(onClick = { date = LocalDate.now().minusDays(1).toString() },
+                        contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Yesterday") }
+                    Spacer(Modifier.weight(1f))
+                    IconButton(
+                        onClick = {
+                            val selected = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
+                            DatePickerDialog(formContext, { _, year, month, day ->
+                                date = LocalDate.of(year, month + 1, day).toString()
+                            }, selected.year, selected.monthValue - 1, selected.dayOfMonth).show()
+                        },
+                        modifier = Modifier.size(40.dp).testTag("transaction-calendar"),
+                    ) { Icon(Icons.Default.DateRange, contentDescription = "Choose date from calendar") }
                 }
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
             }
