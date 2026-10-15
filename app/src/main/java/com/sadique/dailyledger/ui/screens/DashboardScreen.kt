@@ -226,7 +226,7 @@ fun DashboardScreen(
                     if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, { onAddCategoryExpense(it, "") }, onExpenseHistory) }
+            if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -440,7 +440,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 }
 
 @Composable
-private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onCategory: (String) -> Unit, onHistory: () -> Unit) {
+private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
     var showAll by remember { mutableStateOf(false) }
     val colorFor: (String) -> Color = { Color.hsv(Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), 360).toFloat(), .65f, .78f) }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -451,7 +451,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
         }
         Spacer(Modifier.height(15.dp))
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.size(125.dp).clickable(onClick = onHistory).testTag("chart-total"), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(125.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val width = 20.dp.toPx()
                     val inset = width / 2
@@ -472,7 +472,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
             Column(Modifier.weight(1f)) {
                 if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                 (if (showAll) categories else categories.take(5)).forEachIndexed { i, (name, value) ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { onCategory(name) }.testTag("chart-category-$name"),
+                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("chart-category-$name"),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(9.dp).background(colorFor(name), CircleShape))
                         Column(Modifier.weight(1f)) {
