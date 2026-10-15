@@ -48,7 +48,7 @@ fun TransactionsScreen(
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
     val listState = rememberLazyListState()
-    val display = LocalDisplayPreferences.current
+    val display = LocalDisplayPreferences.current!!
     val dateContext = LocalContext.current
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
