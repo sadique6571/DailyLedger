@@ -6,6 +6,8 @@ import com.sadique.dailyledger.ui.enteringItems
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -18,9 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.ui.*
 
 @Composable
-fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}) {
+fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState()) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {
                 Text("Your money, organized", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Text("Everything you need in one place", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -36,7 +38,7 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
             )
             rows.forEachIndexed { i, (entry, action) -> enteringItem(index = i) {
                 val color = listOf(LedgerColors.Blue, LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Green, LedgerColors.Teal)[i % 6]
-                LedgerCard(Modifier.fillMaxWidth().clickable(onClick = action)) {
+                LedgerCard(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${entry.first}", onClick = action)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         GlowIcon(entry.third, color, size = 46.dp)
                         Column(Modifier.weight(1f)) {
