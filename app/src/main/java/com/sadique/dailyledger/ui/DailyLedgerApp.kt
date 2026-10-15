@@ -406,6 +406,7 @@ fun DailyLedgerApp(
                     onOpenLoans = { tab = 2 },
                     onOpenUdhar = { addCreditRequested = true; tab = 7 },
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
+                    creditPayments = creditPayments,
                     onOpenKameti = { tab = 3 },
                     onAutoFill = { autoFillOpen = true },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; tab = 1 },
