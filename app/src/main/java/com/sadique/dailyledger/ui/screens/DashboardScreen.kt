@@ -65,14 +65,15 @@ fun DashboardScreen(
     onAddCategoryExpense: (String, String) -> Unit = { _, _ -> onAddExpense() },
     onOpenInsights: () -> Unit = {}, onOpenLoans: () -> Unit = {}, onOpenUdhar: () -> Unit = {},
     udharOutstanding: Long = 0L,
+    creditPayments: List<CreditPaymentEntity> = emptyList(),
     onStartNewMonth: () -> Unit = {}, onArchivePreviousMonth: ((Boolean) -> Unit) -> Unit = {},
 ) {
     val today by produceState(initialValue = LocalDate.now()) {
         while (true) { value = LocalDate.now(); delay(30_000) }
     }
     val month = YearMonth.from(today)
-    val summary = ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it) }
-        ?: monthlySalarySummary(tx, month.toString(), cp, savings)
+    val summary = ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
+        ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments)
     val expenseRows = tx.filter {
         it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }
@@ -170,6 +171,7 @@ fun DashboardScreen(
                             if (summary.committeeContributions > 0 || summary.savingsContributions > 0) {
                                 Text("Expenses ${visibleMoney(summary.expenses)} · Kameti ${visibleMoney(summary.committeeContributions)} · Savings ${visibleMoney(summary.savingsContributions)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
                             }
+                            if (summary.udharPayments > 0) Text("Udhar paid this cycle: ${visibleMoney(summary.udharPayments)}", color = Color(0xFFC0FFEE), fontSize = 11.sp)
                             if (summary.otherIncome > 0) Text("Other income: ${visibleMoney(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
                             HorizontalDivider(Modifier.padding(vertical = 6.dp), color = Color.White.copy(alpha = .2f))
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -352,7 +354,7 @@ fun DashboardScreen(
         text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf("Carried forward" to summary.openingBalanceMinor, "Salary" to summary.salary, "Other income" to summary.otherIncome,
                 "Expenses" to -summary.expenses, "Kameti charged this cycle" to -summary.committeeContributions,
-                "Savings set aside" to -summary.savingsContributions, "Remaining balance" to summary.remaining).forEach { (label, amount) ->
+                "Savings set aside" to -summary.savingsContributions, "Udhar payments" to -summary.udharPayments, "Remaining balance" to summary.remaining).forEach { (label, amount) ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(label, Modifier.weight(1f)); Text(visibleMoney(amount), fontWeight = FontWeight.SemiBold)
                 }
