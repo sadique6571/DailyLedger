@@ -350,12 +350,11 @@ fun DailyLedgerApp(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Settings")
                     }
                     IconButton(onClick = { moreReturn = false; historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
-                    IconButton(onClick = { if (tab == 6) settingsOpen = true else remindersOpen = true }) {
-                        Icon(if (tab == 6) Icons.Rounded.Settings else Icons.Rounded.NotificationsNone,
-                            if (tab == 6) "Settings" else "Reminders", Modifier.size(23.dp))
+                    IconButton(onClick = { remindersOpen = true }) {
+                        Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
                     }
                     IconButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai")) {
-                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Rounded.AutoAwesome, "AI Entry", Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
