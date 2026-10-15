@@ -366,6 +366,27 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Text("Accessibility and layout presets", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(1)
+                        display.updateIconSize(1)
+                        display.updateCardSize(1)
+                        display.updateCompact(false)
+                    }) { Text("Standard") }
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(0)
+                        display.updateIconSize(0)
+                        display.updateCardSize(0)
+                        display.updateCompact(true)
+                    }) { Text("Compact") }
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(3)
+                        display.updateIconSize(2)
+                        display.updateCardSize(2)
+                        display.updateCompact(false)
+                    }) { Text("Easy read") }
+                }
                 Text("Font size", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Small", "Medium", "Large", "XL").forEachIndexed { index, label ->
