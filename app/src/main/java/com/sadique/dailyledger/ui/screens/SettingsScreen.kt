@@ -413,6 +413,10 @@ fun SettingsScreen(
                     Text("Hide financial amounts (privacy)", Modifier.weight(1f))
                     Switch(checked = display.privateAmounts, onCheckedChange = display::updatePrivateAmounts)
                 }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Block screenshots and app previews", Modifier.weight(1f))
+                    Switch(checked = display.secureScreens, onCheckedChange = display::updateSecureScreens)
+                }
                 Text("Dashboard cards", style = MaterialTheme.typography.titleMedium)
                 listOf(
                     Triple("Spending chart", display.showSpending, display::updateShowSpending),
