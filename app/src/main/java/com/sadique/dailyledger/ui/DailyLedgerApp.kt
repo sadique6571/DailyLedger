@@ -353,8 +353,10 @@ fun DailyLedgerApp(
                     IconButton(onClick = { remindersOpen = true }) {
                         Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
                     }
-                    IconButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai")) {
-                        Icon(Icons.Rounded.AutoAwesome, "AI Entry", Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(3.dp))
+                        Text("AI Entry", fontSize = 11.sp)
                     }
                 }
             }
