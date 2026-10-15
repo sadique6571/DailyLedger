@@ -10,6 +10,7 @@ import java.time.LocalDate
 import android.app.DatePickerDialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import kotlinx.coroutines.launch
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +51,9 @@ fun TransactionsScreen(
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
     var pendingDelete by remember { mutableStateOf<TransactionEntity?>(null) }
+    var undoPendingId by remember { mutableStateOf<String?>(null) }
+    val undoBar = remember { SnackbarHostState() }
+    val undoScope = rememberCoroutineScope()
     var pendingSave by remember { mutableStateOf<(() -> Unit)?>(null) }
     var duplicateWarning by remember { mutableStateOf(false) }
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
@@ -76,6 +80,7 @@ fun TransactionsScreen(
     val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
     val filtered = items.filter {
+        it.id != undoPendingId &&
         (!favoritesOnly || it.id in favoriteIds) &&
         (filter == "ALL" || it.type == filter) &&
             (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
@@ -96,6 +101,7 @@ fun TransactionsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(undoBar) },
         floatingActionButton = {
             FloatingActionButton(onClick = { edit = null; quickTemplate = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
         }
@@ -200,8 +206,16 @@ fun TransactionsScreen(
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("Delete transaction?") },
-            text = { Text("Delete ${target.category} (${if (display.privateAmounts) "Rs •••••" else money(target.amountMinor)}) from ${target.date}? This action cannot be undone.") },
-            confirmButton = { TextButton(onClick = { pendingDelete = null; onDelete(target) }) { Text("Delete") } },
+            text = { Text("Delete ${target.category} (${if (display.privateAmounts) "Rs •••••" else money(target.amountMinor)}) from ${target.date}? You can undo the deletion from the message at the bottom.") },
+            confirmButton = { TextButton(onClick = {
+                pendingDelete = null
+                undoPendingId = target.id
+                undoScope.launch {
+                    val result = undoBar.showSnackbar("Transaction removed", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Short)
+                    undoPendingId = null
+                    if (result != SnackbarResult.ActionPerformed) onDelete(target)
+                }
+            }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
         )
     }
