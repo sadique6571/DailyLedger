@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -96,7 +97,7 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem(key = "greeting", index = 0) {
                 Box(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
                     LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(196.dp).height(112.dp))
