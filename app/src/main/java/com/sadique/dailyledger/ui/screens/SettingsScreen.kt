@@ -421,6 +421,7 @@ fun SettingsScreen(
                 listOf(
                     Triple("Spending chart", display.showSpending, display::updateShowSpending),
                     Triple("Recent transactions", display.showRecent, display::updateShowRecent),
+                    Triple("Frequent purchases", display.showFrequent, display::updateShowFrequent),
                     Triple("Savings, kameti & loans", display.showSpaces, display::updateShowSpaces),
                     Triple("AI insights", display.showInsights, display::updateShowInsights),
                 ).forEach { (label, checked, change) ->
