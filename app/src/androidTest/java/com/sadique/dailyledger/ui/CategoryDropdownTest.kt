@@ -7,6 +7,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.sadique.dailyledger.ui.screens.CategoryDropdown
+import com.sadique.dailyledger.ui.screens.CreditScreen
+import com.sadique.dailyledger.data.CreditDraft
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -15,6 +17,28 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CategoryDropdownTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun manualUdharUsesCategoryWithoutRequiringAnItemField() {
+        var saved: CreditDraft? = null
+        compose.setContent { DailyLedgerTheme("AQUA") {
+            CreditScreen(
+                credits = emptyList(), payments = emptyList(),
+                onSave = { drafts, _ -> saved = drafts.single() },
+                onPayment = { _, _, _, _, _ -> }, onDelete = {},
+            )
+        } }
+        compose.onNodeWithContentDescription("Add udhar").performClick()
+        compose.onNodeWithText("Saman / item").assertDoesNotExist()
+        compose.onNodeWithTag("udhar-category").assertExists()
+        compose.onNodeWithTag("category-dropdown").performClick()
+        compose.onNodeWithTag("category-search").performTextInput("piyaz")
+        compose.onNodeWithText("Onions").performScrollTo().performClick()
+        compose.onNodeWithText("Amount PKR").performTextInput("120")
+        compose.onNodeWithText("Save").performClick()
+        compose.waitUntil(5_000) { saved != null }
+        assertEquals("Onions", saved?.category)
+        assertEquals("Onions", saved?.item)
+    }
+
     @Test fun searchesSpellingAliasesAndSelectsAnIndividualCategory() {
         var picked = ""
         compose.setContent { DailyLedgerTheme("AQUA") {
