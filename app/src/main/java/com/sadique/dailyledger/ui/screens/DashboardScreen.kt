@@ -284,8 +284,13 @@ fun DashboardScreen(
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (display.savingsFirst) {
                         SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f), "All saved amounts", onOpenSavings)
                         SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        } else {
+                        SummaryCard("Kameti paid", cp.sumOf { it.amountMinor }, Icons.Rounded.Groups, Modifier.weight(1f), "Received: ${displayMoney(receipts.sumOf { it.amountMinor })}\nPending: ${displayMoney(committees.sumOf { committeeBalance(it, receipts).remaining })}", onOpenKameti)
+                        SummaryCard("Savings total", savings.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f), "All saved amounts", onOpenSavings)
+                        }
                     }
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
                         runCatching { YearMonth.parse(member.turnMonth) }.getOrNull()?.let { it to member }
