@@ -314,7 +314,8 @@ fun DashboardScreen(
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).clickable { onAllTransactions?.invoke() },
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).testTag("recent-transaction-$index")
+                                .clickable { onAllTransactions?.invoke() },
                             color = MaterialTheme.colorScheme.surface,
                             shape = RoundedCornerShape(15.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, visual.color.copy(alpha = .30f)),
@@ -579,13 +580,13 @@ private fun MoneySpacePair(
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth < 410.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                first(Modifier.fillMaxWidth().heightIn(min = 160.dp))
-                second(Modifier.fillMaxWidth().heightIn(min = 160.dp))
+                first(Modifier.fillMaxWidth().heightIn(min = 160.dp).testTag("money-space-first"))
+                second(Modifier.fillMaxWidth().heightIn(min = 160.dp).testTag("money-space-second"))
             }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                first(Modifier.weight(1f).heightIn(min = 190.dp))
-                second(Modifier.weight(1f).heightIn(min = 190.dp))
+                first(Modifier.weight(1f).heightIn(min = 190.dp).testTag("money-space-first"))
+                second(Modifier.weight(1f).heightIn(min = 190.dp).testTag("money-space-second"))
             }
         }
     }
