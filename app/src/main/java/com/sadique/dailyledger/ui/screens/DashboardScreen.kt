@@ -119,8 +119,8 @@ fun DashboardScreen(
                     border = androidx.compose.foundation.BorderStroke(1.dp, LedgerColors.Teal.copy(alpha = .25f)),
                 ) {
                 BoxWithConstraints(
-                    Modifier.fillMaxWidth().heightIn(min = 112.dp)
-                        .background(Brush.horizontalGradient(listOf(LedgerColors.Teal.copy(alpha = .16f), LedgerColors.Blue.copy(alpha = .06f))))
+                    Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(RoundedCornerShape(22.dp))
+                        .background(Brush.horizontalGradient(listOf(LedgerColors.Teal.copy(alpha = .16f), LedgerColors.Blue.copy(alpha = .06f))), RoundedCornerShape(22.dp))
                         .padding(horizontal = 12.dp)
                 ) {
                     val compact = maxWidth < 370.dp
@@ -269,7 +269,7 @@ fun DashboardScreen(
                         val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
                         val visual = categoryVisual(label, "EXPENSE")
                         Surface(
-                            modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).testTag("frequent-item-$index")
                                 .clickable { selectedFrequentCategory = label },
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surface,
@@ -277,7 +277,7 @@ fun DashboardScreen(
                         ) {
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))))
+                                    .clip(RoundedCornerShape(16.dp)).background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))), RoundedCornerShape(16.dp))
                                     .padding(horizontal = 10.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -314,14 +314,14 @@ fun DashboardScreen(
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { onAllTransactions?.invoke() },
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).clickable { onAllTransactions?.invoke() },
                             color = MaterialTheme.colorScheme.surface,
                             shape = RoundedCornerShape(15.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, visual.color.copy(alpha = .30f)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))))
+                                    .clip(RoundedCornerShape(15.dp)).background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))), RoundedCornerShape(15.dp))
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -600,7 +600,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
     val hidden = LocalDisplayPreferences.current!!.privateAmounts
     Surface(modifier.clickable(onClick = action), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (dark) .08f else 1f))) {
-        Column(Modifier.background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), Color.Transparent))).padding(10.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), MaterialTheme.colorScheme.surface)), RoundedCornerShape(18.dp)).padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 GlowIcon(icon, color, size = 27.dp)
                 Text(title, fontSize = 11.sp, maxLines = 1)
