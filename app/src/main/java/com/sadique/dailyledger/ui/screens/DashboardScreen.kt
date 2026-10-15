@@ -109,7 +109,7 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 7.dp else 12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 12.dp else 16.dp)) {
             enteringItem(key = "greeting", index = 0) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -258,7 +258,7 @@ fun DashboardScreen(
             }
             if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
-                LedgerCard(Modifier.fillMaxWidth()) {
+                LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
                         TextButton(onClick = { frequentExpanded = !frequentExpanded }) {
@@ -294,7 +294,7 @@ fun DashboardScreen(
                 }
             }
             if (display.showRecent) enteringItem(key = "recent", index = 6) {
-                LedgerCard(Modifier.fillMaxWidth()) {
+                LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
                         onAllTransactions?.let { action ->
@@ -342,7 +342,7 @@ fun DashboardScreen(
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
             if (display.showSpaces) enteringItem(key = "separate-totals", index = 8) {
-                LedgerCard(Modifier.fillMaxWidth()) {
+                LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 14.dp) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     MoneySpacePair(
@@ -577,15 +577,15 @@ private fun MoneySpacePair(
     second: @Composable (Modifier) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth < 345.dp) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                first(Modifier.fillMaxWidth().heightIn(min = 140.dp))
-                second(Modifier.fillMaxWidth().heightIn(min = 140.dp))
+        if (maxWidth < 410.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                first(Modifier.fillMaxWidth().heightIn(min = 160.dp))
+                second(Modifier.fillMaxWidth().heightIn(min = 160.dp))
             }
         } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                first(Modifier.weight(1f).height(170.dp))
-                second(Modifier.weight(1f).height(170.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                first(Modifier.weight(1f).heightIn(min = 190.dp))
+                second(Modifier.weight(1f).heightIn(min = 190.dp))
             }
         }
     }
