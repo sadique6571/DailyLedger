@@ -85,6 +85,7 @@ fun DashboardScreen(
     val categories = grouped.map { it.key to it.value }
     var balanceDetails by remember { mutableStateOf(false) }
     var showBalance by remember { mutableStateOf(true) }
+    var salaryOptionsOpen by remember { mutableStateOf(false) }
     var confirmNewMonth by remember { mutableStateOf(false) }
     var confirmArchive by remember { mutableStateOf(false) }
     var salaryAmountInput by remember { mutableStateOf("") }
@@ -207,43 +208,12 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "salary-cycle-controls", index = 3) {
-                LedgerCard(Modifier.fillMaxWidth()) {
-                    Text("Salary received & cycle options", fontWeight = FontWeight.Bold)
-                    Text("Select actions; salary amount will be verified in the existing salary entry form.", style = MaterialTheme.typography.bodySmall)
-                    if (receiveSalarySelected) OutlinedTextField(
-                        value = salaryAmountInput,
-                        onValueChange = { salaryAmountInput = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Salary received amount (Rs)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = receiveSalarySelected, onCheckedChange = { receiveSalarySelected = it }, modifier = Modifier.testTag("salary-received-option"))
-                        Text("Receive salary", modifier = Modifier.weight(1f))
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = archivePreviousSelected, onCheckedChange = { archivePreviousSelected = it }, modifier = Modifier.testTag("archive-previous-option"))
-                        Text("Archive previous calendar month", modifier = Modifier.weight(1f))
-                    }
-                    Button(
-                        onClick = {
-                            when {
-                                archivePreviousSelected -> confirmArchive = true
-                                receiveSalarySelected && ledgerCycle != null -> confirmNewMonth = true
-                                receiveSalarySelected -> onAddSalaryWithAmount(salaryAmountInput)
-                            }
-                        },
-                        enabled = receiveSalarySelected || archivePreviousSelected,
-                        modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month")
-                    ) { Text("Continue selected actions") }
-                    if (ledgerArchives.isNotEmpty()) {
-                        TextButton(onClick = { showArchives = true }, modifier = Modifier.align(Alignment.End)) {
-                            Text("View archives (${ledgerArchives.size})")
-                        }
-                    }
-                    if (archiveMessage.isNotBlank()) Text(archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                }
+                GradientButton(
+                    "Salary Received & Cycle Options",
+                    onClick = { salaryOptionsOpen = true },
+                    modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
+                    icon = Icons.Rounded.EventAvailable,
+                )
             }
             if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
@@ -347,6 +317,67 @@ fun DashboardScreen(
         confirmButton = { TextButton(onClick = { balanceDetails = false; onAllTransactions?.invoke() }) { Text("View history") } },
         dismissButton = { TextButton(onClick = { balanceDetails = false }) { Text("Close") } },
     )
+    if (salaryOptionsOpen) {
+        AlertDialog(
+            onDismissRequest = { salaryOptionsOpen = false },
+            modifier = Modifier.testTag("salary-actions-dialog"),
+            title = { Text("Salary Received & Cycle Options") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = receiveSalarySelected,
+                            onCheckedChange = { receiveSalarySelected = it },
+                            modifier = Modifier.testTag("salary-received-option"),
+                        )
+                        Text("Salary entry", modifier = Modifier.weight(1f))
+                    }
+                    if (receiveSalarySelected) OutlinedTextField(
+                        value = salaryAmountInput,
+                        onValueChange = { salaryAmountInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Salary received (Rs)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = archivePreviousSelected,
+                            onCheckedChange = { archivePreviousSelected = it },
+                            modifier = Modifier.testTag("archive-previous-option"),
+                        )
+                        Text("Archive last month", modifier = Modifier.weight(1f))
+                    }
+                    Text(
+                        "Salary is reviewed in the normal entry form. Starting a new salary cycle asks for confirmation.",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (ledgerArchives.isNotEmpty()) TextButton(onClick = {
+                        salaryOptionsOpen = false
+                        showArchives = true
+                    }) { Text("View archives (${ledgerArchives.size})") }
+                    if (archiveMessage.isNotBlank()) Text(
+                        archiveMessage, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = receiveSalarySelected || archivePreviousSelected,
+                    onClick = {
+                        salaryOptionsOpen = false
+                        when {
+                            archivePreviousSelected -> confirmArchive = true
+                            receiveSalarySelected && ledgerCycle != null -> confirmNewMonth = true
+                            receiveSalarySelected -> onAddSalaryWithAmount(salaryAmountInput)
+                        }
+                    },
+                    modifier = Modifier.testTag("salary-options-continue"),
+                ) { Text("Continue") }
+            },
+            dismissButton = { TextButton(onClick = { salaryOptionsOpen = false }) { Text("Cancel") } },
+        )
+    }
     if (confirmNewMonth) {
         AlertDialog(
             onDismissRequest = { confirmNewMonth = false },
