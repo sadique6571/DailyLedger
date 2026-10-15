@@ -263,12 +263,12 @@ fun SettingsScreen(
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
     LazyColumn(
-        state = rememberLazyListState(),
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
             .imePadding()
             .testTag("settings-list"),
+        state = rememberLazyListState(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
