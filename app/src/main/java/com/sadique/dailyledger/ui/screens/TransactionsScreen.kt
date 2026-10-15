@@ -45,6 +45,8 @@ fun TransactionsScreen(
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
     var pendingDelete by remember { mutableStateOf<TransactionEntity?>(null) }
+    var pendingSave by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var duplicateWarning by remember { mutableStateOf(false) }
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
     val listState = rememberLazyListState()
@@ -57,7 +59,7 @@ fun TransactionsScreen(
     val today = LocalDate.now()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
-            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true)) &&
+            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
             when (dateRange) {
                 "TODAY" -> it.date == today.toString()
                 "WEEK" -> runCatching { LocalDate.parse(it.date) }.getOrNull()?.let { d -> !d.isBefore(today.minusDays(6)) && !d.isAfter(today) } == true
@@ -143,10 +145,18 @@ fun TransactionsScreen(
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
         )
     }
+    if (duplicateWarning) AlertDialog(
+        onDismissRequest = { duplicateWarning = false; pendingSave = null },
+        title = { Text("Possible duplicate") },
+        text = { Text("A transaction with the same date, type, category and amount already exists. Save another entry anyway?") },
+        confirmButton = { TextButton(onClick = { val saveAction = pendingSave; duplicateWarning = false; pendingSave = null; saveAction?.invoke() }) { Text("Save anyway") } },
+        dismissButton = { TextButton(onClick = { duplicateWarning = false; pendingSave = null }) { Text("Review") } },
+    )
     if (show) {
         TransactionDialog(edit, { show = false }, save = { type, amount, cat, note, date ->
-            onSave(type, amount, cat, note, date, edit)
-            show = false
+            val action = { onSave(type, amount, cat, note, date, edit); show = false; Unit }
+            val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
+            if (duplicate) { pendingSave = action; duplicateWarning = true } else action()
         })
     }
 }
@@ -166,8 +176,19 @@ fun TransactionDialog(
     var cat by remember { mutableStateOf(x?.category ?: initialCategory) }
     var note by remember { mutableStateOf(x?.note ?: initialNote) }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
+    var discardWarning by remember { mutableStateOf(false) }
+    val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: ""
+    val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
+    val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
+    if (discardWarning) AlertDialog(
+        onDismissRequest = { discardWarning = false },
+        title = { Text("Discard unsaved changes?") },
+        text = { Text("Your edits have not been saved.") },
+        confirmButton = { TextButton(onClick = { discardWarning = false; dismiss() }) { Text("Discard") } },
+        dismissButton = { TextButton(onClick = { discardWarning = false }) { Text("Keep editing") } },
+    )
     AlertDialog(
-        onDismissRequest = dismiss,
+        onDismissRequest = safeDismiss,
         title = { Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -191,6 +212,10 @@ fun TransactionDialog(
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { date = LocalDate.now().toString() }) { Text("Today") }
+                    OutlinedButton(onClick = { date = LocalDate.now().minusDays(1).toString() }) { Text("Yesterday") }
+                }
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
             }
         },
@@ -202,6 +227,6 @@ fun TransactionDialog(
                 },
             ) { Text("Save") }
         },
-        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = safeDismiss) { Text("Cancel") } },
     )
 }
