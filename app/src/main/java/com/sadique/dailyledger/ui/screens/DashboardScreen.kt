@@ -109,7 +109,18 @@ fun DashboardScreen(
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 7.dp else 12.dp)) {
             enteringItem(key = "greeting", index = 0) {
-                BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = 103.dp)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, LedgerColors.Teal.copy(alpha = .25f)),
+                ) {
+                BoxWithConstraints(
+                    Modifier.fillMaxWidth().heightIn(min = 112.dp)
+                        .background(Brush.horizontalGradient(listOf(LedgerColors.Teal.copy(alpha = .16f), LedgerColors.Blue.copy(alpha = .06f))))
+                        .padding(horizontal = 12.dp)
+                ) {
                     val compact = maxWidth < 370.dp
                     LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(if (compact) 112.dp else 196.dp).height(112.dp))
                     Column(Modifier.padding(top = 6.dp, bottom = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -125,6 +136,7 @@ fun DashboardScreen(
                             }
                         } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
                 }
             }
             enteringItem(key = "balance", index = 1) {
@@ -217,59 +229,91 @@ fun DashboardScreen(
             }
             if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LedgerCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { frequentExpanded = !frequentExpanded }) { Text(if (frequentExpanded) "Collapse" else "Expand") }
+                        TextButton(onClick = { frequentExpanded = !frequentExpanded }) {
+                            Text(if (frequentExpanded) "Collapse" else "Expand")
+                        }
                     }
                     if (frequentExpanded) frequentItems.forEachIndexed { index, (label, total) ->
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .clickable { selectedFrequentCategory = label }
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
-                                .testTag("frequent-item-$index"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                        val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
+                        val visual = categoryVisual(label, "EXPENSE")
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
+                                .clickable { selectedFrequentCategory = label },
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .32f)),
                         ) {
-                            Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text(visibleMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-                            IconButton(onClick = { selectedFrequentCategory = label }) { Icon(Icons.Rounded.History, "View $label history") }
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))))
+                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                GlowIcon(visual.icon, accent, size = 35.dp)
+                                Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(visibleMoney(total), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Rounded.ChevronRight, "View $label history", Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
             }
             if (display.showRecent) enteringItem(key = "recent", index = 6) {
-                Column {
+                LedgerCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        onAllTransactions?.let { action -> TextButton(onClick = action, contentPadding = PaddingValues(start = 8.dp)) {
-                            Text("See all", fontSize = 12.sp); Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, Modifier.size(17.dp))
-                        } }
+                        onAllTransactions?.let { action ->
+                            TextButton(onClick = action, contentPadding = PaddingValues(start = 8.dp)) {
+                                Text("See all", fontSize = 12.sp)
+                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, Modifier.size(17.dp))
+                            }
+                        }
                     }
                     if (recent.isEmpty()) {
-                        LedgerCard(Modifier.fillMaxWidth()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Your ledger starts here", fontWeight = FontWeight.SemiBold)
-                            Text("Add your salary or first expense to see your monthly picture.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Add your salary or first expense to see your monthly picture.",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = onAddSalary) { Text("Add salary") }
                         }
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
-                        Row(Modifier.fillMaxWidth().clickable { onAllTransactions?.invoke() }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GlowIcon(visual.icon, visual.color, size = 38.dp)
-                            Column(Modifier.weight(1f)) {
-                                Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(entry.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().clickable { onAllTransactions?.invoke() },
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(15.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, visual.color.copy(alpha = .30f)),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                            ) {
+                                GlowIcon(visual.icon, visual.color, size = 35.dp)
+                                Column(Modifier.weight(1f)) {
+                                    Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(entry.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text((if (entry.type == "INCOME") "+ " else "− ") + visibleMoney(entry.amountMinor),
+                                    fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                                    color = if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red)
                             }
-                            Text((if (entry.type == "INCOME") "+ " else "− ") + visibleMoney(entry.amountMinor), fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium, color = if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red)
                         }
-                        if (index < recent.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
                     }
                 }
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
             if (display.showSpaces) enteringItem(key = "separate-totals", index = 8) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LedgerCard(Modifier.fillMaxWidth()) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
