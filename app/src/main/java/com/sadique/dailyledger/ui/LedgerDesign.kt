@@ -54,10 +54,22 @@ fun LedgerBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.
 @Composable
 fun LedgerCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val display = LocalDisplayPreferences.current!!
-    Surface(modifier, shape = RoundedCornerShape(if (display.compact) 14.dp else 22.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-        shadowElevation = 3.dp, border = androidx.compose.foundation.BorderStroke(1.dp, if (ledgerIsDark()) Color.White.copy(alpha = 0.06f) else Color.White)) {
-        Column(Modifier.padding(display.cardPadding.dp), content = content)
+    val scheme = MaterialTheme.colorScheme
+    val dark = ledgerIsDark()
+    Surface(
+        modifier, shape = RoundedCornerShape(if (display.compact) 14.dp else 22.dp),
+        color = scheme.surface, shadowElevation = 5.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, scheme.primary.copy(alpha = if (dark) .28f else .17f),
+        ),
+    ) {
+        Column(
+            Modifier.background(Brush.verticalGradient(listOf(
+                scheme.primaryContainer.copy(alpha = if (dark) .20f else .23f),
+                scheme.surface,
+            ))).padding(display.cardPadding.dp),
+            content = content,
+        )
     }
 }
 
