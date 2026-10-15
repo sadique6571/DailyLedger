@@ -59,6 +59,8 @@ fun TransactionsScreen(
     var expandedNoteId by rememberSaveable { mutableStateOf<Long?>(null) }
     var compactRows by rememberSaveable { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf<TransactionEntity?>(null) }
+    var quickTemplate by remember { mutableStateOf<TransactionEntity?>(null) }
+    val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
@@ -81,7 +83,7 @@ fun TransactionsScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { edit = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
+            FloatingActionButton(onClick = { edit = null; quickTemplate = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
         }
     ) { pad ->
         LazyColumn(
@@ -92,6 +94,14 @@ fun TransactionsScreen(
         ) {
             enteringItem {
                 Text("Transactions", style = MaterialTheme.typography.headlineMedium)
+                if (frequentCategories.isNotEmpty()) {
+                    Text("Frequently used categories", style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        frequentCategories.forEach { (type, category) ->
+                            AssistChip(onClick = { edit = null; quickTemplate = items.firstOrNull { it.type == type && it.category == category }; show = true }, label = { Text(category) })
+                        }
+                    }
+                }
                 onAutoFill?.let { action -> FilledTonalButton(onClick = action) { Text("AI Auto Fill") } }
                 OutlinedTextField(query, { query = it }, label = { Text("Search categories or notes") }, modifier = Modifier.fillMaxWidth(), singleLine = true, trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear search") } })
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -125,7 +135,7 @@ fun TransactionsScreen(
                 item { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 28.dp)) }
             }
             enteringItems(sorted, key = { it.id }) { x ->
-                Card(onClick = { edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
+                Card(onClick = { quickTemplate = null; edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(if (compactRows) 7.dp else 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text("${x.category} • ${x.type}")
@@ -179,7 +189,7 @@ fun TransactionsScreen(
             val action = { onSave(type, amount, cat, note, date, edit); show = false; Unit }
             val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
             if (duplicate) { pendingSave = action; duplicateWarning = true } else action()
-        })
+        }, initialType = quickTemplate?.type ?: "EXPENSE", initialCategory = quickTemplate?.category ?: "", initialAmount = quickTemplate?.let { plainAmount(it.amountMinor) } ?: "")
     }
 }
 
@@ -191,15 +201,16 @@ fun TransactionDialog(
     initialType: String = "EXPENSE",
     initialCategory: String = "",
     initialNote: String = "",
+    initialAmount: String = "",
     onHistory: ((String, String) -> Unit)? = null,
 ) {
     var type by remember { mutableStateOf(x?.type ?: initialType) }
-    var amount by remember { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: "") }
+    var amount by remember { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: initialAmount) }
     var cat by remember { mutableStateOf(x?.category ?: initialCategory) }
     var note by remember { mutableStateOf(x?.note ?: initialNote) }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
     var discardWarning by remember { mutableStateOf(false) }
-    val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: ""
+    val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
     val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
     if (discardWarning) AlertDialog(
