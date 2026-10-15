@@ -57,7 +57,7 @@ fun TransactionsScreen(
     val dateContext = LocalContext.current
     val favoritesStore = remember(dateContext) { dateContext.applicationContext.getSharedPreferences("transaction_favorites_v2", android.content.Context.MODE_PRIVATE) }
     var favoriteIds by remember { mutableStateOf(favoritesStore.getStringSet("ids", emptySet())?.toSet() ?: emptySet()) }
-    fun toggleFavorite(id: Long) {
+    fun toggleFavorite(id: String) {
         val key = id.toString()
         favoriteIds = if (key in favoriteIds) favoriteIds - key else favoriteIds + key
         favoritesStore.edit().putStringSet("ids", favoriteIds).apply()
@@ -65,7 +65,7 @@ fun TransactionsScreen(
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
-    var expandedNoteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var expandedNoteId by rememberSaveable { mutableStateOf<String?>(null) }
     var compactRows by rememberSaveable { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf<TransactionEntity?>(null) }
     var quickTemplate by remember { mutableStateOf<TransactionEntity?>(null) }
