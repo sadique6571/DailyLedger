@@ -441,6 +441,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 
 @Composable
 private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
+    val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     var showAll by remember { mutableStateOf(false) }
     val colorFor: (String) -> Color = { Color.hsv(Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), 360).toFloat(), .65f, .78f) }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -465,7 +466,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(90.dp)) {
-                    Text(displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                    Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                     Text("Total spent", fontSize = 11.sp)
                 }
             }
@@ -477,7 +478,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                         Box(Modifier.size(9.dp).background(colorFor(name), CircleShape))
                         Column(Modifier.weight(1f)) {
                             Text(name, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text(displayMoney(value), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(if (privacyEnabled) "Rs •••••" else displayMoney(value), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 11.sp)
                     }
