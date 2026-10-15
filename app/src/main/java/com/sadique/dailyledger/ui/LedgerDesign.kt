@@ -52,7 +52,7 @@ fun LedgerBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.
 }
 
 @Composable
-fun LedgerCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, content: @Composable ColumnScope.() -> Unit) {
     val display = LocalDisplayPreferences.current!!
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
@@ -73,6 +73,7 @@ fun LedgerCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.(
                     )),
                     shape = shape,
                 ).padding(display.cardPadding.dp),
+            verticalArrangement = Arrangement.spacedBy(contentSpacing),
             content = content,
         )
     }
