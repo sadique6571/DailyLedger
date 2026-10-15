@@ -1,12 +1,13 @@
 package com.sadique.dailyledger.ui
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -43,7 +44,7 @@ fun SummaryCard(
     }
     val shape = RoundedCornerShape(20.dp)
     Card(
-        modifier = modifier.fillMaxWidth().animateContentSize()
+        modifier = modifier.fillMaxWidth().clip(shape)
             .clickable(enabled = onClick != null) { onClick?.invoke() },
         shape = shape,
         border = BorderStroke(1.dp, accent.copy(alpha = if (dark) .42f else .28f)),
@@ -51,17 +52,20 @@ fun SummaryCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
     ) {
         Column(
-            Modifier.fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(
-                    accent.copy(alpha = if (dark) .18f else .13f),
-                    scheme.surface,
-                )))
-                .padding(horizontal = 11.dp, vertical = 12.dp),
+            Modifier.fillMaxSize().clip(shape)
+                .background(
+                    Brush.verticalGradient(listOf(
+                        accent.copy(alpha = if (dark) .16f else .11f),
+                        scheme.surface,
+                    )),
+                    shape = shape,
+                )
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            GlowIcon(icon, accent, size = 34.dp)
+            GlowIcon(icon, accent, size = 32.dp)
             Text(title, style = MaterialTheme.typography.labelMedium,
-                color = scheme.onSurfaceVariant, minLines = 2, maxLines = 2,
+                color = scheme.onSurfaceVariant, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             val hidden = LocalDisplayPreferences.current?.privateAmounts == true
             Text(if (hidden) "Rs •••••" else money(amount), fontSize = 16.sp,
