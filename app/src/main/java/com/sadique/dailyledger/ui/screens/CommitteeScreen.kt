@@ -49,8 +49,6 @@ fun CommitteeScreen(
 ) {
     val context = LocalContext.current
     var add by remember { mutableStateOf(false) }
-    val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
-    val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     var receivingId by remember { mutableStateOf<String?>(null) }
     var deleteCommittee by remember { mutableStateOf<CommitteeEntity?>(null) }
     var deleteReceipt by remember { mutableStateOf<CommitteeReceiptEntity?>(null) }
@@ -381,7 +379,7 @@ private fun monthCountdown(monthText: String, today: LocalDate = LocalDate.now()
 
 private fun committeeOrganizerMessage(committee: CommitteeEntity, next: Int?, month: String?): String {
     return if (next != null && month != null) {
-        "Assalam o Alaikum, ${committee.name} ki installment #$next ($month) ${visibleMoney(committee.monthlyContribution())} hai. Payment ke hawale se rabta kar raha hoon."
+        "Assalam o Alaikum, ${committee.name} ki installment #$next ($month) ${money(committee.monthlyContribution())} hai. Payment ke hawale se rabta kar raha hoon."
     } else {
         "Assalam o Alaikum, ${committee.name} kameti ke record ke hawale se rabta kar raha hoon."
     }
@@ -540,3 +538,7 @@ private fun whatsappNumber(raw: String): String {
         else -> digits
     }
 }
+
+/** Presentation-only masking. Never changes payment calculations or outgoing messages. */
+@Composable
+private fun visibleMoney(amount: Long): String = if (LocalDisplayPreferences.current?.privateAmounts == true) "Rs •••••" else money(amount)
