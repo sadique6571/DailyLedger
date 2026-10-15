@@ -425,6 +425,7 @@ private fun TransactionEntity.frequentPurchaseLabel(): String =
 @Composable
 private fun DashboardStat(title: String, amount: Long, detail: String, icon: ImageVector, color: Color, modifier: Modifier, action: () -> Unit) {
     val dark = ledgerIsDark()
+    val hidden = LocalDisplayPreferences.current!!.privateAmounts
     Surface(modifier.clickable(onClick = action), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (dark) .08f else 1f))) {
         Column(Modifier.background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), Color.Transparent))).padding(10.dp)) {
@@ -432,7 +433,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
                 GlowIcon(icon, color, size = 27.dp)
                 Text(title, fontSize = 11.sp, maxLines = 1)
             }
-            Text(displayMoney(amount), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+            Text(if (hidden) "Rs •••••" else displayMoney(amount), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
             Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
