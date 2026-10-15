@@ -64,6 +64,6 @@ Source/CI checks do not prove a successful request to the live Firebase project.
 
 ## Verified APK
 
-Version **1.8.0** (code **17**) passed [release verification on 14 October 2026](https://github.com/sahulatcenterdsj-maker/DailyLedger/actions/runs/38544427519): 57 JVM tests, 33 Android emulator tests, Firebase rule checks, 11 Cloud Functions tests and 19 backup-core checks. The run's **DailyLedger-APK** artifact contains the non-debuggable APK and its signature/checksum report; artifacts expire after 14 days. Full results and the APK SHA-256 are in [TESTING.md](TESTING.md).
+Version **1.8.1** (code **18**) passed [release verification on 15 October 2026](https://github.com/sadique6571/DailyLedger/actions/runs/38693036119): 71 JVM tests, 36 Android emulator tests, Firebase rule checks, 11 Cloud Functions tests and 19 backup-core checks. The run's **DailyLedger-APK** artifact contains the non-debuggable APK and its signature/checksum report; artifacts expire after 14 days. Full results and the APK SHA-256 are in [TESTING.md](TESTING.md).
 
 Build locally with `.\gradlew.bat assembleRelease`; install over the existing app without clearing data. The release uses the existing shared development signing identity for update compatibility; it is not a private production signing key. The existing Firebase configuration is retained. Automated tests do not verify live Google sign-in, Gemini inference or two-device Drive restore.

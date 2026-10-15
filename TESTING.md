@@ -1,4 +1,29 @@
-# Current release — Daily Ledger 1.8.0
+# Current release — Daily Ledger 1.8.1
+
+Verified on **2026-10-15**, build commit **fe2ce6e1702e8214b85f3318a4df072c563db203**:
+[successful GitHub Actions run](https://github.com/sadique6571/DailyLedger/actions/runs/38693036119).
+
+- **71 JVM tests** and **36 Android device tests** passed with no failures or skipped tests (Android 10 / API 29).
+- Firestore/Storage emulator security-rule checks, **11 Cloud Functions handler tests** and **19 Java backup-core checks** passed.
+- Debug, instrumentation and release APKs compiled. Release package, version, existing signing certificate and non-debuggable status verified. The release contains Play Integrity and excludes the Firebase debug App Check provider.
+- Settings navigation was exercised through the full app: Settings → Savings → Back → Settings, restored scroll position, Settings → Auto Fill → Back → Settings, weather details closing before leaving Settings, then Settings root → Back → Home. Settings export controls remain reachable after the new lazy card transitions.
+- Frequent purchases show only the current calendar month, even when an old purchase belongs to the active salary cycle. The card/total opens read-only history; individual rows have no click action and cannot open editing.
+- Manual Online AI tests verify no request on initial context, changed records or enabling consent; explicit Refresh bypasses cached suggestions, duplicate taps do not duplicate requests, stale results are discarded, and errors do not auto-retry. Existing daily quotas and Firebase transport remain intact.
+- Offline date and learning checks cover `kal`, `parson`, mixed dated lists, Urdu relative phrases, year/leap boundaries, spelling aliases, quantities and word order. Consistent saved history teaches only its own account; explicit reviewed corrections take priority and conflicting history is ignored. Amounts and dates are never learned or replaced by category rules.
+- Native Android PDF export was tested from an owner-scoped Room repository, including 13 paid kameti installments and two partial receipts across two kameti pages; another owner's receipt is excluded. Transaction and kameti totals remain separate. All six pages across the transaction-only and mixed-ledger sample PDFs were visually inspected for rows, amounts, headers, footers and pagination. Empty statements, date filtering and undated legacy receipts are also covered.
+- Settings/export, manual Refresh and current-month read-only purchase screenshots were inspected. Existing encrypted database upgrades, Drive backup/restore validation, account isolation, rollback, salary-cycle and ledger tests continue to pass.
+
+APK: **1.8.1**, version code **18**, package `com.sadique.dailyledger`, **26,483,733 bytes**.
+
+SHA-256: `407dd6be957c2cc9d48061ba74905acd1e3cc1296db4a6201b6f2bc9ce6daa23`.
+
+Signing certificate SHA-1: `c6e19da96097e5424a34766e15746edca7c0f707` (existing shared development identity).
+
+Install over the existing app using the same package/signature; do not uninstall or clear data to update. Google Drive backup, SQLCipher local encryption, Firebase Authentication and AI transport retain the existing implementation. Current Drive backups are readable JSON in the user's private app-data folder, not end-to-end encrypted backups. Learning rules remain encrypted and account-scoped on this device.
+
+No Firebase deployment, billing change or live account operation was performed for this release. Automated checks do not verify live Google sign-in, Gemini inference, a real Drive upload or a second-device restore. An initial CI run exposed a navigation test trying to scroll to an off-screen lazy item; the test was corrected to use the visible Settings toolbar button, and the final run above passes every gate. The dated sections below are historical evidence.
+
+# Historical release — Daily Ledger 1.8.0
 
 Verified on **2026-10-14**, build commit **cb2f7625035c78be38d8e1ddf287646c2b15024d**:
 [successful GitHub Actions run](https://github.com/sahulatcenterdsj-maker/DailyLedger/actions/runs/38544427519).
