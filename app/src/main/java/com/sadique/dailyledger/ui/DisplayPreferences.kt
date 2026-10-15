@@ -23,6 +23,8 @@ class DisplayPreferences(context: Context) {
         private set
     var showSpending by mutableStateOf(store.getBoolean("spending", true))
         private set
+    var showFrequent by mutableStateOf(store.getBoolean("frequent", true))
+        private set
     var showRecent by mutableStateOf(store.getBoolean("recent", true))
         private set
     var showSpaces by mutableStateOf(store.getBoolean("spaces", true))
@@ -39,13 +41,14 @@ class DisplayPreferences(context: Context) {
     fun updateSecureScreens(value: Boolean) { secureScreens = value; store.edit().putBoolean("secure_screens", value).apply() }
     fun updatePrivateAmounts(value: Boolean) { privateAmounts = value; store.edit().putBoolean("private_amounts", value).apply() }
     fun updateShowSpending(value: Boolean) { showSpending = value; store.edit().putBoolean("spending", value).apply() }
+    fun updateShowFrequent(value: Boolean) { showFrequent = value; store.edit().putBoolean("frequent", value).apply() }
     fun updateShowRecent(value: Boolean) { showRecent = value; store.edit().putBoolean("recent", value).apply() }
     fun updateShowSpaces(value: Boolean) { showSpaces = value; store.edit().putBoolean("spaces", value).apply() }
     fun updateShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
     fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
         updateFontSize(1); updateIconSize(1); updateCardSize(1); updateCompact(false)
-        updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowRecent(true)
+        updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
         updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true)
     }
     val fontMultiplier: Float get() = floatArrayOf(0.9f, 1f, 1.15f, 1.3f)[fontSize]
