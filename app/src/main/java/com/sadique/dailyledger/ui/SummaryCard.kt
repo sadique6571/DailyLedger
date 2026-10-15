@@ -32,6 +32,7 @@ fun SummaryCard(
     modifier: Modifier = Modifier,
     detail: String? = null,
     onClick: (() -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
@@ -52,7 +53,7 @@ fun SummaryCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
     ) {
         Column(
-            Modifier.fillMaxSize().clip(shape)
+            Modifier.fillMaxWidth().clip(shape)
                 .background(
                     Brush.verticalGradient(listOf(
                         accent.copy(alpha = if (dark) .16f else .11f),
@@ -60,15 +61,16 @@ fun SummaryCard(
                     )),
                     shape = shape,
                 )
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(horizontal = if (compact) 10.dp else 12.dp,
+                    vertical = if (compact) 9.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
         ) {
-            GlowIcon(icon, accent, size = 32.dp)
-            Text(title, style = MaterialTheme.typography.labelMedium,
+            GlowIcon(icon, accent, size = if (compact) 27.dp else 32.dp)
+            Text(title, style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = scheme.onSurfaceVariant, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             val hidden = LocalDisplayPreferences.current?.privateAmounts == true
-            Text(if (hidden) "Rs •••••" else money(amount), fontSize = 16.sp,
+            Text(if (hidden) "Rs •••••" else money(amount), fontSize = if (compact) 14.sp else 16.sp,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             detail?.let {
                 Text(it, fontSize = 10.sp, maxLines = 3,
