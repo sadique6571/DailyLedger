@@ -52,6 +52,8 @@ fun TransactionsScreen(
     val dateContext = LocalContext.current
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
+    var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
+    var expandedNoteId by rememberSaveable { mutableStateOf<Long?>(null) }
     val today = LocalDate.now()
     val filtered = items.filter {
         (filter == "ALL" || it.type == filter) &&
@@ -63,6 +65,13 @@ fun TransactionsScreen(
                 "DAY" -> it.date == selectedDay
                 else -> true
             }
+    }
+
+    val sorted = when (sortOrder) {
+        "OLDEST" -> filtered.sortedWith(compareBy<TransactionEntity> { it.date }.thenBy { it.id })
+        "AMOUNT_HIGH" -> filtered.sortedByDescending { it.amountMinor }
+        "AMOUNT_LOW" -> filtered.sortedBy { it.amountMinor }
+        else -> filtered.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.id })
     }
 
     Scaffold(
@@ -92,6 +101,11 @@ fun TransactionsScreen(
                         }, date.year, date.monthValue - 1, date.dayOfMonth).show()
                     }, label = { Text(if (dateRange == "DAY") selectedDay else "Pick date") })
                 }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("NEWEST" to "Newest", "OLDEST" to "Oldest", "AMOUNT_HIGH" to "Highest amount", "AMOUNT_LOW" to "Lowest amount").forEach { (value, label) ->
+                        FilterChip(selected = sortOrder == value, onClick = { sortOrder = value }, label = { Text(label) })
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("ALL", "EXPENSE", "INCOME").forEach {
                         FilterChip(filter == it, { filter = it }, { Text(it.lowercase().replaceFirstChar(Char::uppercase)) })
@@ -101,14 +115,14 @@ fun TransactionsScreen(
             if (filtered.isEmpty()) {
                 item { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 28.dp)) }
             }
-            enteringItems(filtered, key = { it.id }) { x ->
+            enteringItems(sorted, key = { it.id }) { x ->
                 Card(onClick = { edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text("${x.category} • ${x.type}")
                             Text(x.date, style = MaterialTheme.typography.bodySmall)
                             if (x.note.isNotBlank()) {
-                                Text(x.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(x.note, modifier = Modifier.clickable { expandedNoteId = if (expandedNoteId == x.id) null else x.id }, maxLines = if (expandedNoteId == x.id) Int.MAX_VALUE else 2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Column {
@@ -166,6 +180,11 @@ fun TransactionDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(cat.equals("Salary", true), { cat = "Salary" }, { Text("Salary") })
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
+                    }
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(100, 500, 1000).forEach { value ->
+                        OutlinedButton(onClick = { amount = value.toString() }) { Text("Rs $value") }
                     }
                 }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
