@@ -71,7 +71,10 @@ class LedgerScreensTest {
         compose.onNodeWithTag("start-new-salary-month").performClick()
         compose.onNodeWithText("Archive & start").performClick()
         assertEquals("start", action)
-        compose.onNodeWithTag("archive-last-month").performClick()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("salary-cycle-controls")
+        compose.onNodeWithText("Receive salary").performClick()
+        compose.onNodeWithText("Archive previous calendar month").performClick()
+        compose.onNodeWithTag("start-new-salary-month").performClick()
         compose.onNodeWithText("Archive month").performClick()
         assertEquals("archive", action)
     }
