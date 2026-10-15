@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,6 +93,7 @@ fun DashboardScreen(
     var showArchives by remember { mutableStateOf(false) }
     var archiveMessage by remember { mutableStateOf("") }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
+    var frequentExpanded by rememberSaveable { mutableStateOf(true) }
     val recent = tx.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.updatedAt }).take(4)
     val cycleStartLabel = ledgerCycle?.let {
         Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate().toString()
@@ -248,9 +250,9 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        Text("This month", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = { frequentExpanded = !frequentExpanded }) { Text(if (frequentExpanded) "Collapse" else "Expand") }
                     }
-                    frequentItems.forEachIndexed { index, (label, total) ->
+                    if (frequentExpanded) frequentItems.forEachIndexed { index, (label, total) ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .clickable { selectedFrequentCategory = label }
