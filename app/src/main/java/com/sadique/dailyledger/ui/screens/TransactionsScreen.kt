@@ -4,6 +4,7 @@ import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import java.time.LocalDate
 import android.app.DatePickerDialog
