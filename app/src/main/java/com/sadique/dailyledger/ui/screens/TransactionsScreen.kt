@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -53,6 +55,13 @@ fun TransactionsScreen(
     val listState = rememberLazyListState()
     val display = LocalDisplayPreferences.current!!
     val dateContext = LocalContext.current
+    val favoritesStore = remember(dateContext) { dateContext.applicationContext.getSharedPreferences("transaction_favorites_v2", android.content.Context.MODE_PRIVATE) }
+    var favoriteIds by remember { mutableStateOf(favoritesStore.getStringSet("ids", emptySet())?.toSet() ?: emptySet()) }
+    fun toggleFavorite(id: Long) {
+        val key = id.toString()
+        favoriteIds = if (key in favoriteIds) favoriteIds - key else favoriteIds + key
+        favoritesStore.edit().putStringSet("ids", favoriteIds).apply()
+    }
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
@@ -94,6 +103,15 @@ fun TransactionsScreen(
         ) {
             enteringItem {
                 Text("Transactions", style = MaterialTheme.typography.headlineMedium)
+                val favorites = items.filter { it.id.toString() in favoriteIds }.take(8)
+                if (favorites.isNotEmpty()) {
+                    Text("Favorite transactions • tap to repeat", style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        favorites.forEach { favorite ->
+                            AssistChip(onClick = { edit = null; quickTemplate = favorite; show = true }, label = { Text(favorite.category) }, leadingIcon = { Icon(Icons.Filled.Star, null) })
+                        }
+                    }
+                }
                 if (frequentCategories.isNotEmpty()) {
                     Text("Frequently used categories", style = MaterialTheme.typography.titleSmall)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -146,6 +164,9 @@ fun TransactionsScreen(
                             }
                         }
                         Column {
+                            IconButton(onClick = { toggleFavorite(x.id) }) {
+                                Icon(if (x.id.toString() in favoriteIds) Icons.Filled.Star else Icons.Outlined.StarBorder, if (x.id.toString() in favoriteIds) "Remove favorite" else "Add favorite")
+                            }
                             Text(if (display.privateAmounts) "Rs •••••" else money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
                             IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
