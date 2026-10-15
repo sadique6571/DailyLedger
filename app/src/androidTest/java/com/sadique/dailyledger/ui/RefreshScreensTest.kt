@@ -106,6 +106,9 @@ class RefreshScreensTest {
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-export")
             compose.onNodeWithTag("export-save").performScrollTo().assertIsEnabled(); shot("settings-export")
             androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithText("Your money, organized").assertIsDisplayed()
+            compose.onNodeWithText("Home").performClick()
+            compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
             compose.onNodeWithText("Remaining balance").assertIsDisplayed()
         } finally { kotlinx.coroutines.runBlocking { repo.clearAllForOwner() } }
     }
