@@ -243,7 +243,7 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Text(displayMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(visibleMoney(total), fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                             IconButton(onClick = { selectedFrequentCategory = label }) { Icon(Icons.Rounded.History, "View $label history") }
                         }
                     }
