@@ -10,6 +10,10 @@ on:
       - codex/ledger-ui-offline-20261014
       - codex/ledger-fixes-20261015
 
+  pull_request:
+    branches:
+      - main
+
 permissions:
   contents: read
 
