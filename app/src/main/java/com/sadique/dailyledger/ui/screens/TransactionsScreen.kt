@@ -200,7 +200,7 @@ fun TransactionsScreen(
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("Delete transaction?") },
-            text = { Text("Delete ${target.category} (${money(target.amountMinor)}) from ${target.date}? This action cannot be undone.") },
+            text = { Text("Delete ${target.category} (${if (display.privateAmounts) "Rs •••••" else money(target.amountMinor)}) from ${target.date}? This action cannot be undone.") },
             confirmButton = { TextButton(onClick = { pendingDelete = null; onDelete(target) }) { Text("Delete") } },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
         )
@@ -240,6 +240,7 @@ fun TransactionDialog(
     var note by remember { mutableStateOf(x?.note ?: initialNote) }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
     var discardWarning by remember { mutableStateOf(false) }
+    val formContext = LocalContext.current
     val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
     val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
@@ -275,9 +276,21 @@ fun TransactionDialog(
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+                Text("Quick notes", style = MaterialTheme.typography.labelMedium)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Monthly", "Weekly", "Cash", "Online").forEach { preset ->
+                        AssistChip(onClick = { note = if (note.isBlank()) preset else "$note • $preset" }, label = { Text(preset) })
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { date = LocalDate.now().toString() }) { Text("Today") }
                     OutlinedButton(onClick = { date = LocalDate.now().minusDays(1).toString() }) { Text("Yesterday") }
+                    OutlinedButton(onClick = {
+                        val selected = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
+                        DatePickerDialog(formContext, { _, year, month, day ->
+                            date = LocalDate.of(year, month + 1, day).toString()
+                        }, selected.year, selected.monthValue - 1, selected.dayOfMonth).show()
+                    }) { Text("Calendar") }
                 }
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
             }
