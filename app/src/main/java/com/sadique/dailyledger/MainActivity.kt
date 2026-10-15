@@ -3,6 +3,8 @@ package com.sadique.dailyledger
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
+import androidx.compose.runtime.DisposableEffect
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,6 +88,11 @@ class MainActivity : FragmentActivity() {
             }
 
             val displayPrefs = remember { com.sadique.dailyledger.ui.DisplayPreferences(applicationContext) }
+            DisposableEffect(displayPrefs.secureScreens) {
+                if (displayPrefs.secureScreens) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+            }
             androidx.compose.runtime.CompositionLocalProvider(com.sadique.dailyledger.ui.LocalDisplayPreferences provides displayPrefs) {
             DailyLedgerTheme(current?.theme ?: "AQUA") {
                 Surface(Modifier.fillMaxSize()) {
