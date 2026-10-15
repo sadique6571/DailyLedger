@@ -540,7 +540,11 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     var showAll by remember { mutableStateOf(false) }
-    val colorFor: (String) -> Color = { Color.hsv(Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), 360).toFloat(), .65f, .78f) }
+    val scheme = MaterialTheme.colorScheme
+    val categoryTones = listOf(scheme.primary, scheme.secondary, scheme.tertiary, scheme.error)
+    val colorFor: (String) -> Color = {
+        categoryTones[Math.floorMod(it.lowercase(Locale.ROOT).hashCode(), categoryTones.size)]
+    }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -567,17 +571,31 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                     Text("Total spent", fontSize = 11.sp)
                 }
             }
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                 (if (showAll) categories else categories.take(5)).forEachIndexed { i, (name, value) ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("chart-category-$name"),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.size(9.dp).background(colorFor(name), CircleShape))
-                        Column(Modifier.weight(1f)) {
-                            Text(name, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text(if (privacyEnabled) "Rs •••••" else displayMoney(value), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    val tint = colorFor(name)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().testTag("chart-category-$name"),
+                        shape = RoundedCornerShape(12.dp),
+                        color = scheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, tint.copy(alpha = .29f)),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .background(Brush.horizontalGradient(listOf(tint.copy(alpha = .14f), tint.copy(alpha = .03f))))
+                                .padding(horizontal = 8.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(Modifier.size(9.dp).background(tint, CircleShape))
+                            Column(Modifier.weight(1f)) {
+                                Text(name, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(if (privacyEnabled) "Rs •••••" else displayMoney(value), fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
+                            Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 10.sp)
                         }
-                        Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 11.sp)
                     }
                 }
                 if (categories.size > 5) TextButton(onClick = { showAll = !showAll }) {
