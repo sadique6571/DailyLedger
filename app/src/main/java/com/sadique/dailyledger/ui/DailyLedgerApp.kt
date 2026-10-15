@@ -72,7 +72,7 @@ import com.sadique.dailyledger.audio.TransactionSoundPlayer
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
-private data class EntryShortcut(val type: String, val category: String = "", val note: String = "")
+private data class EntryShortcut(val type: String, val category: String = "", val note: String = "", val amount: String = "")
 
 private data class Tab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
@@ -395,6 +395,7 @@ fun DailyLedgerApp(
                     weatherTemperature = weatherTemperature,
                     weatherCondition = weatherCondition,
                     onAddSalary = { quickTransaction = EntryShortcut("INCOME", "Salary") },
+                    onAddSalaryWithAmount = { amount -> quickTransaction = EntryShortcut("INCOME", "Salary", amount = amount) },
                     onAddExpense = { quickTransaction = EntryShortcut("EXPENSE") },
                     onOpenSavings = { addSaving = true },
                     onAddOtherIncome = { quickTransaction = EntryShortcut("INCOME", "Other income") },
@@ -487,7 +488,7 @@ fun DailyLedgerApp(
             null,
             dismiss = { quickTransaction = null },
             initialType = entry.type,
-            initialCategory = entry.category, initialNote = entry.note,
+            initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; tab = 1 },
             save = { t, a, c, n, d ->
                 vm.launch(onSuccess = {
