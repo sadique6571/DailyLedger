@@ -44,6 +44,27 @@ class BalanceGuideScreenTest {
         assertEquals("", category)
         shot("spending-donut")
     }
+    @Test fun donutRendersAllCategoryRowsAsReadOnlyBoxes() {
+        val categories = listOf("Groceries", "Rent", "Transport", "Health", "Bills", "Education", "Shopping")
+        val today = LocalDate.now().toString()
+        val rows = categories.mapIndexed { index, name ->
+            TransactionEntity("expense-$index", "owner", "EXPENSE", (index + 1) * 1000L,
+                name, "", today, index + 1L, index + 1L)
+        }
+        compose.setContent { DailyLedgerTheme("AQUA") {
+            DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                savings = emptyList(), userName = "Demo", weatherEnabled = false,
+                weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {})
+        } }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
+        categories.forEach { category ->
+            compose.onNodeWithTag("chart-category-$category").assertExists()
+                .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        }
+        compose.onNodeWithTag("chart-total").assertExists()
+    }
+
     private fun shot(name: String) {
         compose.waitForIdle()
         val fd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png")
