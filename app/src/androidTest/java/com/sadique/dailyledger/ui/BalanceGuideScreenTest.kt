@@ -9,6 +9,7 @@ import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.ui.screens.DashboardScreen
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.semantics.SemanticsActions
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,8 +38,10 @@ class BalanceGuideScreenTest {
         compose.onNodeWithContentDescription("Hide balance").performScrollTo().performClick()
         compose.onNodeWithTag("daily-spending-guide", useUnmergedTree = true).assertTextContains("Rs •••••", substring = true)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
-        compose.onNodeWithTag("chart-category-Groceries").performScrollTo().performClick()
-        assertEquals("Groceries", category)
+        compose.onNodeWithTag("chart-category-Groceries").performScrollTo()
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        compose.onNodeWithTag("chart-total").assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        assertEquals("", category)
         shot("spending-donut")
     }
     private fun shot(name: String) {
