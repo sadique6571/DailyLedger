@@ -237,7 +237,6 @@ private fun CreditEntryDialog(
     save: suspend (String, String, Long, String, String, String?, String, String, String) -> Unit,
 ) {
     var creditor by remember { mutableStateOf(initial?.creditor.orEmpty()) }
-    var item by remember { mutableStateOf(initial?.item.orEmpty()) }
     var amount by remember { mutableStateOf(initial?.amountMinor?.let(::plainAmount).orEmpty()) }
     var category by remember { mutableStateOf(initial?.category.orEmpty()) }
     var date by remember { mutableStateOf(initial?.purchaseDate ?: LedgerRepository.today()) }
@@ -264,8 +263,6 @@ private fun CreditEntryDialog(
                 }
                 OutlinedTextField(creditor, { creditor = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("Shop / person") }, singleLine = true)
-                OutlinedTextField(item, { item = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Saman / item") }, singleLine = true)
                 Text("Saman ki category", style = MaterialTheme.typography.labelLarge)
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag("udhar-category"))
@@ -290,12 +287,20 @@ private fun CreditEntryDialog(
         confirmButton = {
             val parsed = parseMinor(amount)
             Button(
-                enabled = !busy && parsed?.let { it > 0L } == true && item.isNotBlank() && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
+                enabled = !busy && parsed?.let { it > 0L } == true && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
                 onClick = {
                     val value = parsed ?: return@Button
                     busy = true
                     scope.launch {
-                        try { save(creditor, item, value, category, date.trim(), due.trim().ifBlank { null }, note, phone, wa) }
+                        try {
+                            // No separate item field: manual Udhar uses the selected category as its item.
+                            // Preserve meaningful AI draft item names when their category was not changed.
+                            val resolvedItem = initial?.item?.takeIf {
+                                it.isNotBlank() && category == initial.category
+                            } ?: category.trim()
+                            save(creditor, resolvedItem, value, category, date.trim(),
+                                due.trim().ifBlank { null }, note, phone, wa)
+                        }
                         catch (e: CancellationException) { throw e }
                         catch (e: Exception) { error = e.message ?: "Could not save. Try again." }
                         finally { busy = false }
