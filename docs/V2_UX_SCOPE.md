@@ -201,6 +201,11 @@ Implement and verify or explicitly mark each deferred, with a regression test an
 - Existing from v1.x and requiring audit: dashboard size preferences, privacy masking of selected screens, theme, some charts and navigation.
 - Everything else above is pending implementation and verification. Scope inclusion does NOT mean implementation.
 
+## Implementation update — screenshot protection
+- Optional screenshot and Android recents-preview protection is implemented using FLAG_SECURE and a local UI preference; no database or backup modifications.
+- This feature remains uncompiled and untested at the user-requested final test stage.
+- Still pending: full undo-delete semantics, complete drag/drop and dashboard layout options, comprehensive Urdu localization, all-screen privacy coverage, accessibility and 151-item acceptance verification.
+
 ## Definition of done
 - Every selected scope item has status Done + proof/test or is honestly documented Deferred.
 - No data regression, signing change or broken in-place upgrade.
