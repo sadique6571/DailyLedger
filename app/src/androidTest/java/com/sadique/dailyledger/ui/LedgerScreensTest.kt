@@ -70,8 +70,9 @@ class LedgerScreensTest {
         compose.onNodeWithTag("startup-insight-preview").assertDoesNotExist()
         compose.onNodeWithText("Your offline money insight").assertDoesNotExist()
         compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
-        compose.onNodeWithTag("kameti-paid-card").performScrollTo().assertIsDisplayed()
-            .assertHasClickAction().performClick()
+        // Card semantics may merge the tag into its clickable parent on Android.
+        // Use the visible label as the stable interaction target (also covered above).
+        compose.onNodeWithText("Kameti paid").performScrollTo().assertIsDisplayed().performClick()
         assertTrue("Kameti paid card must open Kameti", kametiOpened)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("insights-shortcut")
         compose.onNodeWithText("Spending insights").performClick()
