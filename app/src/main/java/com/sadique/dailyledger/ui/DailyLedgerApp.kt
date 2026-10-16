@@ -72,7 +72,7 @@ import com.sadique.dailyledger.audio.TransactionSoundPlayer
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
-private data class EntryShortcut(val type: String, val category: String = "", val note: String = "")
+private data class EntryShortcut(val type: String, val category: String = "", val note: String = "", val amount: String = "")
 
 private data class Tab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
@@ -350,12 +350,13 @@ fun DailyLedgerApp(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Settings")
                     }
                     IconButton(onClick = { moreReturn = false; historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
-                    IconButton(onClick = { if (tab == 6) settingsOpen = true else remindersOpen = true }) {
-                        Icon(if (tab == 6) Icons.Rounded.Settings else Icons.Rounded.NotificationsNone,
-                            if (tab == 6) "Settings" else "Reminders", Modifier.size(23.dp))
+                    IconButton(onClick = { remindersOpen = true }) {
+                        Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
                     }
-                    IconButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai")) {
-                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(3.dp))
+                        Text("AI Entry", fontSize = 11.sp)
                     }
                 }
             }
@@ -396,6 +397,7 @@ fun DailyLedgerApp(
                     weatherTemperature = weatherTemperature,
                     weatherCondition = weatherCondition,
                     onAddSalary = { quickTransaction = EntryShortcut("INCOME", "Salary") },
+                    onAddSalaryWithAmount = { amount -> quickTransaction = EntryShortcut("INCOME", "Salary", amount = amount) },
                     onAddExpense = { quickTransaction = EntryShortcut("EXPENSE") },
                     onOpenSavings = { addSaving = true },
                     onAddOtherIncome = { quickTransaction = EntryShortcut("INCOME", "Other income") },
@@ -404,6 +406,7 @@ fun DailyLedgerApp(
                     onOpenLoans = { tab = 2 },
                     onOpenUdhar = { addCreditRequested = true; tab = 7 },
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
+                    creditPayments = creditPayments,
                     onOpenKameti = { tab = 3 },
                     onAutoFill = { autoFillOpen = true },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; tab = 1 },
@@ -488,7 +491,7 @@ fun DailyLedgerApp(
             null,
             dismiss = { quickTransaction = null },
             initialType = entry.type,
-            initialCategory = entry.category, initialNote = entry.note,
+            initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; tab = 1 },
             save = { t, a, c, n, d ->
                 vm.launch(onSuccess = {

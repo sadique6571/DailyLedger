@@ -9,6 +9,7 @@ import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.ui.screens.DashboardScreen
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.semantics.SemanticsActions
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,10 +38,33 @@ class BalanceGuideScreenTest {
         compose.onNodeWithContentDescription("Hide balance").performScrollTo().performClick()
         compose.onNodeWithTag("daily-spending-guide", useUnmergedTree = true).assertTextContains("Rs •••••", substring = true)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
-        compose.onNodeWithTag("chart-category-Groceries").performScrollTo().performClick()
-        assertEquals("Groceries", category)
+        compose.onNodeWithTag("chart-category-Groceries").performScrollTo()
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        compose.onNodeWithTag("chart-total").assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        assertEquals("", category)
         shot("spending-donut")
     }
+    @Test fun donutRendersAllCategoryRowsAsReadOnlyBoxes() {
+        val categories = listOf("Groceries", "Rent", "Transport", "Health", "Bills", "Education", "Shopping")
+        val today = LocalDate.now().toString()
+        val rows = categories.mapIndexed { index, name ->
+            TransactionEntity("expense-$index", "owner", "EXPENSE", (index + 1) * 1000L,
+                name, "", today, index + 1L, index + 1L)
+        }
+        compose.setContent { DailyLedgerTheme("AQUA") {
+            DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                savings = emptyList(), userName = "Demo", weatherEnabled = false,
+                weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {})
+        } }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
+        categories.forEach { category ->
+            compose.onNodeWithTag("chart-category-$category").assertExists()
+                .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+        }
+        compose.onNodeWithTag("chart-total").assertExists()
+    }
+
     private fun shot(name: String) {
         compose.waitForIdle()
         val fd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png")

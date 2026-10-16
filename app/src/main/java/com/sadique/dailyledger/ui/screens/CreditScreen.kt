@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.sadique.dailyledger.ai.CreditAiResult
 import com.sadique.dailyledger.ai.OfflineCreditAi
 import com.sadique.dailyledger.data.CreditDraft
@@ -236,7 +237,6 @@ private fun CreditEntryDialog(
     save: suspend (String, String, Long, String, String, String?, String, String, String) -> Unit,
 ) {
     var creditor by remember { mutableStateOf(initial?.creditor.orEmpty()) }
-    var item by remember { mutableStateOf(initial?.item.orEmpty()) }
     var amount by remember { mutableStateOf(initial?.amountMinor?.let(::plainAmount).orEmpty()) }
     var category by remember { mutableStateOf(initial?.category.orEmpty()) }
     var date by remember { mutableStateOf(initial?.purchaseDate ?: LedgerRepository.today()) }
@@ -250,6 +250,8 @@ private fun CreditEntryDialog(
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = { if (!busy) dismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.96f).testTag("udhar-manual-entry"),
         title = { Text(if (initial == null) "Add udhar saman" else "Review udhar entry") },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -259,26 +261,45 @@ private fun CreditEntryDialog(
                     phone = pickedPhone
                     if (wa.isBlank()) wa = pickedPhone
                 }
-                OutlinedTextField(creditor, { creditor = it }, label = { Text("Shop / person") })
-                OutlinedTextField(phone, { phone = it }, label = { Text("Phone (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-                OutlinedTextField(wa, { wa = it }, label = { Text("WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-                OutlinedTextField(item, { item = it }, label = { Text("Saman / item") })
-                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy)
-                OutlinedTextField(date, { date = it }, label = { Text("Purchase date YYYY-MM-DD") }, isError = !isValidDate(date))
-                OutlinedTextField(due, { due = it }, label = { Text("Due date YYYY-MM-DD (optional)") }, isError = due.isNotBlank() && !isValidDate(due))
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(creditor, { creditor = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Shop / person") }, singleLine = true)
+                CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().testTag("udhar-category"))
+                OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true)
+                OutlinedTextField(date, { date = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Purchase date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+                OutlinedTextField(due, { due = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Due date (optional) YYYY-MM-DD") },
+                    isError = due.isNotBlank() && !isValidDate(due), singleLine = true)
+                OutlinedTextField(note, { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
+                Text("Contact (optional)", style = MaterialTheme.typography.labelLarge)
+                OutlinedTextField(phone, { phone = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true)
+                OutlinedTextField(wa, { wa = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("WhatsApp") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true)
             }
         },
         confirmButton = {
             val parsed = parseMinor(amount)
             Button(
-                enabled = !busy && parsed?.let { it > 0L } == true && item.isNotBlank() && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
+                enabled = !busy && parsed?.let { it > 0L } == true && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
                 onClick = {
                     val value = parsed ?: return@Button
                     busy = true
                     scope.launch {
-                        try { save(creditor, item, value, category, date.trim(), due.trim().ifBlank { null }, note, phone, wa) }
+                        try {
+                            // No separate item field: manual Udhar uses the selected category as its item.
+                            // Preserve meaningful AI draft item names when their category was not changed.
+                            val resolvedItem = initial?.item?.takeIf {
+                                it.isNotBlank() && category == initial.category
+                            } ?: category.trim()
+                            save(creditor, resolvedItem, value, category, date.trim(),
+                                due.trim().ifBlank { null }, note, phone, wa)
+                        }
                         catch (e: CancellationException) { throw e }
                         catch (e: Exception) { error = e.message ?: "Could not save. Try again." }
                         finally { busy = false }
@@ -376,10 +397,13 @@ private fun CreditPaymentDialog(
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = { if (!busy) dismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.96f),
         title = { Text("Record udhar payment") },
         text = {
             Column(Modifier.heightIn(max = 450.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
+                Text("Payment aapke current salary-cycle balance se minus hogi.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date))
                 Text("Payment method", style = MaterialTheme.typography.labelLarge)

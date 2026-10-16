@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import com.sadique.dailyledger.ui.SummaryCard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,6 +30,8 @@ fun SavingsScreen(
     onDelete: (SavingEntity) -> Unit,
 ) {
     var add by remember { mutableStateOf(false) }
+    val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
+    val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     val direct = savings.filter { it.kind == "DIRECT" }.sumOf { it.amountMinor }
     val leftover = savings.filter { it.kind == "LEFTOVER" }.sumOf { it.amountMinor }
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
@@ -37,7 +40,7 @@ fun SavingsScreen(
                 Text("Savings", style = MaterialTheme.typography.headlineMedium)
                 Text("Your savings stay separate from salary and kameti.")
                 Spacer(Modifier.height(12.dp))
-                SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${money(direct)} • Leftover: ${money(leftover)}", onClick = { add = true })
+                SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${visibleMoney(direct)} • Leftover: ${visibleMoney(leftover)}", onClick = { add = true })
             }
             enteringItems(savings, key = { it.id }) { saving ->
                 Card(Modifier.fillMaxWidth()) {
@@ -46,7 +49,7 @@ fun SavingsScreen(
                             Text(if (saving.kind == "LEFTOVER") "Leftover saving" else "Direct saving")
                             Text("${saving.date} • ${saving.note}", style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(money(saving.amountMinor))
+                        Text(visibleMoney(saving.amountMinor))
                         IconButton(onClick = { onDelete(saving) }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }
                     }
                 }

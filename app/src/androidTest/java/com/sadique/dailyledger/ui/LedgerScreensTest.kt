@@ -8,6 +8,7 @@ import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.screens.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +51,34 @@ class LedgerScreensTest {
         screenshot("dashboard-separate-totals")
     }
 
+    @Test fun homeDoesNotShowAutomaticInsightsButKeepsManualShortcutAndKametiCard() {
+        val rows = listOf(TransactionEntity("salary", "test", "INCOME", 1000000, "Salary",
+            "", "$month-01", 1, 1))
+        val analysis = com.sadique.dailyledger.ai.SpendingInsights.calculate("test", rows)
+        var opened = false
+        var kametiOpened = false
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = rows, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "",
+                weatherCondition = "", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
+                onOpenSavings = {}, onOpenKameti = { kametiOpened = true },
+                onOpenInsights = { opened = true },
+            )
+        } }
+        compose.onNodeWithTag("startup-insight-preview").assertDoesNotExist()
+        compose.onNodeWithText("Your offline money insight").assertDoesNotExist()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        // Card semantics may merge the tag into its clickable parent on Android.
+        // Use the visible label as the stable interaction target (also covered above).
+        compose.onNodeWithText("Kameti paid").performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("Kameti paid card must open Kameti", kametiOpened)
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("insights-shortcut")
+        compose.onNodeWithText("Spending insights").performClick()
+        assertTrue("Manual Insights remains accessible", opened)
+    }
+
     @Test fun dashboardRequiresExplicitSalaryCycleStartAndOffersArchive() {
         var action = ""
         val cycle = LedgerCycleEntity("test", 1, 250)
@@ -69,10 +98,20 @@ class LedgerScreensTest {
         compose.onNodeWithText(money(1250)).assertIsDisplayed()
         compose.onNodeWithTag("dashboard-list").performScrollToKey("salary-cycle-controls")
         compose.onNodeWithTag("start-new-salary-month").performClick()
+        compose.onNodeWithTag("salary-actions-dialog").assertExists()
+        compose.onNodeWithTag("salary-received-option").assertIsOn()
+        compose.onNodeWithText("Salary received (Rs)").assertIsDisplayed()
+        compose.onNodeWithTag("salary-options-continue").performClick()
         compose.onNodeWithText("Archive & start").performClick()
         assertEquals("start", action)
-        compose.onNodeWithTag("archive-last-month").performClick()
-        compose.onNodeWithText("Archive month").performClick()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("salary-cycle-controls")
+        compose.onNodeWithTag("start-new-salary-month").performClick()
+        compose.onNodeWithTag("salary-received-option").assertIsOn().performClick()
+        compose.onNodeWithTag("salary-received-option").assertIsOff()
+        compose.onNodeWithTag("archive-previous-option").assertIsOff().performClick()
+        compose.onNodeWithTag("archive-previous-option").assertIsOn()
+        compose.onNodeWithTag("salary-options-continue").performClick()
+        compose.onNodeWithText("Archive month").assertIsDisplayed().performClick()
         assertEquals("archive", action)
     }
 
@@ -97,6 +136,65 @@ class LedgerScreensTest {
         compose.onNodeWithTag("frequent-history-entry-veg-1").assertHasNoClickAction()
         compose.onNodeWithTag("frequent-history-entry-veg-2").assertHasNoClickAction()
         assertFalse(edited); screenshot("frequent-current-month")
+    }
+
+    @Test fun dashboardFrequentRecentAndMoneySpaceTilesHaveVisibleGaps() {
+        val rows = listOf(
+            TransactionEntity("s", "test", "INCOME", 1000000, "Salary", "", "$month-01", 1, 1),
+            TransactionEntity("a", "test", "EXPENSE", 15000, "Food", "Vegetables", "$month-02", 2, 2),
+            TransactionEntity("b", "test", "EXPENSE", 12000, "Bills", "Internet", "$month-03", 3, 3),
+        )
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
+            )
+        } }
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("frequent-items")
+        val frequent0 = compose.onNodeWithTag("frequent-item-0").fetchSemanticsNode().boundsInRoot
+        val frequent1 = compose.onNodeWithTag("frequent-item-1").fetchSemanticsNode().boundsInRoot
+        assertTrue("Frequent purchases must have a gap", frequent1.top > frequent0.bottom + 2f)
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("recent")
+        val recent0 = compose.onNodeWithTag("recent-transaction-0").fetchSemanticsNode().boundsInRoot
+        val recent1 = compose.onNodeWithTag("recent-transaction-1").fetchSemanticsNode().boundsInRoot
+        assertTrue("Recent transactions must have a gap", recent1.top > recent0.bottom + 2f)
+
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        val first = compose.onNodeWithTag("money-space-first").fetchSemanticsNode().boundsInRoot
+        val second = compose.onNodeWithTag("money-space-second").fetchSemanticsNode().boundsInRoot
+        assertTrue("Money spaces must have horizontal or vertical breathing room",
+            second.top > first.bottom + 2f || second.left > first.right + 2f)
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        assertTrue("Money space cards should stay compact", first.height < 166f * density && second.height < 166f * density)
+        val screenWidthDp = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.widthPixels / density
+        if (screenWidthDp >= 360f) {
+            assertTrue("Money spaces should use two columns on standard phones",
+                kotlin.math.abs(first.top - second.top) <= 3f * density)
+        }
+    }
+
+    @Test fun upcomingKametiTurnIsABoxedClickableTile() {
+        var opened = false
+        val member = CommitteeMemberEntity(
+            id = "me", ownerId = "test", committeeId = "k", name = "Me",
+            turnNumber = 1, turnMonth = month, isMe = true, createdAt = 1,
+        )
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = emptyList(), loans = emptyList(), lp = emptyList(),
+                committees = listOf(kameti), cp = emptyList(), receipts = emptyList(),
+                committeeMembers = listOf(member), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = { opened = true },
+            )
+        } }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        compose.onNodeWithTag("kameti-turn-card").performScrollTo().assertIsDisplayed().performClick()
+        assertTrue("Boxed Kameti turn should open Kameti", opened)
     }
 
     @Test fun firstKametiCanBeReceivedBeforeSecond() {

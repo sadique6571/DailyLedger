@@ -22,6 +22,36 @@ class LedgerTotalsTest {
         assertEquals(10000000L, summary.remaining)
         assertEquals(3000000L, summary.otherIncome)
     }
+    @Test fun udharPaymentsDeductFromCalendarBalanceWithoutDuplicatingExpenses() {
+        val current = CreditPaymentEntity("p1", "owner", "credit", 2500, "2026-10-06", "", 105, "Cash")
+        val old = current.copy(id = "p0", amountMinor = 900, date = "2026-09-30", createdAt = 90)
+        val summary = monthlySalarySummary(
+            listOf(tx("INCOME", 10000, "Salary"), tx("EXPENSE", 2000, "Food")),
+            "2026-10", creditPayments = listOf(current, old)
+        )
+        assertEquals(2000L, summary.expenses)
+        assertEquals(2500L, summary.udharPayments)
+        assertEquals(4500L, summary.totalOutflow)
+        assertEquals(5500L, summary.remaining)
+    }
+
+    @Test fun udharPaymentsOnlyChargeTheCycleWhenRecordedInThatCycle() {
+        val cycle = LedgerCycleEntity("owner", 100, 10000)
+        val old = CreditPaymentEntity("old", "owner", "credit", 3000, "2026-10-05", "", 99, "Cash")
+        val current = old.copy(id = "current", amountMinor = 1200, createdAt = 125)
+        val future = old.copy(id = "future", amountMinor = 700, createdAt = 200)
+        val summary = ledgerCycleSummary(
+            emptyList(), emptyList(), emptyList(), cycle, now = 150,
+            creditPayments = listOf(old, current, future)
+        )
+        assertEquals(1200L, summary.udharPayments)
+        assertEquals(8800L, summary.remaining)
+        assertEquals(10000L, ledgerCycleSummary(
+            emptyList(), emptyList(), emptyList(), cycle, now = 150,
+            creditPayments = listOf(old, future)
+        ).remaining)
+    }
+
     @Test fun salaryLabelsAreRecognizedWithoutTreatingAllIncomeAsSalary() {
         assertTrue(tx("INCOME", 1, " salary ").isSalary())
         assertTrue(tx("INCOME", 1, "Monthly salary").isSalary())

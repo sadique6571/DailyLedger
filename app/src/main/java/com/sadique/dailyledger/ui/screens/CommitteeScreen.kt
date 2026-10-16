@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -104,7 +105,7 @@ fun CommitteeScreen(
                             IconButton(onClick = { deleteCommittee = committee }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${committee.name}") }
                         }
 
-                        Text("Monthly payment: ${money(committee.monthlyContribution())}", style = MaterialTheme.typography.titleSmall)
+                        Text("Monthly payment: ${visibleMoney(committee.monthlyContribution())}", style = MaterialTheme.typography.titleSmall)
                         nextMonth?.let { month ->
                             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -211,7 +212,7 @@ fun CommitteeScreen(
                             rs.sortedWith(compareByDescending<CommitteeReceiptEntity> { it.date }.thenByDescending { it.createdAt }).forEach { receipt ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
-                                        Text(money(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
+                                        Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
                                         Text("${receipt.date ?: "Date not recorded"} • ${receipt.method}", style = MaterialTheme.typography.bodySmall)
                                         if (receipt.note.isNotBlank()) Text(receipt.note, style = MaterialTheme.typography.bodySmall)
                                     }
@@ -220,7 +221,7 @@ fun CommitteeScreen(
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                Text("#${it.installmentNumber} • ${it.month} • ${money(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", style = MaterialTheme.typography.bodySmall)
+                                Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -246,7 +247,7 @@ fun CommitteeScreen(
     paying?.let { (committee, installment) ->
         val month = scheduledMonth(committee, installment)
         MethodDialog("Pay installment #$installment • $month", { paying = null },
-            impact = if (month == YearMonth.now().toString()) "${money(committee.monthlyContribution())} will be deducted from your current balance."
+            impact = if (month == YearMonth.now().toString()) "${visibleMoney(committee.monthlyContribution())} will be deducted from your current balance."
                 else "Historical / other-month record: Paid count and total will increase. Your current balance will not change.") { method ->
             onPaid(committee, installment, month, method)
             paying = null
@@ -388,7 +389,7 @@ private fun committeeOrganizerMessage(committee: CommitteeEntity, next: Int?, mo
 private fun BalanceRow(label: String, amount: Long) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(money(amount), style = MaterialTheme.typography.titleSmall)
+        Text(visibleMoney(amount), style = MaterialTheme.typography.titleSmall)
     }
 }
 
@@ -405,7 +406,7 @@ private fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance,
         title = { Text("Receive • ${committee.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Remaining: ${money(balance.remaining)}")
+                Text("Remaining: ${visibleMoney(balance.remaining)}")
                 OutlinedTextField(amount, { amount = it }, label = { Text("Received amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, isError = !validAmount)
                 OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
                 Text("Payment method", style = MaterialTheme.typography.labelLarge)
@@ -447,8 +448,8 @@ private fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Strin
                 OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per kameti") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(total, { total = it }, label = { Text("Total monthly installments") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 if (valid) {
-                    Text("Monthly total: ${money(combined!!)}", style = MaterialTheme.typography.bodySmall)
-                    Text("Total expected receiving: ${money(expected!!)}", style = MaterialTheme.typography.bodySmall)
+                    Text("Monthly total: ${visibleMoney(combined!!)}", style = MaterialTheme.typography.bodySmall)
+                    Text("Total expected receiving: ${visibleMoney(expected!!)}", style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(start, { start = it }, label = { Text("Start month YYYY-MM") }, isError = !isValidMonth(start), singleLine = true)
                 OutlinedTextField(payout, { payout = it }, label = { Text("My turn number (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
@@ -537,3 +538,7 @@ private fun whatsappNumber(raw: String): String {
         else -> digits
     }
 }
+
+/** Presentation-only masking. Never changes payment calculations or outgoing messages. */
+@Composable
+private fun visibleMoney(amount: Long): String = if (LocalDisplayPreferences.current?.privateAmounts == true) "Rs •••••" else money(amount)

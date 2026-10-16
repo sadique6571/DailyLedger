@@ -61,11 +61,14 @@ class RefreshScreensTest {
         compose.onNodeWithText("View savings").performScrollTo().performClick()
         assertEquals("savings", action)
     }
-    @Test fun udharAndOtherLedgersRemainAccessibleFromMore() {
+    @Test fun moreKeepsOnlyScreensWithoutDedicatedTabs() {
         var action = ""
-        compose.setContent { DailyLedgerTheme("AQUA") { MoreScreen({}, {}, {}, {}, {}, { action = "credit" }) } }
-        compose.onNodeWithText("Udhar Saman").performScrollTo().performClick()
-        assertEquals("credit", action)
+        compose.setContent { DailyLedgerTheme("AQUA") { MoreScreen({}, { action = "loans" }, {}, {}, {}, {}) } }
+        compose.onNodeWithText("Udhar Saman").assertDoesNotExist()
+        compose.onNodeWithText("Kameti").assertDoesNotExist()
+        compose.onNodeWithText("Savings").assertDoesNotExist()
+        compose.onNodeWithText("Loans").performScrollTo().performClick()
+        assertEquals("loans", action)
         shot("aqua-more")
     }
     @Test fun settingsChildrenReturnToSettingsBeforeHome() {
@@ -82,7 +85,7 @@ class RefreshScreensTest {
                     com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, "", "", "", 0L, false, {})
             } }
             compose.onNodeWithText("More").performClick()
-            compose.onNodeWithContentDescription("Settings").performClick()
+            compose.onNodeWithText("Settings & backup").performClick()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-savings")
             compose.onNodeWithText("View savings").performScrollTo().performClick()
             compose.onNodeWithTag("return-to-settings").assertIsDisplayed()
@@ -103,6 +106,9 @@ class RefreshScreensTest {
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-export")
             compose.onNodeWithTag("export-save").performScrollTo().assertIsEnabled(); shot("settings-export")
             androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithText("Your money, organized").assertIsDisplayed()
+            compose.onNodeWithText("Home").performClick()
+            compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
             compose.onNodeWithText("Remaining balance").assertIsDisplayed()
         } finally { kotlinx.coroutines.runBlocking { repo.clearAllForOwner() } }
     }

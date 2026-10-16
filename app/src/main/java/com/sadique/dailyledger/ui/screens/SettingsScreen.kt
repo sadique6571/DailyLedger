@@ -366,6 +366,27 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Text("Accessibility and layout presets", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(1)
+                        display.updateIconSize(1)
+                        display.updateCardSize(1)
+                        display.updateCompact(false)
+                    }) { Text("Standard") }
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(0)
+                        display.updateIconSize(0)
+                        display.updateCardSize(0)
+                        display.updateCompact(true)
+                    }) { Text("Compact") }
+                    OutlinedButton(onClick = {
+                        display.updateFontSize(3)
+                        display.updateIconSize(2)
+                        display.updateCardSize(2)
+                        display.updateCompact(false)
+                    }) { Text("Easy read") }
+                }
                 Text("Font size", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Small", "Medium", "Large", "XL").forEachIndexed { index, label ->
@@ -392,10 +413,15 @@ fun SettingsScreen(
                     Text("Hide financial amounts (privacy)", Modifier.weight(1f))
                     Switch(checked = display.privateAmounts, onCheckedChange = display::updatePrivateAmounts)
                 }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Block screenshots and app previews", Modifier.weight(1f))
+                    Switch(checked = display.secureScreens, onCheckedChange = display::updateSecureScreens)
+                }
                 Text("Dashboard cards", style = MaterialTheme.typography.titleMedium)
                 listOf(
                     Triple("Spending chart", display.showSpending, display::updateShowSpending),
                     Triple("Recent transactions", display.showRecent, display::updateShowRecent),
+                    Triple("Frequent purchases", display.showFrequent, display::updateShowFrequent),
                     Triple("Savings, kameti & loans", display.showSpaces, display::updateShowSpaces),
                     Triple("AI insights", display.showInsights, display::updateShowInsights),
                 ).forEach { (label, checked, change) ->

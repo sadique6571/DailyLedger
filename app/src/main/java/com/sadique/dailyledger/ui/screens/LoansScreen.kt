@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +39,8 @@ fun LoansScreen(
     onDelete: (LoanEntity) -> Unit,
 ) {
     val context = LocalContext.current
+    val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
+    val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     var add by remember { mutableStateOf(false) }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
@@ -52,7 +55,7 @@ fun LoansScreen(
                         Row {
                             Column(Modifier.weight(1f)) {
                                 Text("${loan.person} • ${if (loan.direction == "BORROWED") "I borrowed" else "Borrowed from me"}", style = MaterialTheme.typography.titleMedium)
-                                Text("Outstanding ${money(left)} / ${money(loan.principalMinor)}")
+                                Text("Outstanding ${visibleMoney(left)} / ${visibleMoney(loan.principalMinor)}")
                                 loan.dueDate?.let { Text("Due $it • ${dueLabel(it)}", style = MaterialTheme.typography.bodySmall) }
                                 if (left == 0L || loan.closed) Text("Settled", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             }
@@ -67,7 +70,7 @@ fun LoansScreen(
                         val allPayments = payments.filter { it.loanId == loan.id }
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
                         val history = if (showHistory) allPayments else allPayments.take(3)
-                        history.forEach { Text("${it.date} • ${money(it.amountMinor)} • ${it.method}", style = MaterialTheme.typography.bodySmall) }
+                        history.forEach { Text("${it.date} • ${visibleMoney(it.amountMinor)} • ${it.method}", style = MaterialTheme.typography.bodySmall) }
                     }
                 }
             }
