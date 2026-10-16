@@ -9,7 +9,7 @@ This checklist covers the batch approved after the Urdu/Nastaleeq discussion. It
 | Screen history and scroll restoration | Saveable route stack and per-screen state | NavigationHistoryTest; full-app RefreshScreensTest |
 | English/Urdu and Nastaleeq | Bundled OFL font, RTL, 244 category names, display-only localization | UrduPlanningUiTest, translation completeness assertion and screenshots |
 | Settings search and dashboard order | Bilingual search; drag/up/down/reset | Settings search navigation test, persistence/reset UI test |
-| Learned-category controls | Inspect, correct, forget and suppress history relearning | PlannerStoreTest, existing category learning tests |
+| Automatic category learning | Learn from reviewed corrections and consistent history; no manual Settings/More learning manager | PlannerStoreTest and existing category learning tests |
 | Category budgets | Calendar-month limits; 80% and over-limit notices | PlannerMathTest, dark/large-Urdu budget UI test |
 | Recurring reminders | Review/confirm only; stable monthly batch IDs, skip, month-end clamping | PlannerMathTest, PlannerStoreTest, explicit review UI test |
 | Kameti calendar | Installment status and separate recorded receiving | Owner/date/partial receiving tests |
