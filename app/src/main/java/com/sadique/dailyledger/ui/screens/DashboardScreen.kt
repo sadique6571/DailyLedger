@@ -162,16 +162,45 @@ fun DashboardScreen(
                             Text(visibleMoney(summary.remaining), color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
                             Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
-                            Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.CenterStart) {
-                                Box(Modifier.fillMaxWidth().height(12.dp).background(Color.White.copy(alpha = .17f), CircleShape))
-                                if (spentRatio > 0) Box(Modifier.fillMaxWidth(spentRatio).height(12.dp).background(Brush.verticalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape))
-                                Surface(Modifier.align(Alignment.CenterEnd), shape = CircleShape, color = Color.White) {
-                                    Text("$spentPct%", Modifier.padding(horizontal = 12.dp, vertical = 4.dp), color = LedgerColors.Navy, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            // Keep the percentage outside the track: an overlaid chip clips in
+                            // Urdu RTL and with large system text on narrower devices.
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Spent", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Surface(shape = CircleShape, color = Color.White) {
+                                    Text(
+                                        "$spentPct%", Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                                            .testTag("balance-progress-percent"),
+                                        translate = false, color = LedgerColors.Navy,
+                                        fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                                        maxLines = 1, softWrap = false,
+                                    )
                                 }
                             }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${visibleMoney(summary.totalOutflow)} of ${visibleMoney(availableForCycle.coerceAtLeast(0L))}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
-                                Text("${100 - spentPct}% left", color = Color.White, fontSize = 10.sp)
+                            Box(
+                                Modifier.fillMaxWidth().height(18.dp)
+                                    .clip(CircleShape).background(Color.White.copy(alpha = .25f))
+                                    .testTag("balance-progress-track"),
+                            ) {
+                                if (spentRatio > 0f) Box(
+                                    Modifier.fillMaxWidth(spentRatio).fillMaxHeight()
+                                        .background(Brush.horizontalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape),
+                                )
+                            }
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    "${visibleMoney(summary.totalOutflow)} of ${visibleMoney(availableForCycle.coerceAtLeast(0L))}",
+                                    Modifier.weight(1f), color = Color(0xFFC0FFEE),
+                                    fontSize = 10.sp, maxLines = 2,
+                                )
+                                Text("${100 - spentPct}% left", color = Color.White, fontSize = 11.sp, maxLines = 2)
                             }
                             if (summary.openingBalanceMinor != 0L) {
                                 Text("Balance carried forward: ${visibleMoney(summary.openingBalanceMinor)}", color = Color(0xFFC0FFEE), fontSize = 10.sp)
