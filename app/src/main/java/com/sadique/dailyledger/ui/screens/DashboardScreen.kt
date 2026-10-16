@@ -172,7 +172,8 @@ fun DashboardScreen(
                                 Text("Spent", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                 Surface(shape = CircleShape, color = Color.White) {
                                     Text(
-                                        "$spentPct%", Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                                        com.sadique.dailyledger.i18n.progressPercent(spentPct, com.sadique.dailyledger.i18n.LocalStrings.current.urdu),
+                                        Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                             .testTag("balance-progress-percent"),
                                         translate = false, color = LedgerColors.Navy,
                                         fontWeight = FontWeight.Bold, fontSize = 14.sp,
