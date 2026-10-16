@@ -139,7 +139,7 @@ fun CreditScreen(
                             }
                             Column(Modifier.weight(1f)) {
                                 Text(credit.item, translate = false, style = MaterialTheme.typography.titleMedium)
-                                Text("${credit.creditor} • ${credit.category}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${credit.creditor} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(credit.category)}", translate = false, style = MaterialTheme.typography.bodyMedium)
                                 Text("Bought ${credit.purchaseDate} • ${money(credit.amountMinor)}", style = MaterialTheme.typography.bodySmall)
                                 credit.dueDate?.let { Text("Due $it • ${creditDueLabel(it)}", style = MaterialTheme.typography.bodySmall) }
                                 Text("Paid ${money(paid)} • Remaining ${money(left)}")
@@ -350,7 +350,7 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
                 result?.entries?.forEachIndexed { index, draft -> item(key = "credit-$index") {
                     LedgerCard {
                         Text("${draft.item} • ${money(draft.amountMinor)}", style = MaterialTheme.typography.titleSmall)
-                        Text("${draft.creditor} • ${draft.category}")
+                        Text("${draft.creditor} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(draft.category)}", translate = false)
                         Text("Purchase ${draft.purchaseDate}")
                         draft.dueDate?.let { Text("Due $it") }
                         Row {

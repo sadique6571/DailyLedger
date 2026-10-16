@@ -570,7 +570,7 @@ fun SettingsScreen(
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Spacer(Modifier.height(8.dp))
                 Text(user.name, translate = false, style = MaterialTheme.typography.titleMedium)
-                Text(user.email, style = MaterialTheme.typography.bodySmall)
+                Text(user.email, translate = false, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = onLogout, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
             }
         }

@@ -58,7 +58,7 @@ fun LoansScreen(
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
                             Column(Modifier.weight(1f)) {
-                                Text("${loan.person} • ${if (loan.direction == "BORROWED") "I borrowed" else "Borrowed from me"}", style = MaterialTheme.typography.titleMedium)
+                                Text("${loan.person} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(if (loan.direction == "BORROWED") "I borrowed" else "Borrowed from me")}", translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("Outstanding ${visibleMoney(left)} / ${visibleMoney(loan.principalMinor)}")
                                 loan.dueDate?.let { Text("Due $it • ${dueLabel(it)}", style = MaterialTheme.typography.bodySmall) }
                                 if (left == 0L || loan.closed) Text("Settled", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)

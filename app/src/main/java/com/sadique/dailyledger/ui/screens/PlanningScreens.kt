@@ -39,13 +39,13 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
     var message by remember { mutableStateOf<String?>(null) }
     val progress = PlannerMath.budgets(owner, data.budgets, transactions, YearMonth.now())
     LazyColumn(Modifier.fillMaxSize().testTag("budgets-list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("Category budgets", style = MaterialTheme.typography.headlineMedium); Text(YearMonth.now().toString()); PlanningNotice() }
-        item { Button(onClick = { edit = null; adding = true }) { Text("Add budget") }; (message ?: store.error)?.let { Text(it) } }
-        if (progress.isEmpty()) item { Text("Set a monthly category limit to see your spending progress.") }
-        items(progress, key = { it.category }) { row ->
+        enteringItem { Text("Category budgets", style = MaterialTheme.typography.headlineMedium); Text(YearMonth.now().toString()); PlanningNotice() }
+        enteringItem { Button(onClick = { edit = null; adding = true }) { Text("Add budget") }; (message ?: store.error)?.let { Text(it) } }
+        if (progress.isEmpty()) enteringItem { Text("Set a monthly category limit to see your spending progress.") }
+        enteringItems(progress, key = { it.category }) { row ->
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(row.category, style = MaterialTheme.typography.titleLarge)
-                Text("Spent: ${visibleMoney(row.spent)}"); Text("Monthly limit: ${visibleMoney(row.limit)}")
+                Text("Spent: ${visibleAmount(row.spent)}"); Text("Monthly limit: ${visibleAmount(row.limit)}")
                 LinearProgressIndicator(progress = { row.fraction }, modifier = Modifier.fillMaxWidth(), color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 Text(if (row.exceeded) "Budget limit reached" else if (row.nearLimit) "Approaching your budget limit" else "Within your budget", color = if (row.nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 Row { TextButton(onClick = { edit = CategoryBudget(row.category, row.limit); adding = true }) { Text("Edit") }; TextButton(onClick = { pendingDelete = CategoryBudget(row.category, row.limit) }) { Text("Remove") } }
@@ -82,13 +82,13 @@ fun BillsScreen(vm: MainViewModel) {
     var error by remember { mutableStateOf<String?>(null) }
     val today = LocalDate.now()
     LazyColumn(Modifier.fillMaxSize().testTag("bills-list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("Bills & reminders", style = MaterialTheme.typography.headlineMedium); Text("A reminder never saves or deducts money. Review and confirm each entry."); PlanningNotice() }
-        item { Button(onClick = { edit = null; adding = true }) { Text("Add reminder") }; (error ?: vm.planner.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
-        if (data.bills.isEmpty()) item { Text("Add rent, internet, fees or another monthly entry.") }
-        items(data.bills.sortedBy { it.nextDue() }, key = { it.id }) { bill ->
+        enteringItem { Text("Bills & reminders", style = MaterialTheme.typography.headlineMedium); Text("A reminder never saves or deducts money. Review and confirm each entry."); PlanningNotice() }
+        enteringItem { Button(onClick = { edit = null; adding = true }) { Text("Add reminder") }; (error ?: vm.planner.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
+        if (data.bills.isEmpty()) enteringItem { Text("Add rent, internet, fees or another monthly entry.") }
+        enteringItems(data.bills.sortedBy { it.nextDue() }, key = { it.id }) { bill ->
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(bill.title, translate = false, style = MaterialTheme.typography.titleLarge)
-                Text(bill.category); Text(visibleMoney(bill.amountMinor)); Text("Next due: ${bill.nextDue()}")
+                Text(bill.category); Text(visibleAmount(bill.amountMinor)); Text("Next due: ${bill.nextDue()}")
                 Text(if (bill.nextDue() <= today) "Due for review" else "Upcoming")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { review = bill }, enabled = bill.enabled && bill.nextDue() <= today) { Text("Review entry") }
@@ -165,11 +165,11 @@ fun LearningScreen(vm: MainViewModel) {
     var remove by remember { mutableStateOf<LearnedCategoryRule?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     LazyColumn(Modifier.fillMaxSize().testTag("learning-list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("AI learning", style = MaterialTheme.typography.headlineMedium); Text("Review category mappings learned from your corrections and repeated saved items. Removing a rule also stops the same history mapping from reappearing."); PlanningNotice() }
-        if (rules.isEmpty()) item { Text("No learned categories yet. Correct a category while reviewing AI entries to teach it.") }
-        message?.let { item { Text(it) } }
-        loadError?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
-        items(rules, key = { "${it.type}:${it.phrase}" }) { rule ->
+        enteringItem { Text("AI learning", style = MaterialTheme.typography.headlineMedium); Text("Review category mappings learned from your corrections and repeated saved items. Removing a rule also stops the same history mapping from reappearing."); PlanningNotice() }
+        if (rules.isEmpty()) enteringItem { Text("No learned categories yet. Correct a category while reviewing AI entries to teach it.") }
+        message?.let { enteringItem { Text(it) } }
+        loadError?.let { enteringItem { Text(it, color = MaterialTheme.colorScheme.error) } }
+        enteringItems(rules, key = { "${it.type}:${it.phrase}" }) { rule ->
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(rule.phrase, translate = false, style = MaterialTheme.typography.titleMedium); Text(rule.type); Text(rule.category)
                 Row { TextButton(onClick = { edit = rule }) { Text("Correct category") }; TextButton(onClick = { remove = rule }) { Text("Forget") } }

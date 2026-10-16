@@ -86,11 +86,12 @@ fun TransactionsScreen(
     var quickTemplate by remember { mutableStateOf<TransactionEntity?>(null) }
     val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
+    val searchStrings = com.sadique.dailyledger.i18n.LocalStrings.current
     val filtered = items.filter {
         it.id != undoPendingId &&
         (!favoritesOnly || it.id in favoriteIds) &&
         (filter == "ALL" || it.type == filter) &&
-            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
+            (query.isBlank() || it.category.contains(query, true) || searchStrings.text(it.category).contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
             when (dateRange) {
                 "TODAY" -> it.date == today.toString()
                 "WEEK" -> runCatching { LocalDate.parse(it.date) }.getOrNull()?.let { d -> !d.isBefore(today.minusDays(6)) && !d.isAfter(today) } == true

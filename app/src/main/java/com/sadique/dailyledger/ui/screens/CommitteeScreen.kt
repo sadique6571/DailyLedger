@@ -310,7 +310,7 @@ private fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () -> 
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("#${member.turnNumber} • ${member.turnMonth} • ${member.name}", style = MaterialTheme.typography.titleSmall)
+                    Text("#${member.turnNumber} • ${member.turnMonth} • ${member.name}", translate = false, style = MaterialTheme.typography.titleSmall)
                     Text(monthCountdown(member.turnMonth), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (member.isMe) AssistChip(onClick = {}, enabled = false, label = { Text("Me") })

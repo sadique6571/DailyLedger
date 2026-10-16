@@ -24,24 +24,24 @@ fun KametiCalendarScreen(owner: String, committees: List<CommitteeEntity>, payme
     val month = YearMonth.parse(selected)
     val report = remember(owner, month, committees, payments, receipts, members) { ReportQueries.calendar(owner, month, committees, payments, receipts, members) }
     LazyColumn(Modifier.fillMaxSize().testTag("kameti-calendar"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("Kameti calendar", style = MaterialTheme.typography.headlineMedium); MonthSelector(month, { selected = it.toString() }) }
-        item { Text("Installments follow their scheduled month. Receiving uses its recorded date. This calendar does not change your balance.") }
-        if (report.installments.isEmpty()) item { Text("No installments scheduled for this month.") }
-        items(report.installments, key = { it.committee.id }) { row ->
+        enteringItem { Text("Kameti calendar", style = MaterialTheme.typography.headlineMedium); MonthSelector(month, { selected = it.toString() }) }
+        enteringItem { Text("Installments follow their scheduled month. Receiving uses its recorded date. This calendar does not change your balance.") }
+        if (report.installments.isEmpty()) enteringItem { Text("No installments scheduled for this month.") }
+        enteringItems(report.installments, key = { it.committee.id }) { row ->
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(row.committee.name, style = MaterialTheme.typography.titleLarge)
                 Text("Installment #${row.number}")
                 Text(if (row.paid >= row.expected) "Paid" else "Pending", color = if (row.paid >= row.expected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                Text("Paid: ${visibleMoney(row.paid)}"); Text("Expected: ${visibleMoney(row.expected)}")
+                Text("Paid: ${visibleAmount(row.paid)}"); Text("Expected: ${visibleAmount(row.expected)}")
                 if (row.personalTurn) Text("Your receiving turn is expected this month", style = MaterialTheme.typography.titleMedium)
             }
         }
-        item { Text("Recorded receiving", style = MaterialTheme.typography.titleLarge) }
-        if (report.receipts.isEmpty()) item { Text("No receiving recorded for this month.") }
-        items(report.receipts, key = { it.id }) { row -> LedgerCard(Modifier.fillMaxWidth()) {
-            Text(committees.firstOrNull { it.id == row.committeeId }?.name.orEmpty()); Text(row.date.orEmpty()); Text(visibleMoney(row.amountMinor)); if (row.note.isNotBlank()) Text(row.note, translate = false)
+        enteringItem { Text("Recorded receiving", style = MaterialTheme.typography.titleLarge) }
+        if (report.receipts.isEmpty()) enteringItem { Text("No receiving recorded for this month.") }
+        enteringItems(report.receipts, key = { it.id }) { row -> LedgerCard(Modifier.fillMaxWidth()) {
+            Text(committees.firstOrNull { it.id == row.committeeId }?.name.orEmpty()); Text(row.date.orEmpty()); Text(visibleAmount(row.amountMinor)); if (row.note.isNotBlank()) Text(row.note, translate = false)
         } }
-        if (receipts.any { it.ownerId == owner && it.date == null }) item { Text("Undated older receiving remains in Kameti history and All records exports.") }
+        if (receipts.any { it.ownerId == owner && it.date == null }) enteringItem { Text("Undated older receiving remains in Kameti history and All records exports.") }
     }
 }
 
@@ -53,21 +53,21 @@ fun MonthlyComparisonScreen(owner: String, transactions: List<TransactionEntity>
     val b = ReportQueries.month(owner, YearMonth.parse(second), transactions, savings)
     val categories = (a.categories.keys + b.categories.keys).sortedByDescending { (a.categories[it] ?: 0) + (b.categories[it] ?: 0) }
     LazyColumn(Modifier.fillMaxSize().testTag("monthly-comparison"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
+        enteringItem {
             Text("Monthly comparison", style = MaterialTheme.typography.headlineMedium)
             MonthSelector(YearMonth.parse(first), { first = it.toString() }); MonthSelector(YearMonth.parse(second), { second = it.toString() })
             Text("Calendar-month records, including any future-dated entries. These totals are not your active salary-cycle balance.", style = MaterialTheme.typography.bodySmall)
         }
-        item { ComparisonRow("Income", a.income, b.income, first, second); ComparisonRow("Expenses", a.expenses, b.expenses, first, second); ComparisonRow("Savings", a.savings, b.savings, first, second) }
-        if (categories.isEmpty()) item { Text("No expense records in the selected months.") }
-        items(categories, key = { it }) { category -> ComparisonRow(category, a.categories[category] ?: 0, b.categories[category] ?: 0, first, second) }
+        enteringItem { ComparisonRow("Income", a.income, b.income, first, second); ComparisonRow("Expenses", a.expenses, b.expenses, first, second); ComparisonRow("Savings", a.savings, b.savings, first, second) }
+        if (categories.isEmpty()) enteringItem { Text("No expense records in the selected months.") }
+        enteringItems(categories, key = { it }) { category -> ComparisonRow(category, a.categories[category] ?: 0, b.categories[category] ?: 0, first, second) }
     }
 }
 @Composable private fun ComparisonRow(title: String, a: Long, b: Long, first: String, second: String) {
     LedgerCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        Text("$first: ${visibleMoney(a)}"); Text("$second: ${visibleMoney(b)}")
-        Text("Difference: ${visibleMoney(b - a)}")
+        Text("$first: ${visibleAmount(a)}"); Text("$second: ${visibleAmount(b)}")
+        Text("Difference: ${visibleAmount(b - a)}")
     }
 }
 @Composable private fun MonthSelector(month: YearMonth, change: (YearMonth) -> Unit) {
@@ -104,19 +104,19 @@ fun GlobalSearchScreen(vm: MainViewModel, open: (Int) -> Unit) {
         words.all { text.contains(it, true) }
     }
     LazyColumn(Modifier.fillMaxSize().testTag("all-ledgers-search"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
+        enteringItem {
             Text("Search all ledgers", style = MaterialTheme.typography.headlineMedium)
             OutlinedTextField(query, { query = it.take(100) }, label = { Text("Name, category, date or amount") }, modifier = Modifier.fillMaxWidth().testTag("global-search-input"), singleLine = true)
             Text(if (query.isBlank()) "Search income, expenses, savings, loans, kameti and udhar." else "${matches.size} matching records")
             if (matches.size > 200) Text("Showing the first 200 results. Refine your search to see fewer matches.")
         }
-        items(matches.sortedByDescending { it.date }.take(200), key = { it.key }) { row ->
+        enteringItems(matches.sortedByDescending { it.date }.take(200), key = { it.key }) { row ->
             LedgerCard(Modifier.fillMaxWidth().clickable { selected = row }) {
-                Text(if (row.ledger in listOf("Transactions", "Savings")) strings.text(row.title) else row.title, translate = false, style = MaterialTheme.typography.titleMedium); Text(row.ledger); Text(row.date); Text(visibleMoney(row.amount))
+                Text(if (row.ledger in listOf("Transactions", "Savings")) strings.text(row.title) else row.title, translate = false, style = MaterialTheme.typography.titleMedium); Text(row.ledger); Text(row.date); Text(visibleAmount(row.amount))
             }
         }
     }
     selected?.let { row -> AlertDialog(onDismissRequest = { selected = null }, title = { Text(if (row.ledger in listOf("Transactions", "Savings")) strings.text(row.title) else row.title, translate = false) }, text = {
-        Column { Text(row.ledger); Text(row.date); Text(visibleMoney(row.amount)); if (row.note.isNotBlank()) Text(row.note, translate = false) }
+        Column { Text(row.ledger); Text(row.date); Text(visibleAmount(row.amount)); if (row.note.isNotBlank()) Text(row.note, translate = false) }
     }, confirmButton = { TextButton(onClick = { selected = null; open(row.route) }) { Text("Open ledger") } }, dismissButton = { TextButton(onClick = { selected = null }) { Text("Close") } }) }
 }

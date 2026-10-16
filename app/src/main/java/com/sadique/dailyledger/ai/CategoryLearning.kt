@@ -97,7 +97,7 @@ class CategoryLearningStore(context: Context, ownerId: String) {
         finally { bytes.fill(0) }
     }
     private fun writeSuppressed(values: Set<String>) {
-        val bytes = JSONArray(values.toList().takeLast(500)).toString().toByteArray(Charsets.UTF_8)
+        val bytes = JSONArray(values.toList()).toString().toByteArray(Charsets.UTF_8)
         try { suppressedStorage.saveBytes(bytes) } finally { bytes.fill(0) }
     }
     private fun writeRules(updated: List<LearnedCategoryRule>) {
