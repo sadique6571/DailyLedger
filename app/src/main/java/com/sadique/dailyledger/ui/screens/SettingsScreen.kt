@@ -68,7 +68,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onOpenSavings: () -> Unit = {},
     onAutoFill: () -> Unit = {},
-    onLearning: () -> Unit = {},
+    entranceVisit: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
@@ -289,7 +289,7 @@ fun SettingsScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        enteringItem(key = "settings-header", index = 0) {
+        enteringItem(key = "settings-header", index = 0, entranceKey = entranceVisit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = ::backFromSettings, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 LedgerLogo(34.dp)
@@ -301,7 +301,7 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-language") {
+        enteringItem(key = "settings-language", index = 1, entranceKey = entranceVisit) {
             SectionCard("Language", "Choose your interface language") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FilterChip(selected = display.language == "en", onClick = { display.updateLanguage("en") }, label = { Text("English") }, modifier = Modifier.testTag("language-en"))
@@ -310,16 +310,16 @@ fun SettingsScreen(
                 Text("Urdu uses a bundled Nastaleeq font and works offline. Saved categories and records keep their original keys.", style = MaterialTheme.typography.bodySmall)
             }
         }
-        enteringItem(key = "settings-search") {
+        enteringItem(key = "settings-search", index = 2, entranceKey = entranceVisit) {
             OutlinedTextField(settingsQuery, { settingsQuery = it.take(80) }, label = { Text("Search settings") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("settings-search"), trailingIcon = { if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Rounded.Close, "Clear search") } })
         }
-        if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1) {
+        if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
                 driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false })
         }
 
-        if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2) {
+        if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
             SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
                 Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
                 Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
@@ -327,12 +327,12 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Weather location sounds personalization")) enteringItem(key = "settings-personalization", index = 2) {
+        if (matchesSetting("Weather location sounds personalization")) enteringItem(key = "settings-personalization", index = 2, entranceKey = entranceVisit) {
             PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
                 { cityEditor = !cityEditor; backupDetails = false }, { TransactionSoundPlayer.playBatchSuccess(context) })
         }
 
-        if (cityEditor && matchesSetting("Weather location city")) enteringItem(key = "settings-weather", index = 3) {
+        if (cityEditor && matchesSetting("Weather location city")) enteringItem(key = "settings-weather", index = 3, entranceKey = entranceVisit) {
             SectionCard("Weather location", "Choose your city. No GPS permission is needed.") {
                 OutlinedTextField(cityInput, { cityInput = it }, label = { Text("City") }, placeholder = { Text("Gujranwala, Pakistan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 if (weatherTemperature.isNotBlank()) Text("$weatherTemperature · $weatherCondition", style = MaterialTheme.typography.bodySmall)
@@ -353,15 +353,15 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Savings")) enteringItem(key = "settings-savings", index = 3) {
+        if (matchesSetting("Savings")) enteringItem(key = "settings-savings", index = 3, entranceKey = entranceVisit) {
             SavingsSettingsCard(savings.sumOf { it.amountMinor }, onOpenSavings)
         }
 
-        if (matchesSetting("Encryption privacy security")) enteringItem(key = "settings-encryption", index = 4) {
+        if (matchesSetting("Encryption privacy security")) enteringItem(key = "settings-encryption", index = 4, entranceKey = entranceVisit) {
             EncryptionBanner()
         }
 
-        if (offlineProfiles.isNotEmpty() && matchesSetting("Import old offline records")) enteringItem(key = "settings-offline-import", index = 5) {
+        if (offlineProfiles.isNotEmpty() && matchesSetting("Import old offline records")) enteringItem(key = "settings-offline-import", index = 5, entranceKey = entranceVisit) {
                 SectionCard("Previous offline data", "Choose an old profile on this phone to add its records to this account.") {
                     offlineProfiles.forEachIndexed { index, profile ->
                         OutlinedButton(onClick = { offlineImport = profile.ownerId }, enabled = !busy) {
@@ -371,9 +371,8 @@ fun SettingsScreen(
                 }
         }
 
-        if (matchesSetting("AI Auto Fill learning suggestions")) enteringItem(key = "settings-ai", index = 5) {
+        if (matchesSetting("AI Auto Fill suggestions")) enteringItem(key = "settings-ai", index = 5, entranceKey = entranceVisit) {
             SectionCard("Mini AI & Auto Fill", "Offline Mini AI and saving suggestions work without internet or API cost. Online suggestions update only when you tap Refresh. Cloud AI is optional for complex wording.") {
-                OutlinedButton(onClick = onLearning) { Text("Manage learned categories") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Optional Cloud AI", Modifier.weight(1f))
                     Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
@@ -381,11 +380,11 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Firebase App verification")) enteringItem(key = "settings-verification", index = 6) {
+        if (matchesSetting("Firebase App verification")) enteringItem(key = "settings-verification", index = 6, entranceKey = entranceVisit) {
             AppVerificationCard(context)
         }
 
-        if (matchesSetting("Appearance theme font icon size card dashboard order privacy screenshot language")) enteringItem(key = "settings-appearance", index = 7) {
+        if (matchesSetting("Appearance theme font icon size card dashboard order privacy screenshot language")) enteringItem(key = "settings-appearance", index = 7, entranceKey = entranceVisit) {
             SectionCard("Appearance", null) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("SYSTEM", "LIGHT", "DARK", "AQUA", "SUNSET", "FOREST", "ROSE", "MIDNIGHT").forEach {
@@ -485,7 +484,7 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Export PDF CSV statement Share preview")) enteringItem(key = "settings-export", index = 8) {
+        if (matchesSetting("Export PDF CSV statement Share preview")) enteringItem(key = "settings-export", index = 8, entranceKey = entranceVisit) {
             SectionCard("Export your ledger", "A statement to share, or a spreadsheet to work with.") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
@@ -551,20 +550,20 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("App info version")) enteringItem(key = "settings-info", index = 9) {
+        if (matchesSetting("App info version")) enteringItem(key = "settings-info", index = 9, entranceKey = entranceVisit) {
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
                 Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        if (matchesSetting("Reset local records")) enteringItem(key = "settings-reset", index = 10) {
+        if (matchesSetting("Reset local records")) enteringItem(key = "settings-reset", index = 10, entranceKey = entranceVisit) {
             SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
                 OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
             }
         }
 
-        if (matchesSetting("Account sign out email")) enteringItem(key = "settings-account", index = 11) {
+        if (matchesSetting("Account sign out email")) enteringItem(key = "settings-account", index = 11, entranceKey = entranceVisit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
