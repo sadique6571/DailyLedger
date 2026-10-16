@@ -122,6 +122,39 @@ class UrduPlanningUiTest {
         assertEquals(1, rows.size)
     }
 
+    @Test fun compactUrduHomeProgressKeepsPercentReadableOutsideThickTrack() {
+        display.updateLanguage("ur")
+        val today = LocalDate.now().toString()
+        val rows = listOf(
+            TransactionEntity("salary-progress", "test", "INCOME", 100000, "Salary", "", today, 1, 1),
+            TransactionEntity("expense-progress", "test", "EXPENSE", 35000, "Food", "", today, 2, 2),
+        )
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDisplayPreferences provides display,
+                LocalDensity provides Density(density.density, 1.3f),
+            ) { DailyLedgerTheme("DARK") {
+                Box(Modifier.width(320.dp).fillMaxHeight()) {
+                    DashboardScreen(
+                        tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
+                        cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
+                        weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                        onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
+                    )
+                }
+            } }
+        }
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
+        compose.onNodeWithTag("balance-progress-percent")
+            .assertIsDisplayed().assertTextEquals(progressPercent(35, true))
+        val percent = compose.onNodeWithTag("balance-progress-percent").fetchSemanticsNode().boundsInRoot
+        val track = compose.onNodeWithTag("balance-progress-track").fetchSemanticsNode().boundsInRoot
+        assertTrue("Home progress percent must not overlap its track", track.top >= percent.bottom)
+        assertTrue("Home progress track should be at least 18dp", track.height >= 17f * context.resources.displayMetrics.density)
+        shot("urdu-home-thick-progress")
+    }
+
     @Test fun compactDarkUrduBudgetRemainsReadableWithLargeSystemText() {
         display.updateLanguage("ur")
         val store = PlannerStore(context, "budget-preview-${UUID.randomUUID()}")
@@ -135,6 +168,12 @@ class UrduPlanningUiTest {
         }
         compose.onNodeWithTag("budgets-list").performScrollToKey("Milk")
         compose.onNodeWithText("دودھ").assertIsDisplayed()
+        compose.onNodeWithTag("budget-progress-percent-Milk").performScrollTo()
+            .assertIsDisplayed().assertTextEquals(progressPercent(90, true))
+        val budgetLabel = compose.onNodeWithTag("budget-progress-percent-Milk").fetchSemanticsNode().boundsInRoot
+        val budgetTrack = compose.onNodeWithTag("budget-progress-track-Milk").fetchSemanticsNode().boundsInRoot
+        assertTrue("Urdu percent must sit above—not overlap—the budget bar", budgetTrack.top >= budgetLabel.bottom)
+        assertTrue("Budget progress bar should be visibly thicker", budgetTrack.height >= 14f * context.resources.displayMetrics.density)
         compose.onNodeWithText(LedgerStrings(true, LedgerStrings.load(context)).text("Approaching your budget limit")).assertExists()
         shot("urdu-dark-large-budget")
         com.sadique.dailyledger.security.SecureSecretStore(context, "planner-v1:${store.ownerId}").clearBytes()
