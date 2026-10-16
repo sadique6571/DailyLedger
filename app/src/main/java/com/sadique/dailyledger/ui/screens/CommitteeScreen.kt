@@ -2,6 +2,10 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
@@ -46,6 +50,7 @@ fun CommitteeScreen(
     onMemberReceived: (CommitteeMemberEntity, String) -> Unit,
     onDeleteMember: (CommitteeMemberEntity) -> Unit,
     onDelete: (CommitteeEntity) -> Unit,
+    onCalendar: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var add by remember { mutableStateOf(false) }
@@ -69,6 +74,7 @@ fun CommitteeScreen(
             enteringItem {
                 Text("Kameti", style = MaterialTheme.typography.headlineMedium)
                 Text("Apni installments, receiving, members ke turns aur contacts ek jagah track karein.")
+                OutlinedButton(onClick = onCalendar) { Text("Kameti calendar") }
             }
             enteringItem {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -99,7 +105,7 @@ fun CommitteeScreen(
                             Icon(Icons.Outlined.Groups, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(committee.name, style = MaterialTheme.typography.titleMedium)
+                                Text(committee.name, translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("${committee.shares} ${if (committee.shares == 1) "kameti" else "kametis"} • ${ps.size}/${committee.totalInstallments} installments paid", style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = { deleteCommittee = committee }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${committee.name}") }
@@ -151,7 +157,7 @@ fun CommitteeScreen(
                             )
                         }
 
-                        if (committee.note.isNotBlank()) Text(committee.note, style = MaterialTheme.typography.bodySmall)
+                        if (committee.note.isNotBlank()) Text(committee.note, translate = false, style = MaterialTheme.typography.bodySmall)
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
@@ -214,7 +220,7 @@ fun CommitteeScreen(
                                     Column(Modifier.weight(1f)) {
                                         Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
                                         Text("${receipt.date ?: "Date not recorded"} • ${receipt.method}", style = MaterialTheme.typography.bodySmall)
-                                        if (receipt.note.isNotBlank()) Text(receipt.note, style = MaterialTheme.typography.bodySmall)
+                                        if (receipt.note.isNotBlank()) Text(receipt.note, translate = false, style = MaterialTheme.typography.bodySmall)
                                     }
                                     IconButton(onClick = { deleteReceipt = receipt }) { Icon(Icons.Outlined.DeleteOutline, "Delete receiving") }
                                 }
@@ -322,7 +328,7 @@ private fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () -> 
             } else {
                 OutlinedButton(onClick = onMarkReceived) { Text("Mark turn received") }
             }
-            if (member.note.isNotBlank()) Text(member.note, style = MaterialTheme.typography.bodySmall)
+            if (member.note.isNotBlank()) Text(member.note, translate = false, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

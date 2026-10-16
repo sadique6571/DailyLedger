@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -32,6 +36,7 @@ fun CategoryDropdown(
     enabled: Boolean = true,
     allowCustom: Boolean = true,
 ) {
+    val strings = com.sadique.dailyledger.i18n.LocalStrings.current
     val context = LocalContext.current
     val history = LocalCategoryHistory.current.filter { it.type == type }
     val catalog = remember(context) { CategoryCatalog.load(context) }
@@ -43,7 +48,7 @@ fun CategoryDropdown(
     var query by remember { mutableStateOf("") }
     val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
     val filtered = categories.filter { category ->
-        val text = OfflineVocabulary.normalize((listOf(category.label, category.group) + category.aliases).joinToString(" "))
+        val text = OfflineVocabulary.normalize((listOf(category.label, category.group, strings.text(category.label), strings.text(category.group)) + category.aliases).joinToString(" "))
         words.all { it in text }
     }
     BoxWithConstraints(modifier.fillMaxWidth()) {

@@ -62,6 +62,36 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
     private val categoryLearning=CategoryLearningStore(app,ownerId)
+    val planner = com.sadique.dailyledger.planning.PlannerStore(app, ownerId)
+    private val learningRevision = MutableStateFlow(0)
+    private val _learningError = MutableStateFlow<String?>(null)
+    val learningError = _learningError.asStateFlow()
+    val learnedCategories = combine(transactions, learningRevision) { rows, _ ->
+        try {
+        val explicit = categoryLearning.rules()
+        val suppressed = categoryLearning.suppressed()
+        _learningError.value = null
+        explicit + CategoryLearning.fromHistory(rows, ownerId).filter { rule ->
+            explicit.none { it.type == rule.type && it.phrase == rule.phrase } && "${rule.type}:${CategoryLearning.normalize(rule.phrase)}" !in suppressed
+        }
+        } catch (e: Exception) {
+            _learningError.value = "Saved AI learning could not be read. Existing files were kept."
+            emptyList()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    fun forgetCategory(rule: LearnedCategoryRule): String? = try {
+        checkAccount(); categoryLearning.forget(rule.type, rule.phrase); learningRevision.value++; null
+    } catch (e: Exception) { e.message ?: "Could not remove this learning rule." }
+    suspend fun saveRecurring(bill: com.sadique.dailyledger.planning.RecurringBill, draft: TransactionDraft) {
+        val due = bill.nextDue()
+        BackupLock.mutex.withLock {
+            checkAccount()
+            check(planner.data.value.bills.any { it.id == bill.id && it.nextDue() == due }) { "This reminder has already been handled. Refresh the list." }
+            repo.saveDraftBatch(listOf(draft), bill.batchId())
+            planner.markHandled(bill.id, due)
+        }
+        runCatching { SyncScheduler.syncNow(getApplication<Application>()) }
+    }
     private val manualInsights = ManualInsights(viewModelScope, aiPrefs.enabled, aiPrefs::cached, aiPrefs::save)
     val aiEnabled = manualInsights.enabled
     val aiTips = manualInsights.tips
@@ -87,7 +117,8 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             aiService.drafts(input).also { checkAccount() }
         }
         val learnedRules = categoryLearning.rules()
-        val historyRules = CategoryLearning.fromHistory(repo.transactions.first(), ownerId)
+        val suppressed = categoryLearning.suppressed()
+        val historyRules = CategoryLearning.fromHistory(repo.transactions.first(), ownerId).filter { "${it.type}:${CategoryLearning.normalize(it.phrase)}" !in suppressed }
         val entries = result.entries.map { CategoryLearning.apply(it, learnedRules, historyRules) }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
         return result.copy(entries = entries, message = result.message +
@@ -96,6 +127,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     fun rememberCategory(type:String,phrase:String,category:String):String? = try{
         checkAccount()
         categoryLearning.remember(type,phrase,category)
+        learningRevision.value++
         null
     }catch(e:Exception){e.message?:"Could not save this category correction on this device."}
     suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();repo.saveDraftBatch(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}

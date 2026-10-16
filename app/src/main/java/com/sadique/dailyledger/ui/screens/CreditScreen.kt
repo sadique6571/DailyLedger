@@ -2,6 +2,10 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
@@ -134,7 +138,7 @@ fun CreditScreen(
                                 )
                             }
                             Column(Modifier.weight(1f)) {
-                                Text(credit.item, style = MaterialTheme.typography.titleMedium)
+                                Text(credit.item, translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("${credit.creditor} • ${credit.category}", style = MaterialTheme.typography.bodyMedium)
                                 Text("Bought ${credit.purchaseDate} • ${money(credit.amountMinor)}", style = MaterialTheme.typography.bodySmall)
                                 credit.dueDate?.let { Text("Due $it • ${creditDueLabel(it)}", style = MaterialTheme.typography.bodySmall) }

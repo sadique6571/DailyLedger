@@ -71,7 +71,7 @@ class RefreshScreensTest {
         assertEquals("loans", action)
         shot("aqua-more")
     }
-    @Test fun settingsChildrenReturnToSettingsBeforeHome() {
+    @Test fun settingsChildrenAndNestedSearchReturnToSettingsThenMore() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val owner = "settings-navigation-preview"
         val repo = com.sadique.dailyledger.data.LedgerRepository(com.sadique.dailyledger.data.AppDatabase.get(context), owner)
@@ -89,9 +89,30 @@ class RefreshScreensTest {
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-savings")
             compose.onNodeWithText("View savings").performScrollTo().performClick()
             compose.onNodeWithTag("return-to-settings").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Search transactions").performClick()
+            compose.onNodeWithTag("global-search-input").performTextInput("Milk")
+            compose.waitUntil(5000) { compose.onAllNodesWithText("1 matching records").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Milk").performScrollTo().performClick()
+            compose.onNodeWithText("Open ledger").performClick()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("all-ledgers-search").assertExists()
+            compose.onNodeWithTag("global-search-input").assertTextContains("Milk")
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("return-to-settings").assertExists()
             androidx.test.espresso.Espresso.pressBack()
             compose.onNodeWithTag("settings-list").assertExists()
             compose.onNodeWithText("View savings").assertIsDisplayed()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-search")
+            compose.onNodeWithTag("settings-search").performTextInput("export")
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-export")
+            compose.onNodeWithTag("export-preview").performScrollTo().assertIsEnabled()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("settings-list").assertExists()
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-ai")
+            compose.onNodeWithText("Manage learned categories").performScrollTo().performClick()
+            compose.onNodeWithTag("learning-list").assertExists()
+            androidx.test.espresso.Espresso.pressBack()
+            compose.onNodeWithTag("settings-list").assertExists()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-header")
             compose.onNodeWithContentDescription("AI Auto Fill").performClick()
             compose.onNodeWithTag("autofill-list").assertExists()

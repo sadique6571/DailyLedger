@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ai.AiConsent
 import android.app.Application
 import android.widget.Toast
@@ -40,6 +44,23 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.HOME
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.TRANSACTIONS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.LOANS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.KAMETI
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.SAVINGS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.INSIGHTS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.MORE
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.UDHAR
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.SETTINGS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.AUTO_FILL
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.BUDGETS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.BILLS
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.CALENDAR
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.COMPARISON
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.SEARCH
+import com.sadique.dailyledger.ui.NavigationHistory.Companion.LEARNING
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -67,6 +88,14 @@ import com.sadique.dailyledger.ui.screens.SavingsScreen
 import com.sadique.dailyledger.ui.screens.SettingsScreen
 import com.sadique.dailyledger.ui.screens.TransactionDialog
 import com.sadique.dailyledger.ui.screens.TransactionsScreen
+import com.sadique.dailyledger.ui.screens.BudgetScreen
+import com.sadique.dailyledger.ui.screens.BillsScreen
+import com.sadique.dailyledger.ui.screens.KametiCalendarScreen
+import com.sadique.dailyledger.ui.screens.MonthlyComparisonScreen
+import com.sadique.dailyledger.ui.screens.GlobalSearchScreen
+import com.sadique.dailyledger.ui.screens.LearningScreen
+import com.sadique.dailyledger.planning.PlannerMath
+import com.sadique.dailyledger.planning.BillReminderWorker
 import com.sadique.dailyledger.weather.WeatherService
 import com.sadique.dailyledger.audio.TransactionSoundPlayer
 import kotlinx.coroutines.launch
@@ -111,17 +140,27 @@ fun DailyLedgerApp(
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
     val ledgerArchives by vm.ledgerArchives.collectAsState()
+    val planning by vm.planner.data.collectAsState()
+    val today by androidx.compose.runtime.produceState(java.time.LocalDate.now()) {
+        while (true) { value = java.time.LocalDate.now(); kotlinx.coroutines.delay(30_000) }
+    }
+    val planningNotices = remember(planning, tx, today, user.id) {
+        PlannerMath.budgets(user.id, planning.budgets, tx, java.time.YearMonth.from(today))
+            .filter { it.nearLimit }.map { "${it.category}: ${if (it.exceeded) "Budget limit reached" else "Near budget limit"}" } +
+            PlannerMath.due(planning.bills, today).takeIf { it.isNotEmpty() }?.let { listOf("${it.size} bills ready for review") }.orEmpty()
+    }
     CompositionLocalProvider(LocalCategoryHistory provides tx) {
-    var tab by rememberSaveable(user.id) { mutableIntStateOf(0) }
-    var settingsOpen by rememberSaveable(user.id) { mutableStateOf(false) }
-    var settingsReturn by rememberSaveable(user.id) { mutableStateOf(false) }
-    var moreReturn by rememberSaveable(user.id) { mutableStateOf(false) }
-    val moreListState = rememberLazyListState()
+    var navigation by rememberSaveable(user.id, stateSaver = listSaver(
+        save = { it.entries }, restore = { NavigationHistory(it) }
+    )) { mutableStateOf(NavigationHistory()) }
+    val tab = navigation.current
+    val settingsOpen = tab == SETTINGS
+    val settingsReturn = navigation.parent == SETTINGS
     val settingsState = rememberSaveableStateHolder()
-    fun returnToSettings() { settingsReturn = false; settingsOpen = true }
-    fun closeSettings() { settingsOpen = false; settingsReturn = false; tab = if (moreReturn) 6 else 0; moreReturn = false }
+    fun open(destination: Int) { navigation = navigation.open(destination) }
+    fun goBack() { navigation = navigation.back() }
     var remindersOpen by remember { mutableStateOf(false) }
-    var autoFillOpen by remember(user.id) { mutableStateOf(false) }
+    BackHandler(enabled = navigation.canGoBack) { goBack() }
     var creditAiOpen by remember(user.id) { mutableStateOf(false) }
     var addCreditRequested by remember { mutableStateOf(false) }
     var addSaving by remember { mutableStateOf(false) }
@@ -132,8 +171,8 @@ fun DailyLedgerApp(
     val aiTips by vm.aiTips.collectAsState()
     val aiStatus by vm.aiStatus.collectAsState()
     val aiBusy by vm.aiBusy.collectAsState()
-    val snapshot = remember(tx, savings, loans, lp, cp, ledgerCycle, user.id) {
-        SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle)
+    val snapshot = remember(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today) {
+        SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today)
     }
     var restoreInfo by remember(user.id) { mutableStateOf<DriveBackupInfo?>(null) }
     var restoreBusy by remember(user.id) { mutableStateOf(false) }
@@ -221,17 +260,17 @@ fun DailyLedgerApp(
             dismissButton = { TextButton(onClick = { aiConsent = false }) { Text("Cancel") } },
         )
     }
-    if (autoFillOpen) {
+    if (tab == AUTO_FILL) {
         AutoFillScreen(
             enabled = aiEnabled,
             onEnable = { aiConsent = true },
-            onBack = { autoFillOpen = false },
+            onBack = { goBack() },
             generate = vm::autoFill,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
             },
-            onSaved = { autoFillOpen = false },
+            onSaved = { goBack() },
             onLearnCategory = vm::rememberCategory,
         )
         return@CompositionLocalProvider
@@ -240,10 +279,10 @@ fun DailyLedgerApp(
     if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, vm::saveCreditDrafts)
     if (addSaving) SavingDialog(
         dismiss = { addSaving = false },
-        onHistory = { addSaving = false; tab = 4 },
+        onHistory = { addSaving = false; open(4) },
     ) { k, a, d, n -> vm.launch { saveSaving(k, a, d, n) }; addSaving = false }
     val saveError by vm.error.collectAsState()
-    LaunchedEffect(user.id) { SyncScheduler.syncNow(context) }
+    LaunchedEffect(user.id) { SyncScheduler.syncNow(context); BillReminderWorker.schedule(context) }
     LaunchedEffect(saveError) {
         saveError?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -265,23 +304,14 @@ fun DailyLedgerApp(
             loan.principalMinor > lp.filter { it.loanId == loan.id }.sumOf { it.amountMinor } }
             .sortedBy { it.dueDate }.take(5).map { "${it.person} · ${it.dueDate}" } +
             committeeMembers.filter { it.isMe && !it.received }.sortedBy { it.turnMonth }.take(5).map { "Kameti turn · ${it.turnMonth}" } +
-            credits.filter { !it.closed && it.dueDate != null }.sortedBy { it.dueDate }.take(5).map { "Udhar: ${it.creditor} · ${it.dueDate}" }
+            credits.filter { !it.closed && it.dueDate != null }.sortedBy { it.dueDate }.take(5).map { "Udhar: ${it.creditor} · ${it.dueDate}" } +
+            PlannerMath.due(planning.bills, today).take(5).map { "${it.title} · ${it.nextDue()}" }
         AlertDialog(onDismissRequest = { remindersOpen = false }, title = { Text("Your reminders") },
             text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (reminders.isEmpty()) Text("No pending loan dates or personal kameti turns in your records.")
                 reminders.forEach { Text(it) }
             } }, confirmButton = { TextButton(onClick = { remindersOpen = false }) { Text("Close") } })
     }
-    BackHandler(enabled = !settingsOpen && (tab != 0 || settingsReturn)) {
-        when {
-            settingsReturn -> returnToSettings()
-            moreReturn && tab != 6 -> { tab = 6; moreReturn = false }
-            else -> { tab = 0; moreReturn = false }
-        }
-    }
-
-    BackHandler(enabled = settingsOpen) { closeSettings() }
-
     if (settingsOpen) {
         settingsState.SaveableStateProvider("settings-${user.id}") {
         SettingsScreen(
@@ -299,9 +329,10 @@ fun DailyLedgerApp(
             weatherCondition = weatherCondition,
             weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
-            onBack = ::closeSettings,
-            onAutoFill = { autoFillOpen = true },
-            onOpenSavings = { settingsReturn = true; settingsOpen = false; tab = 4 },
+            onBack = ::goBack,
+            onAutoFill = { open(AUTO_FILL) },
+            onOpenSavings = { open(SAVINGS) },
+            onLearning = { open(LEARNING) },
             onTheme = { scope.launch { settings.setTheme(it) } },
             onBiometric = { enable ->
                 if (enable && Biometrics.pick(context) == null) {
@@ -343,17 +374,18 @@ fun DailyLedgerApp(
                     subtitle = when (tab) {
                         1 -> "All your transactions"; 2 -> "Borrowed & lent"; 3 -> "Your kameti, organized"
                         4 -> "For a brighter tomorrow"; 5 -> "Understand your spending"; 6 -> "Everything in one place"; 7 -> "Udhar Saman"
+                        in BUDGETS..LEARNING -> NavigationHistory.label(tab)
                         else -> "Your money, a brighter tomorrow"
                     }, modifier = Modifier.statusBarsPadding(),
                 ) {
-                    if (settingsReturn) IconButton(onClick = ::returnToSettings, modifier = Modifier.testTag("return-to-settings")) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Settings")
+                    if (navigation.entries.size > 2 || tab in BUDGETS..LEARNING) IconButton(onClick = ::goBack, modifier = Modifier.testTag(if (settingsReturn) "return-to-settings" else "navigate-up")) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to ${NavigationHistory.label(navigation.parent)}")
                     }
-                    IconButton(onClick = { moreReturn = false; historyQuery = ""; historyFilter = "ALL"; tab = 1 }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
+                    IconButton(onClick = { open(SEARCH) }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
                     IconButton(onClick = { remindersOpen = true }) {
                         Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
                     }
-                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else autoFillOpen = true }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
                         Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(3.dp))
                         Text("AI Entry", fontSize = 11.sp)
@@ -365,9 +397,9 @@ fun DailyLedgerApp(
             Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
             NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
                 tabs.forEachIndexed { i, t ->
-                    val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6); else -> false }
+                    val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..LEARNING; else -> false }
                     NavigationBarItem(selected = selected,
-                        onClick = { settingsReturn = false; moreReturn = false; when (i) { 0 -> tab = 0; 1 -> tab = 7; 2 -> tab = 3; 3 -> tab = 4; else -> tab = 6 } },
+                        onClick = { navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
                         icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
                         label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
@@ -379,6 +411,7 @@ fun DailyLedgerApp(
         },
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
+          settingsState.SaveableStateProvider("screen-${user.id}-$tab") {
             when (tab) {
                 0 -> DashboardScreen(
                     tx = tx,
@@ -402,15 +435,15 @@ fun DailyLedgerApp(
                     onOpenSavings = { addSaving = true },
                     onAddOtherIncome = { quickTransaction = EntryShortcut("INCOME", "Other income") },
                     onAddCategoryExpense = { category, note -> quickTransaction = EntryShortcut("EXPENSE", category, note) },
-                    onOpenInsights = { tab = 5 },
-                    onOpenLoans = { tab = 2 },
-                    onOpenUdhar = { addCreditRequested = true; tab = 7 },
+                    onOpenInsights = { open(5) },
+                    onOpenLoans = { open(2) },
+                    onOpenUdhar = { addCreditRequested = true; open(7) },
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
                     creditPayments = creditPayments,
-                    onOpenKameti = { tab = 3 },
-                    onAutoFill = { autoFillOpen = true },
-                    onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; tab = 1 },
-                    onExpenseHistory = { historyQuery = ""; historyFilter = "EXPENSE"; tab = 1 },
+                    onOpenKameti = { open(3) },
+                    onAutoFill = { open(AUTO_FILL) },
+                    onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
+                    onExpenseHistory = { historyQuery = ""; historyFilter = "EXPENSE"; open(1) },
                     onStartNewMonth = vm::startNewMonth,
                     onArchivePreviousMonth = { callback -> vm.archivePreviousMonth(callback) },
                     snapshot = snapshot,
@@ -420,11 +453,13 @@ fun DailyLedgerApp(
                     aiBusy = aiBusy,
                     onRefreshAi = { vm.refreshInsights(snapshot) },
                     onEnableAi = { aiConsent = true },
+                    planningNotices = planningNotices,
+                    onOpenPlanning = { open(if (PlannerMath.due(planning.bills, today).isNotEmpty()) BILLS else BUDGETS) },
                 )
                 1 -> TransactionsScreen(
                     items = tx,
                     initialQuery = historyQuery, initialFilter = historyFilter,
-                    onAutoFill = { autoFillOpen = true },
+                    onAutoFill = { open(AUTO_FILL) },
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
@@ -457,6 +492,7 @@ fun DailyLedgerApp(
                     onMemberReceived = { member, date -> vm.launch { markCommitteeMemberReceived(member, date) } },
                     onDeleteMember = { member -> vm.launch { deleteCommitteeMember(member) } },
                     onDelete = { c -> vm.launch { deleteCommittee(c) } },
+                    onCalendar = { open(CALENDAR) },
                 )
                 4 -> SavingsScreen(
                     savings = savings,
@@ -466,6 +502,7 @@ fun DailyLedgerApp(
                 5 -> LedgerBackdrop(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("Your monthly insights", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        OutlinedButton(onClick = { open(COMPARISON) }) { Text("Monthly comparison") }
                         InsightsCard(snapshot, aiTips, aiStatus, aiEnabled, onEnable = { aiConsent = true },
                             busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) })
                     }
@@ -473,18 +510,30 @@ fun DailyLedgerApp(
                 7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
+                BUDGETS -> BudgetScreen(user.id, vm.planner, tx)
+                BILLS -> BillsScreen(vm)
+                CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
+                COMPARISON -> MonthlyComparisonScreen(user.id, tx, savings)
+                SEARCH -> GlobalSearchScreen(vm, ::open)
+                LEARNING -> LearningScreen(vm)
                 else -> MoreScreen(
-                    onTransactions = { moreReturn = true; historyQuery = ""; historyFilter = "ALL"; tab = 1 },
-                    onLoans = { moreReturn = true; tab = 2 },
-                    onKameti = { moreReturn = true; tab = 3 },
-                    onSavings = { moreReturn = true; tab = 4 },
-                    onSettings = { moreReturn = true; settingsOpen = true },
-                    onCredit = { moreReturn = true; tab = 7 },
-                    onInsights = { moreReturn = true; tab = 5 },
-                    listState = moreListState,
+                    onTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
+                    onLoans = { open(2) },
+                    onKameti = { open(3) },
+                    onSavings = { open(4) },
+                    onSettings = { open(SETTINGS) },
+                    onCredit = { open(7) },
+                    onInsights = { open(5) },
+                    onBudgets = { open(BUDGETS) },
+                    onBills = { open(BILLS) },
+                    onCalendar = { open(CALENDAR) },
+                    onComparison = { open(COMPARISON) },
+                    onSearch = { open(SEARCH) },
+                    onLearning = { open(LEARNING) },
                 )
             }
         }
+    }
     }
     quickTransaction?.let { entry ->
         TransactionDialog(
@@ -492,7 +541,7 @@ fun DailyLedgerApp(
             dismiss = { quickTransaction = null },
             initialType = entry.type,
             initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
-            onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; tab = 1 },
+            onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
             save = { t, a, c, n, d ->
                 vm.launch(onSuccess = {
                     if (transactionSounds) TransactionSoundPlayer.play(context, t)

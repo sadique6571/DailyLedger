@@ -78,6 +78,9 @@ object ExportManager {
         require(from == null || through == null || !from.isAfter(through)) { "Start date must be on or before end date." }
         save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(repo, from, through))
     }
+    internal suspend fun savePreparedPdf(context: Context, bytes: ByteArray): String = withContext(Dispatchers.IO) {
+        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", bytes)
+    }
     internal suspend fun statementBytes(repo: LedgerRepository, from: LocalDate?, through: LocalDate?): ByteArray =
         statementBytes(repo.transactions.first(), from, through,
             repo.committees.first(), repo.committeePayments.first(), repo.committeeReceipts.first())

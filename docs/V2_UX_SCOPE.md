@@ -1,10 +1,11 @@
 # DailyLedger 2.0 — UX Upgrade Tracking
 
-Status: **in development, not released**. Base: merged v1.8.1 source on `main`.
-Branch: `codex/v2-ui-experience-20261015`.
+Status: **historical candidate backlog**. The selected 16 October batch is tracked in
+[V2_RELEASE_CHECKLIST.md](V2_RELEASE_CHECKLIST.md), with verification in [TESTING.md](../TESTING.md).
+The list below records earlier ideas, not a declaration that all 151 features shipped.
 
 ## Safety / release rules
-- Never modify Google Drive backup/restore, Room/SQLCipher database schemas/migrations, Firebase config, AI or money calculations.
+- Preserve Google Drive backup/restore, Room/SQLCipher database schemas/migrations, Firebase configuration and ledger calculations. The approved October 16 batch adds AI-learning controls and includes Udhar payments in the AI summary; it does not replace the Firebase transport or change ledger math.
 - Preserve application ID, signing certificate and upgrade compatibility.
 - Preserve all existing records; use UI-local settings only for display preferences.
 - No merge into main until complete, reviewed, and tested.

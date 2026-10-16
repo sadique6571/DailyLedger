@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +71,8 @@ fun DashboardScreen(
     udharOutstanding: Long = 0L,
     creditPayments: List<CreditPaymentEntity> = emptyList(),
     onStartNewMonth: () -> Unit = {}, onArchivePreviousMonth: ((Boolean) -> Unit) -> Unit = {},
+    planningNotices: List<String> = emptyList(),
+    onOpenPlanning: () -> Unit = {},
 ) {
     val today by produceState(initialValue = LocalDate.now()) {
         while (true) { value = LocalDate.now(); delay(30_000) }
@@ -109,6 +115,8 @@ fun DashboardScreen(
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 12.dp else 16.dp)) {
+            val sections = DashboardSections()
+            with(sections) {
             enteringItem(key = "greeting", index = 0) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -126,7 +134,7 @@ fun DashboardScreen(
                     LandscapeArtwork(Modifier.align(Alignment.BottomEnd).width(if (compact) 112.dp else 196.dp).height(112.dp))
                     Column(Modifier.padding(top = 6.dp, bottom = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(when (LocalTime.now().hour) { in 5..11 -> "🌅 Good morning,"; in 12..16 -> "☀️ Good afternoon,"; in 17..20 -> "🌆 Good evening,"; else -> "🌙 Good night," }, fontSize = 15.sp)
-                        Text("👋 " + userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = if (compact) 23.sp else 27.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(if (compact) .65f else .85f))
+                        Text(translate = false, text = "👋 " + userName.substringBefore(' ').ifBlank { "Friend" }, fontSize = if (compact) 23.sp else 27.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(if (compact) .65f else .85f))
                         if (weatherEnabled && weatherCity.isNotBlank()) {
                             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = .88f)) {
                                 Row(Modifier.padding(horizontal = 9.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -135,7 +143,7 @@ fun DashboardScreen(
                                         fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 270.dp))
                                 }
                             }
-                        } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy")), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else Text(cycleStartLabel?.let { "Salary cycle from $it" } ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH)), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 }
@@ -191,7 +199,7 @@ fun DashboardScreen(
                                     days == 0L -> "Salary expected today"
                                     else -> "Salary expected ${-days} day${if (days == -1L) "" else "s"} ago"
                                 }
-                                Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))}",
+                                Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                                     color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
                                 Text("Estimate from your last salary. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
                             }
@@ -228,6 +236,13 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
                     icon = Icons.Rounded.EventAvailable,
                 )
+            }
+            if (planningNotices.isNotEmpty()) enteringItem(key = "budget-notice", index = 4) {
+                LedgerCard(Modifier.fillMaxWidth()) {
+                    Text("Budgets & reminders", style = MaterialTheme.typography.titleMedium)
+                    planningNotices.take(3).forEach { Text(it, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = onOpenPlanning) { Text("Review") }
+                }
             }
             if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
@@ -302,7 +317,7 @@ fun DashboardScreen(
                             ) {
                                 GlowIcon(visual.icon, visual.color, size = 35.dp)
                                 Column(Modifier.weight(1f)) {
-                                    Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                    Text(if (entry.note.isBlank()) com.sadique.dailyledger.i18n.LocalStrings.current.text(entry.category) else entry.note, translate = false, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(entry.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -404,6 +419,8 @@ fun DashboardScreen(
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
             snapshot?.takeIf { display.showInsights }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
+            }
+            sections.render(this, display.dashboardOrder)
         }
     }
     if (balanceDetails) AlertDialog(

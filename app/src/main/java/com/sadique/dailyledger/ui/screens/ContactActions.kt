@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast

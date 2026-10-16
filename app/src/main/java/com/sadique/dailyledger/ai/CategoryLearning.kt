@@ -82,19 +82,29 @@ class CategoryLearningStore(context: Context, ownerId: String) {
 
         val updated = listOf(LearnedCategoryRule(type, normalizedPhrase, cleanCategory)) +
             rules().filterNot { it.type == type && CategoryLearning.normalize(it.phrase) == normalizedPhrase }
-        val json = JSONObject().put("version", 1).put(
-            "rules",
-            JSONArray().apply {
-                updated.take(MAX_RULES).forEach { rule ->
-                    put(JSONObject().put("type", rule.type).put("phrase", rule.phrase).put("category", rule.category))
-                }
-            },
-        ).toString().toByteArray(Charsets.UTF_8)
-        try {
-            storage.saveBytes(json)
-        } finally {
-            json.fill(0)
-        }
+        writeRules(updated.take(MAX_RULES))
+    }
+
+    fun forget(type: String, phrase: String) {
+        writeRules(rules().filterNot { it.type == type && CategoryLearning.normalize(it.phrase) == CategoryLearning.normalize(phrase) })
+        val hidden = suppressed().toMutableSet(); hidden += "$type:${CategoryLearning.normalize(phrase)}"
+        writeSuppressed(hidden)
+    }
+    private val suppressedStorage = SecureSecretStore(context.applicationContext, "category-learning-hidden:$ownerId")
+    fun suppressed(): Set<String> {
+        val bytes = suppressedStorage.loadBytes() ?: return emptySet()
+        try { val a = JSONArray(String(bytes, Charsets.UTF_8)); return (0 until a.length()).map { a.getString(it) }.toSet() }
+        finally { bytes.fill(0) }
+    }
+    private fun writeSuppressed(values: Set<String>) {
+        val bytes = JSONArray(values.toList().takeLast(500)).toString().toByteArray(Charsets.UTF_8)
+        try { suppressedStorage.saveBytes(bytes) } finally { bytes.fill(0) }
+    }
+    private fun writeRules(updated: List<LearnedCategoryRule>) {
+        val json = JSONObject().put("version", 1).put("rules", JSONArray().apply {
+            updated.forEach { put(JSONObject().put("type", it.type).put("phrase", it.phrase).put("category", it.category)) }
+        }).toString().toByteArray(Charsets.UTF_8)
+        try { storage.saveBytes(json) } finally { json.fill(0) }
     }
 
     fun apply(draft: TransactionDraft): TransactionDraft {
