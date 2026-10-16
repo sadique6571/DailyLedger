@@ -56,7 +56,19 @@ class UrduPlanningUiTest {
             compose.runOnIdle { visit++ }
             compose.mainClock.advanceTimeByFrame()
             val startingAgain = compose.onNodeWithTag("settings-entrance-probe").fetchSemanticsNode().boundsInRoot.left
-            assertTrue("Settings entrance must slide again after revisiting", startingAgain < settled - 10f * context.resources.displayMetrics.density)
+            val animationsDisabled = android.provider.Settings.Global.getFloat(
+                context.contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
+            ) == 0f
+            if (animationsDisabled) {
+                // CI deliberately disables Android animations for deterministic emulator runs.
+                assertEquals("Reduced-motion Settings cards must appear in place", settled, startingAgain, 2f)
+            } else {
+                assertTrue(
+                    "Settings entrance must slide again after revisiting",
+                    startingAgain < settled - 10f * context.resources.displayMetrics.density,
+                )
+            }
             compose.mainClock.advanceTimeBy(400)
             val finishedAgain = compose.onNodeWithTag("settings-entrance-probe").fetchSemanticsNode().boundsInRoot.left
             assertEquals("Settings entrance must settle in its normal position", settled, finishedAgain, 2f)
