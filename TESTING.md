@@ -6,12 +6,12 @@ Candidate: version **2.0.0**, code **20**, package `com.sadique.dailyledger`.
 The feature batch is implemented on `codex/v2-urdu-complete-20261016`. CI results and the APK checksum will be recorded after the complete release build succeeds.
 
 New regression cases cover:
-- Full screen-history Back paths, bottom-tab reset, Settings → Savings → global search → Transactions → Back, Settings search and AI learning return paths.
+- Full screen-history Back paths, bottom-tab reset, Settings → Savings → global search → Transactions → Back, Settings search and automatic-only AI-learning UI (no manual manager).
 - All 244 built-in category translations, bundled Nastaleeq, RTL Urdu dropdown selection returning the original stored key, English/Urdu switching and compact dark/large-text rendering.
 - Dashboard order persistence/reset and keeping Home Insights with an explicit Refresh action.
 - Monthly budget owner/type/month isolation and 80%/100% thresholds; recurring month-end/leap dates, overdue/skip behavior and stable retry identities.
 - Encrypted per-account planner persistence, corruption preservation, recurring batch idempotency and explicit review-before-save.
-- Learning correction/forget/retraining; owner-scoped kameti calendar and partial receipts; calendar-month comparison; Udhar deductions in the AI summary.
+- Automatic learning, correction and suppression persistence; owner-scoped kameti calendar and partial receipts; calendar-month comparison; Udhar deductions in the AI summary.
 - Native PDF preview page rendering, close without saving and save/share controls, alongside the existing multi-page transaction/kameti export tests.
 
 Existing encrypted-database upgrade, Drive backup/restore, account-isolation, financial-calculation, AI-date, manual-refresh and release-signing gates remain required. Database schemas/migrations, Drive serialization, Firebase configuration and signing files are unchanged in this batch.
