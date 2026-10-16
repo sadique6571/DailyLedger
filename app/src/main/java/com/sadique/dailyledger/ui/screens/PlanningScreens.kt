@@ -14,6 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.sadique.dailyledger.ai.LearnedCategoryRule
@@ -46,7 +49,27 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(row.category, style = MaterialTheme.typography.titleLarge)
                 Text("Spent: ${visibleAmount(row.spent)}"); Text("Monthly limit: ${visibleAmount(row.limit)}")
-                LinearProgressIndicator(progress = { row.fraction }, modifier = Modifier.fillMaxWidth(), color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                val percentUsed = if (row.limit > 0L) (row.spent.toDouble() / row.limit * 100.0).roundToInt() else 0
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 4.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Spent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        com.sadique.dailyledger.i18n.progressPercent(percentUsed, com.sadique.dailyledger.i18n.LocalStrings.current.urdu),
+                        Modifier.testTag("budget-progress-percent-${row.category}"),
+                        translate = false, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, softWrap = false,
+                        color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { row.fraction },
+                    modifier = Modifier.fillMaxWidth().height(16.dp)
+                        .testTag("budget-progress-track-${row.category}"),
+                    color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                )
                 Text(if (row.exceeded) "Budget limit reached" else if (row.nearLimit) "Approaching your budget limit" else "Within your budget", color = if (row.nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 Row { TextButton(onClick = { edit = CategoryBudget(row.category, row.limit); adding = true }) { Text("Edit") }; TextButton(onClick = { pendingDelete = CategoryBudget(row.category, row.limit) }) { Text("Remove") } }
             }
