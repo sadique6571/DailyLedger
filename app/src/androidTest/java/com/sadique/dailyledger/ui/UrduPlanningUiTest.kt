@@ -149,7 +149,7 @@ class UrduPlanningUiTest {
         // Balance is a clickable parent and merges its descendants in the accessibility tree.
         // Inspect the unmerged tree to target the actual percentage and track.
         compose.onNodeWithTag("balance-progress-percent", useUnmergedTree = true)
-            .performScrollTo().assertIsDisplayed().assertTextEquals(progressPercent(35, true))
+            .performScrollTo().assertIsDisplayed().assertTextEquals("35%")
         val percent = compose.onNodeWithTag("balance-progress-percent", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot
         val track = compose.onNodeWithTag("balance-progress-track", useUnmergedTree = true)
@@ -173,7 +173,7 @@ class UrduPlanningUiTest {
         compose.onNodeWithTag("budgets-list").performScrollToKey("Milk")
         compose.onNodeWithText("دودھ").assertIsDisplayed()
         compose.onNodeWithTag("budget-progress-percent-Milk").performScrollTo()
-            .assertIsDisplayed().assertTextEquals(progressPercent(90, true))
+            .assertIsDisplayed().assertTextEquals("90%")
         val budgetLabel = compose.onNodeWithTag("budget-progress-percent-Milk").fetchSemanticsNode().boundsInRoot
         val budgetTrack = compose.onNodeWithTag("budget-progress-track-Milk").fetchSemanticsNode().boundsInRoot
         assertTrue("Urdu percent must sit above—not overlap—the budget bar", budgetTrack.top >= budgetLabel.bottom)
