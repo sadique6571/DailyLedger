@@ -147,7 +147,7 @@ class UrduPlanningUiTest {
         }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
         compose.onNodeWithTag("balance-progress-percent")
-            .assertIsDisplayed().assertTextEquals(progressPercent(35, true))
+            .performScrollTo().assertIsDisplayed().assertTextEquals(progressPercent(35, true))
         val percent = compose.onNodeWithTag("balance-progress-percent").fetchSemanticsNode().boundsInRoot
         val track = compose.onNodeWithTag("balance-progress-track").fetchSemanticsNode().boundsInRoot
         assertTrue("Home progress percent must not overlap its track", track.top >= percent.bottom)
