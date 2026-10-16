@@ -38,6 +38,33 @@ class UrduPlanningUiTest {
     @Before fun setup() { display = DisplayPreferences(context); display.reset(); display.updateLanguage("en") }
     @After fun cleanup() { compose.runOnIdle { display.updateLanguage("en"); display.reset() } }
 
+    @Test fun settingsEntranceReplaysOnNewVisit() {
+        var visit by mutableIntStateOf(1)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.setContent { DailyLedgerTheme("LIGHT") {
+                Box(Modifier.fillMaxWidth().padding(48.dp)) {
+                    CardEntrance(index = 0, entranceKey = visit) {
+                        androidx.compose.material3.Text(
+                            "Settings animation", modifier = Modifier.testTag("settings-entrance-probe"),
+                        )
+                    }
+                }
+            } }
+            compose.mainClock.advanceTimeBy(500)
+            val settled = compose.onNodeWithTag("settings-entrance-probe").fetchSemanticsNode().boundsInRoot.left
+            compose.runOnIdle { visit++ }
+            compose.mainClock.advanceTimeByFrame()
+            val startingAgain = compose.onNodeWithTag("settings-entrance-probe").fetchSemanticsNode().boundsInRoot.left
+            assertTrue("Settings entrance must slide again after revisiting", startingAgain < settled - 10f * context.resources.displayMetrics.density)
+            compose.mainClock.advanceTimeBy(400)
+            val finishedAgain = compose.onNodeWithTag("settings-entrance-probe").fetchSemanticsNode().boundsInRoot.left
+            assertEquals("Settings entrance must settle in its normal position", settled, finishedAgain, 2f)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
     @Test fun allBuiltInCategoriesHaveUrduLabelsAndFontIsBundled() {
         val labels = LedgerStrings.load(context)
         for (category in CategoryCatalog.load(context)) {
@@ -48,6 +75,8 @@ class UrduPlanningUiTest {
         val strings = LedgerStrings(true, labels)
         assertEquals("نوٹ: Milk from Aslam", strings.text("Note: Milk from Aslam"))
         assertEquals("Paid: Rs 100", LedgerStrings(false, labels).text("Paid: Rs 100"))
+        assertEquals("18%", progressPercent(18))
+        assertEquals("90%", progressPercent(90))
     }
 
     @Test fun urduDropdownSearchReturnsOriginalCanonicalKeyAndRtl() {
