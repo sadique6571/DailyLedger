@@ -146,10 +146,14 @@ class UrduPlanningUiTest {
             } }
         }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
-        compose.onNodeWithTag("balance-progress-percent")
+        // Balance is a clickable parent and merges its descendants in the accessibility tree.
+        // Inspect the unmerged tree to target the actual percentage and track.
+        compose.onNodeWithTag("balance-progress-percent", useUnmergedTree = true)
             .performScrollTo().assertIsDisplayed().assertTextEquals(progressPercent(35, true))
-        val percent = compose.onNodeWithTag("balance-progress-percent").fetchSemanticsNode().boundsInRoot
-        val track = compose.onNodeWithTag("balance-progress-track").fetchSemanticsNode().boundsInRoot
+        val percent = compose.onNodeWithTag("balance-progress-percent", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val track = compose.onNodeWithTag("balance-progress-track", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
         assertTrue("Home progress percent must not overlap its track", track.top >= percent.bottom)
         assertTrue("Home progress track should be at least 18dp", track.height >= 17f * context.resources.displayMetrics.density)
         shot("urdu-home-thick-progress")
