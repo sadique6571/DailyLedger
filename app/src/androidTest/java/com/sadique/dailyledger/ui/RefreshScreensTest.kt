@@ -92,7 +92,7 @@ class RefreshScreensTest {
             compose.onNodeWithContentDescription("Search transactions").performClick()
             compose.onNodeWithTag("global-search-input").performTextInput("Milk")
             compose.waitUntil(5000) { compose.onAllNodesWithText("1 matching records").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText("Milk").performScrollTo().performClick()
+            compose.onNodeWithTag("global-search-result-tx:settings-preview-entry").performScrollTo().assertIsDisplayed().performClick()
             compose.onNodeWithText("Open ledger").performClick()
             androidx.test.espresso.Espresso.pressBack()
             compose.onNodeWithTag("all-ledgers-search").assertExists()
