@@ -108,6 +108,9 @@ class RefreshScreensTest {
             compose.onNodeWithTag("export-preview").performScrollTo().assertIsEnabled()
             androidx.test.espresso.Espresso.pressBack()
             compose.onNodeWithTag("settings-list").assertExists()
+            // Search remains active after closing the export preview; clear it before opening another Settings section.
+            compose.onNodeWithTag("settings-list").performScrollToKey("settings-search")
+            compose.onNodeWithTag("settings-search").assertTextContains("export").performTextReplacement("")
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-ai")
             compose.onNodeWithText("Manage learned categories").performScrollTo().performClick()
             compose.onNodeWithTag("learning-list").assertExists()
