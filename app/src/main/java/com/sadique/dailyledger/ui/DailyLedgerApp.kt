@@ -157,8 +157,17 @@ fun DailyLedgerApp(
     val settingsOpen = tab == SETTINGS
     val settingsReturn = navigation.parent == SETTINGS
     val settingsState = rememberSaveableStateHolder()
-    fun open(destination: Int) { navigation = navigation.open(destination) }
-    fun goBack() { navigation = navigation.back() }
+    // Replay card entrance on each Settings visit while preserving list scroll position.
+    var settingsEntranceVisit by remember(user.id) { mutableIntStateOf(0) }
+    fun open(destination: Int) {
+        if (destination == SETTINGS && navigation.current != SETTINGS) settingsEntranceVisit++
+        navigation = navigation.open(destination)
+    }
+    fun goBack() {
+        val next = navigation.back()
+        if (navigation.current != SETTINGS && next.current == SETTINGS) settingsEntranceVisit++
+        navigation = next
+    }
     var remindersOpen by remember { mutableStateOf(false) }
     BackHandler(enabled = navigation.canGoBack) { goBack() }
     var creditAiOpen by remember(user.id) { mutableStateOf(false) }
@@ -332,7 +341,7 @@ fun DailyLedgerApp(
             onBack = ::goBack,
             onAutoFill = { open(AUTO_FILL) },
             onOpenSavings = { open(SAVINGS) },
-            onLearning = { open(LEARNING) },
+            entranceVisit = settingsEntranceVisit,
             onTheme = { scope.launch { settings.setTheme(it) } },
             onBiometric = { enable ->
                 if (enable && Biometrics.pick(context) == null) {
@@ -529,7 +538,6 @@ fun DailyLedgerApp(
                     onCalendar = { open(CALENDAR) },
                     onComparison = { open(COMPARISON) },
                     onSearch = { open(SEARCH) },
-                    onLearning = { open(LEARNING) },
                 )
             }
         }
