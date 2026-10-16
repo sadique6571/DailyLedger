@@ -57,7 +57,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                 ) {
                     Text("Spent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        com.sadique.dailyledger.i18n.progressPercent(percentUsed, com.sadique.dailyledger.i18n.LocalStrings.current.urdu),
+                        com.sadique.dailyledger.i18n.progressPercent(percentUsed),
                         Modifier.testTag("budget-progress-percent-${row.category}"),
                         translate = false, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, softWrap = false,
