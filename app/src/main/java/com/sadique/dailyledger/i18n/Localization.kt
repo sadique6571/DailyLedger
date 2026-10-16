@@ -54,6 +54,15 @@ class LedgerStrings(val urdu: Boolean = false, private val labels: Map<String, S
     }
 }
 val LocalStrings = staticCompositionLocalOf { LedgerStrings() }
+/** Compact, bidi-safe percent text; keep financial ratios unchanged. */
+fun progressPercent(percent: Int, urdu: Boolean): String {
+    if (!urdu) return "$percent%"
+    val urduDigits = "۰۱۲۳۴۵۶۷۸۹"
+    val amount = percent.toString().map { digit ->
+        if (digit in '0'..'9') urduDigits[digit - '0'] else digit
+    }.joinToString("")
+    return "$amount٪"
+}
 val Nastaleeq = FontFamily(Font(R.font.noto_nastaliq_urdu))
 
 @Composable
