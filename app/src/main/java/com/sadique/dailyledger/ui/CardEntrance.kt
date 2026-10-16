@@ -20,13 +20,13 @@ import androidx.compose.ui.unit.dp
  * rememberSaveable also prevents a LazyColumn item replaying as it scrolls back in.
  */
 @Composable
-fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    var entered by rememberSaveable { mutableStateOf(false) }
-    val progress = remember { Animatable(if (entered) 1f else 0f) }
+fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int = 0, content: @Composable () -> Unit) {
+    var entered by rememberSaveable(entranceKey) { mutableStateOf(false) }
+    val progress = remember(entranceKey) { Animatable(if (entered) 1f else 0f) }
     val distance = with(LocalDensity.current) { 48.dp.toPx() }
     val context = LocalContext.current
     val reduceMotion = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-    LaunchedEffect(Unit) {
+    LaunchedEffect(entranceKey) {
         if (!entered) {
             entered = true
             if (reduceMotion) progress.snapTo(1f)
@@ -39,10 +39,10 @@ fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, content: @Compos
     }) { content() }
 }
 
-fun LazyListScope.enteringItem(key: Any? = null, index: Int = 0, content: @Composable LazyItemScope.() -> Unit) {
+fun LazyListScope.enteringItem(key: Any? = null, index: Int = 0, entranceKey: Int = 0, content: @Composable LazyItemScope.() -> Unit) {
     item(key = key) {
         val scope = this
-        CardEntrance(index) { scope.content() }
+        CardEntrance(index, entranceKey = entranceKey) { scope.content() }
     }
 }
 
