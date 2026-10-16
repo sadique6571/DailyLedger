@@ -46,7 +46,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
         enteringItem { Button(onClick = { edit = null; adding = true }) { Text("Add budget") }; (message ?: store.error)?.let { Text(it) } }
         if (progress.isEmpty()) enteringItem { Text("Set a monthly category limit to see your spending progress.") }
         enteringItems(progress, key = { it.category }) { row ->
-            LedgerCard(Modifier.fillMaxWidth()) {
+            LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 10.dp) {
                 Text(row.category, style = MaterialTheme.typography.titleLarge)
                 Text("Spent: ${visibleAmount(row.spent)}"); Text("Monthly limit: ${visibleAmount(row.limit)}")
                 val percentUsed = if (row.limit > 0L) (row.spent.toDouble() / row.limit * 100.0).roundToInt() else 0
