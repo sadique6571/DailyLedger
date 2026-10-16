@@ -51,6 +51,30 @@ class LedgerScreensTest {
         screenshot("dashboard-separate-totals")
     }
 
+    @Test fun homeDoesNotShowAutomaticInsightsButKeepsManualShortcutAndKametiCard() {
+        val rows = listOf(TransactionEntity("salary", "test", "INCOME", 1000000, "Salary",
+            "", "$month-01", 1, 1))
+        val analysis = com.sadique.dailyledger.ai.SpendingInsights.calculate("test", rows)
+        var opened = false
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            DashboardScreen(
+                tx = rows, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
+                weatherEnabled = false, weatherCity = "", weatherTemperature = "",
+                weatherCondition = "", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
+                onOpenSavings = {}, onOpenKameti = {},
+                onOpenInsights = { opened = true },
+            )
+        } }
+        compose.onNodeWithTag("startup-insight-preview").assertDoesNotExist()
+        compose.onNodeWithText("Your offline money insight").assertDoesNotExist()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
+        compose.onNodeWithTag("kameti-paid-card").assertIsDisplayed().assertHasClickAction()
+        compose.onNodeWithTag("dashboard-list").performScrollToKey("insights-shortcut")
+        compose.onNodeWithText("Spending insights").performClick()
+        assertTrue("Manual Insights remains accessible", opened)
+    }
+
     @Test fun dashboardRequiresExplicitSalaryCycleStartAndOffersArchive() {
         var action = ""
         val cycle = LedgerCycleEntity("test", 1, 250)
