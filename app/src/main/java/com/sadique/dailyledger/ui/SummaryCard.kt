@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,28 +38,37 @@ fun SummaryCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
+    val isKameti = title.contains("kameti", true)
+    // Material theme's tertiary is almost white in several light themes.
+    // Give Kameti a real accent, contrasting border and tinted fill so it reads as a card.
     val accent = when {
-        title.contains("kameti", true) -> scheme.tertiary
+        isKameti -> lerp(LedgerColors.Purple, scheme.primary, .22f)
         title.contains("saving", true) -> scheme.primary
         title.contains("owe", true) -> scheme.error
         title.contains("udhar", true) -> scheme.secondary
         else -> scheme.secondary
     }
     val shape = RoundedCornerShape(20.dp)
+    val cardFill = if (isKameti) lerp(scheme.surface, accent, if (dark) .24f else .11f)
+        else scheme.surface
     Card(
-        modifier = modifier.fillMaxWidth().clip(shape)
+        modifier = modifier.fillMaxWidth()
+            .then(if (isKameti) Modifier.testTag("kameti-paid-card") else Modifier)
             .clickable(enabled = onClick != null) { onClick?.invoke() },
         shape = shape,
-        border = BorderStroke(1.dp, accent.copy(alpha = if (dark) .42f else .28f)),
-        colors = CardDefaults.cardColors(containerColor = scheme.surface),
+        border = BorderStroke(
+            if (isKameti) 1.5.dp else 1.dp,
+            accent.copy(alpha = if (isKameti) .86f else if (dark) .42f else .28f),
+        ),
+        colors = CardDefaults.cardColors(containerColor = cardFill),
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
     ) {
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
                     Brush.verticalGradient(listOf(
-                        accent.copy(alpha = if (dark) .16f else .11f),
-                        scheme.surface,
+                        lerp(cardFill, accent, if (isKameti) .12f else .06f),
+                        cardFill,
                     )),
                     shape = shape,
                 )
