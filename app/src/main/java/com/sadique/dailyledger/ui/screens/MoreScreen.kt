@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
@@ -20,7 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.ui.*
 
 @Composable
-fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState()) {
+fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState(),
+    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {
@@ -32,6 +37,11 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Triple("Transactions", "Search, edit and manage your entries", Icons.Rounded.Description) to onTransactions,
                 Triple("Loans", "Borrowed, lent and payment history", Icons.Rounded.Handshake) to onLoans,
                 Triple("Settings & backup", "Account, themes and Google Drive backup", Icons.Rounded.Settings) to onSettings,
+                Triple("Category budgets", "Monthly limits and spending progress", Icons.Rounded.AccountBalanceWallet) to onBudgets,
+                Triple("Bills & reminders", "Review recurring entries before saving", Icons.Rounded.EventNote) to onBills,
+                Triple("Kameti calendar", "Paid, pending and expected receiving", Icons.Rounded.CalendarMonth) to onCalendar,
+                Triple("Monthly comparison", "Compare income, expenses and categories", Icons.Rounded.CompareArrows) to onComparison,
+                Triple("Search all ledgers", "Find records across your money spaces", Icons.Rounded.Search) to onSearch,
             )
             rows.forEachIndexed { i, (entry, action) -> enteringItem(index = i) {
                 val color = listOf(LedgerColors.Blue, LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Green, LedgerColors.Teal)[i % 6]

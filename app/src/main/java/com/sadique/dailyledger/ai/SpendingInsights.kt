@@ -38,6 +38,7 @@ object SpendingInsights {
         loanPayments: List<LoanPaymentEntity> = emptyList(),
         committeePayments: List<CommitteePaymentEntity> = emptyList(),
         ledgerCycle: LedgerCycleEntity? = null,
+        creditPayments: List<CreditPaymentEntity> = emptyList(),
     ): SpendingSnapshot {
         val month = YearMonth.from(today)
         val previous = month.minusMonths(1)
@@ -55,9 +56,12 @@ object SpendingInsights {
         val currentCommitteePayments = committeePayments.filter { payment ->
             payment.ownerId == owner && (ledgerCycle?.let { payment.paidAt >= it.startAt } ?: payment.month == month.toString())
         }
+        val currentCreditPayments = creditPayments.filter { payment ->
+            payment.ownerId == owner && runCatching { LocalDate.parse(payment.date) <= today }.getOrDefault(false)
+        }
         val summary = ledgerCycle?.let {
-            ledgerCycleSummary(current, currentCommitteePayments, currentSavings, it)
-        } ?: monthlySalarySummary(current, month.toString(), currentCommitteePayments, currentSavings)
+            ledgerCycleSummary(current, currentCommitteePayments, currentSavings, it, creditPayments = currentCreditPayments)
+        } ?: monthlySalarySummary(current, month.toString(), currentCommitteePayments, currentSavings, currentCreditPayments)
         val categories = current
             .filter { it.type == "EXPENSE" }
             .groupBy { it.category.trim().ifBlank { "Other" } }

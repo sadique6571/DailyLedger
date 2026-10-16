@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ai.AiConsent
 import android.app.Activity
 import android.content.Context
@@ -64,6 +68,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onOpenSavings: () -> Unit = {},
     onAutoFill: () -> Unit = {},
+    entranceVisit: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
@@ -77,6 +82,12 @@ fun SettingsScreen(
             dismissButton = { TextButton(onClick = { aiConsent = false }) { Text("Cancel") } },
         )
     }
+    var settingsQuery by rememberSaveable { mutableStateOf("") }
+    val strings = com.sadique.dailyledger.i18n.LocalStrings.current
+    fun matchesSetting(terms: String) = settingsQuery.isBlank() || settingsQuery.trim().split(Regex("\\s+")).all {
+        (terms + " " + strings.text(terms)).contains(it, true)
+    }
+    var preview by remember { mutableStateOf<ByteArray?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var exportResult by remember { mutableStateOf<String?>(null) }
     var exportPdf by remember { mutableStateOf(true) }
@@ -96,7 +107,7 @@ fun SettingsScreen(
     val backupReady = driveEnabled && lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
     var cityEditor by rememberSaveable { mutableStateOf(false) }
-    fun export(pdf: Boolean) {
+    fun export(pdf: Boolean, previewOnly: Boolean = false) {
         if (busy) return
         busy = true
         message = null
@@ -116,6 +127,10 @@ fun SettingsScreen(
                         }
                         start to end
                     }
+                }
+                if (previewOnly) {
+                    preview = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ExportManager.statementBytes(vm.repo, from, through) }
+                    return@launch
                 }
                 val location = if (pdf) ExportManager.pdf(context, vm.repo, from, through)
                     else ExportManager.csv(context, vm.repo, from, through)
@@ -257,10 +272,11 @@ fun SettingsScreen(
         when {
             cityEditor -> cityEditor = false
             backupDetails -> backupDetails = false
+            settingsQuery.isNotBlank() -> settingsQuery = ""
             else -> onBack()
         }
     }
-    BackHandler(enabled = cityEditor || backupDetails) { backFromSettings() }
+    BackHandler(enabled = cityEditor || backupDetails || settingsQuery.isNotBlank()) { backFromSettings() }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
     LazyColumn(
@@ -273,7 +289,7 @@ fun SettingsScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        enteringItem(key = "settings-header", index = 0) {
+        enteringItem(key = "settings-header", index = 0, entranceKey = entranceVisit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = ::backFromSettings, enabled = !busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 LedgerLogo(34.dp)
@@ -285,12 +301,25 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-backup", index = 1) {
+        enteringItem(key = "settings-language", index = 1, entranceKey = entranceVisit) {
+            SectionCard("Language", "Choose your interface language") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilterChip(selected = display.language == "en", onClick = { display.updateLanguage("en") }, label = { Text("English") }, modifier = Modifier.testTag("language-en"))
+                    FilterChip(selected = display.language == "ur", onClick = { display.updateLanguage("ur") }, label = { Text("اردو") }, modifier = Modifier.testTag("language-ur"))
+                }
+                Text("Urdu uses a bundled Nastaleeq font and works offline. Saved categories and records keep their original keys.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        enteringItem(key = "settings-search", index = 2, entranceKey = entranceVisit) {
+            OutlinedTextField(settingsQuery, { settingsQuery = it.take(80) }, label = { Text("Search settings") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("settings-search"), trailingIcon = { if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Rounded.Close, "Clear search") } })
+        }
+        if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
                 driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false })
         }
 
-        if (backupDetails) enteringItem(key = "settings-backup-details", index = 2) {
+        if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
             SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
                 Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
                 Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
@@ -298,12 +327,12 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-personalization", index = 2) {
+        if (matchesSetting("Weather location sounds personalization")) enteringItem(key = "settings-personalization", index = 2, entranceKey = entranceVisit) {
             PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
                 { cityEditor = !cityEditor; backupDetails = false }, { TransactionSoundPlayer.playBatchSuccess(context) })
         }
 
-        if (cityEditor) enteringItem(key = "settings-weather", index = 3) {
+        if (cityEditor && matchesSetting("Weather location city")) enteringItem(key = "settings-weather", index = 3, entranceKey = entranceVisit) {
             SectionCard("Weather location", "Choose your city. No GPS permission is needed.") {
                 OutlinedTextField(cityInput, { cityInput = it }, label = { Text("City") }, placeholder = { Text("Gujranwala, Pakistan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 if (weatherTemperature.isNotBlank()) Text("$weatherTemperature · $weatherCondition", style = MaterialTheme.typography.bodySmall)
@@ -324,15 +353,15 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-savings", index = 3) {
+        if (matchesSetting("Savings")) enteringItem(key = "settings-savings", index = 3, entranceKey = entranceVisit) {
             SavingsSettingsCard(savings.sumOf { it.amountMinor }, onOpenSavings)
         }
 
-        enteringItem(key = "settings-encryption", index = 4) {
+        if (matchesSetting("Encryption privacy security")) enteringItem(key = "settings-encryption", index = 4, entranceKey = entranceVisit) {
             EncryptionBanner()
         }
 
-        if (offlineProfiles.isNotEmpty()) enteringItem(key = "settings-offline-import", index = 5) {
+        if (offlineProfiles.isNotEmpty() && matchesSetting("Import old offline records")) enteringItem(key = "settings-offline-import", index = 5, entranceKey = entranceVisit) {
                 SectionCard("Previous offline data", "Choose an old profile on this phone to add its records to this account.") {
                     offlineProfiles.forEachIndexed { index, profile ->
                         OutlinedButton(onClick = { offlineImport = profile.ownerId }, enabled = !busy) {
@@ -342,7 +371,7 @@ fun SettingsScreen(
                 }
         }
 
-        enteringItem(key = "settings-ai", index = 5) {
+        if (matchesSetting("AI Auto Fill suggestions")) enteringItem(key = "settings-ai", index = 5, entranceKey = entranceVisit) {
             SectionCard("Mini AI & Auto Fill", "Offline Mini AI and saving suggestions work without internet or API cost. Online suggestions update only when you tap Refresh. Cloud AI is optional for complex wording.") {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Optional Cloud AI", Modifier.weight(1f))
@@ -351,11 +380,11 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-verification", index = 6) {
+        if (matchesSetting("Firebase App verification")) enteringItem(key = "settings-verification", index = 6, entranceKey = entranceVisit) {
             AppVerificationCard(context)
         }
 
-        enteringItem(key = "settings-appearance", index = 7) {
+        if (matchesSetting("Appearance theme font icon size card dashboard order privacy screenshot language")) enteringItem(key = "settings-appearance", index = 7, entranceKey = entranceVisit) {
             SectionCard("Appearance", null) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("SYSTEM", "LIGHT", "DARK", "AQUA", "SUNSET", "FOREST", "ROSE", "MIDNIGHT").forEach {
@@ -434,6 +463,7 @@ fun SettingsScreen(
                     Text("Savings before loans", Modifier.weight(1f))
                     Switch(checked = display.savingsFirst, onCheckedChange = display::updateSavingsFirst)
                 }
+                DashboardOrderEditor(display)
                 Text("Live preview", style = MaterialTheme.typography.titleMedium)
                 LedgerCard(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -454,7 +484,7 @@ fun SettingsScreen(
             }
         }
 
-        enteringItem(key = "settings-export", index = 8) {
+        if (matchesSetting("Export PDF CSV statement Share preview")) enteringItem(key = "settings-export", index = 8, entranceKey = entranceVisit) {
             SectionCard("Export your ledger", "A statement to share, or a spreadsheet to work with.") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
@@ -513,37 +543,39 @@ fun SettingsScreen(
                     else "CSV includes transactions, savings, loan payments and kameti records. Keep downloaded files private.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (busy) Text("Working on your request…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                if (exportPdf) OutlinedButton(onClick = { export(true, previewOnly = true) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("export-preview")) { Text("Preview & share PDF") }
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        enteringItem(key = "settings-info", index = 9) {
+        if (matchesSetting("App info version")) enteringItem(key = "settings-info", index = 9, entranceKey = entranceVisit) {
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
                 Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        enteringItem(key = "settings-reset", index = 10) {
+        if (matchesSetting("Reset local records")) enteringItem(key = "settings-reset", index = 10, entranceKey = entranceVisit) {
             SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
                 OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
             }
         }
 
-        enteringItem(key = "settings-account", index = 11) {
+        if (matchesSetting("Account sign out email")) enteringItem(key = "settings-account", index = 11, entranceKey = entranceVisit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Spacer(Modifier.height(8.dp))
-                Text(user.name, style = MaterialTheme.typography.titleMedium)
-                Text(user.email, style = MaterialTheme.typography.bodySmall)
+                Text(user.name, translate = false, style = MaterialTheme.typography.titleMedium)
+                Text(user.email, translate = false, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = onLogout, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
             }
         }
     }
     }
+    preview?.let { ExportPreview(it) { preview = null } }
     exportResult?.let { result ->
         AlertDialog(
             onDismissRequest = { exportResult = null },

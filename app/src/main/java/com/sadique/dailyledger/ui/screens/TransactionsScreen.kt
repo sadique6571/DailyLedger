@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
@@ -82,11 +86,12 @@ fun TransactionsScreen(
     var quickTemplate by remember { mutableStateOf<TransactionEntity?>(null) }
     val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
+    val searchStrings = com.sadique.dailyledger.i18n.LocalStrings.current
     val filtered = items.filter {
         it.id != undoPendingId &&
         (!favoritesOnly || it.id in favoriteIds) &&
         (filter == "ALL" || it.type == filter) &&
-            (query.isBlank() || it.category.contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
+            (query.isBlank() || it.category.contains(query, true) || searchStrings.text(it.category).contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query)) &&
             when (dateRange) {
                 "TODAY" -> it.date == today.toString()
                 "WEEK" -> runCatching { LocalDate.parse(it.date) }.getOrNull()?.let { d -> !d.isBefore(today.minusDays(6)) && !d.isAfter(today) } == true
@@ -175,7 +180,7 @@ fun TransactionsScreen(
                             Text(x.date, style = MaterialTheme.typography.bodySmall)
                             TextButton(onClick = { showDetails = x }, contentPadding = PaddingValues(0.dp)) { Text("Details") }
                             if (x.note.isNotBlank()) {
-                                Text(x.note, modifier = Modifier.clickable { expandedNoteId = if (expandedNoteId == x.id) null else x.id }, maxLines = if (expandedNoteId == x.id) Int.MAX_VALUE else 2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(x.note, translate = false, modifier = Modifier.clickable { expandedNoteId = if (expandedNoteId == x.id) null else x.id }, maxLines = if (expandedNoteId == x.id) Int.MAX_VALUE else 2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Column {

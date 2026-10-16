@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
@@ -47,7 +51,7 @@ fun SavingsScreen(
                     Row(Modifier.padding(14.dp)) {
                         Column(Modifier.weight(1f)) {
                             Text(if (saving.kind == "LEFTOVER") "Leftover saving" else "Direct saving")
-                            Text("${saving.date} • ${saving.note}", style = MaterialTheme.typography.bodySmall)
+                            Text("${saving.date} • ${saving.note}", translate = false, style = MaterialTheme.typography.bodySmall)
                         }
                         Text(visibleMoney(saving.amountMinor))
                         IconButton(onClick = { onDelete(saving) }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }

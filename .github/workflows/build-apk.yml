@@ -131,3 +131,43 @@ jobs:
           compression-level: 9
           retention-days: 14
           if-no-files-found: error
+
+  publish_v2:
+    name: Publish GitHub v2.0.0 release
+    needs: build
+    # One-time release gate: only this deliberately titled, tested PR #7 merge
+    # can publish. All future main commits keep building without releasing.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release DailyLedger v2.0.0 (#7)') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+
+      - name: Download verified APK and certificate report
+        uses: actions/download-artifact@v4
+        with:
+          name: DailyLedger-APK
+          path: release-files
+
+      - name: Publish signed APK as v2.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -s release-files/DailyLedger.apk
+          test -s release-files/verification.txt
+          test -s docs/V2_RELEASE_NOTES.md
+          if git ls-remote --exit-code --tags origin refs/tags/v2.0.0 >/dev/null 2>&1; then
+            echo "Refusing to replace an existing v2.0.0 tag" >&2
+            exit 1
+          fi
+          gh release create v2.0.0 \
+            release-files/DailyLedger.apk \
+            release-files/verification.txt \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "DailyLedger v2.0.0" \
+            --notes-file docs/V2_RELEASE_NOTES.md \
+            --latest

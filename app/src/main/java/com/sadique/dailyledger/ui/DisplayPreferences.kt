@@ -9,6 +9,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 /** Local, UI-only preferences. Does not touch ledger data, backup, or database. */
 class DisplayPreferences(context: Context) {
     private val store = context.applicationContext.getSharedPreferences("display_preferences_v1", Context.MODE_PRIVATE)
+    var language by mutableStateOf(store.getString("language", "en").let { if (it == "ur") "ur" else "en" })
+        private set
+    fun updateLanguage(value: String) { language = if (value == "ur") "ur" else "en"; store.edit().putString("language", language).apply() }
+    var dashboardOrder by mutableStateOf(normalizeOrder(store.getString("dashboard_order", "")?.split(",").orEmpty()))
+        private set
+    fun updateDashboardOrder(order: List<String>) { dashboardOrder = normalizeOrder(order); store.edit().putString("dashboard_order", dashboardOrder.joinToString(",")).apply() }
+    fun resetDashboardOrder() = updateDashboardOrder(DEFAULT_ORDER)
+    companion object {
+        val DEFAULT_ORDER = listOf("greeting", "balance", "monthly-totals", "salary-cycle-controls", "budget-notice", "spending", "frequent-items", "recent", "insights-shortcut", "separate-totals", "udhar-shortcut", "insights")
+        fun normalizeOrder(order: List<String>) = (order.filter { it in DEFAULT_ORDER } + DEFAULT_ORDER).distinct()
+    }
     var fontSize by mutableStateOf(store.getInt("font", 1).coerceIn(0, 3))
         private set
     var iconSize by mutableStateOf(store.getInt("icons", 1).coerceIn(0, 2))
@@ -49,7 +60,7 @@ class DisplayPreferences(context: Context) {
     fun reset() {
         updateFontSize(1); updateIconSize(1); updateCardSize(1); updateCompact(false)
         updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
-        updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true)
+        updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true); resetDashboardOrder()
     }
     val fontMultiplier: Float get() = floatArrayOf(0.9f, 1f, 1.15f, 1.3f)[fontSize]
     val iconMultiplier: Float get() = floatArrayOf(0.85f, 1f, 1.2f)[iconSize]

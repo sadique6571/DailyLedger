@@ -10,6 +10,10 @@ import java.util.Locale
 
 fun money(minor: Long): String = displayMoney(minor)
 
+/** Presentation-only masking for shared planning/report screens. */
+@androidx.compose.runtime.Composable
+fun visibleAmount(minor: Long): String = if (LocalDisplayPreferences.current?.privateAmounts == true) "Rs •••••" else money(minor)
+
 /** Parses user text such as "1,250.50" into integer paisa. Returns null for invalid input. */
 fun parseMinor(text: String): Long? = runCatching {
     text.replace(",", "").trim().toBigDecimal()

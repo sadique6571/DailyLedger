@@ -1,4 +1,6 @@
 package com.sadique.dailyledger.ui.screens
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

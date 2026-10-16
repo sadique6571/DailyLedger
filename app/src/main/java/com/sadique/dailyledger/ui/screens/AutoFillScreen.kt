@@ -1,5 +1,9 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
+
+import com.sadique.dailyledger.i18n.LocalizedText as Text
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -127,7 +131,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.Top) {
                                     Column(Modifier.weight(1f).clickable(enabled = !busy) { editing = i }.testTag("draft-edit-$i")) {
-                                        Text(entry.note.ifBlank { entry.category }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(if (entry.note.isBlank()) com.sadique.dailyledger.i18n.LocalStrings.current.text(entry.category) else entry.note, translate = false, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(displayMoney(entry.amountMinor), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     }
                                     IconButton(onClick = { entries = entries.filterIndexed { j, _ -> j != i } }, enabled = !busy, modifier = Modifier.size(36.dp)) {

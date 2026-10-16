@@ -1,4 +1,24 @@
-# Current release — Daily Ledger 1.8.1
+# Daily Ledger 2.0.0 candidate — validation in progress
+
+Base: `7491aee223f68b398a7481479b6037e1aeb28a36` (2.0.0-beta1/code 19).
+Candidate: version **2.0.0**, code **20**, package `com.sadique.dailyledger`.
+
+The feature batch is implemented on `codex/v2-urdu-complete-20261016`. CI results and the APK checksum will be recorded after the complete release build succeeds.
+
+New regression cases cover:
+- Full screen-history Back paths, bottom-tab reset, Settings → Savings → global search → Transactions → Back, Settings search and automatic-only AI-learning UI (no manual manager).
+- All 244 built-in category translations, bundled Nastaleeq, RTL Urdu dropdown selection returning the original stored key, English/Urdu switching and compact dark/large-text rendering.
+- Dashboard order persistence/reset and keeping Home Insights with an explicit Refresh action.
+- Monthly budget owner/type/month isolation and 80%/100% thresholds; recurring month-end/leap dates, overdue/skip behavior and stable retry identities.
+- Encrypted per-account planner persistence, corruption preservation, recurring batch idempotency and explicit review-before-save.
+- Automatic learning, correction and suppression persistence; owner-scoped kameti calendar and partial receipts; calendar-month comparison; Udhar deductions in the AI summary.
+- Native PDF preview page rendering, close without saving and save/share controls, alongside the existing multi-page transaction/kameti export tests.
+
+Existing encrypted-database upgrade, Drive backup/restore, account-isolation, financial-calculation, AI-date, manual-refresh and release-signing gates remain required. Database schemas/migrations, Drive serialization, Firebase configuration and signing files are unchanged in this batch.
+
+Limits: no live Google sign-in, Gemini request, real Drive upload or second-device restore is implied by emulator tests. Monthly plans/learning remain on-device; the existing Drive backup is readable JSON in its private app-data folder. Android decides when periodic reminders run. Comparison/budgets use all recorded dates in a calendar month, while AI historical insights keep their through-today cutoff and Home uses the active salary cycle.
+
+# Historical release — Daily Ledger 1.8.1
 
 Verified on **2026-10-15**, build commit **fe2ce6e1702e8214b85f3318a4df072c563db203**:
 [successful GitHub Actions run](https://github.com/sadique6571/DailyLedger/actions/runs/38693036119).
