@@ -56,20 +56,23 @@ class LedgerScreensTest {
             "", "$month-01", 1, 1))
         val analysis = com.sadique.dailyledger.ai.SpendingInsights.calculate("test", rows)
         var opened = false
+        var kametiOpened = false
         compose.setContent { DailyLedgerTheme("LIGHT") {
             DashboardScreen(
                 tx = rows, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
                 cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
                 weatherEnabled = false, weatherCity = "", weatherTemperature = "",
                 weatherCondition = "", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
-                onOpenSavings = {}, onOpenKameti = {},
+                onOpenSavings = {}, onOpenKameti = { kametiOpened = true },
                 onOpenInsights = { opened = true },
             )
         } }
         compose.onNodeWithTag("startup-insight-preview").assertDoesNotExist()
         compose.onNodeWithText("Your offline money insight").assertDoesNotExist()
         compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
-        compose.onNodeWithTag("kameti-paid-card").assertIsDisplayed().assertHasClickAction()
+        compose.onNodeWithTag("kameti-paid-card").performScrollTo().assertIsDisplayed()
+            .assertHasClickAction().performClick()
+        assertTrue("Kameti paid card must open Kameti", kametiOpened)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("insights-shortcut")
         compose.onNodeWithText("Spending insights").performClick()
         assertTrue("Manual Insights remains accessible", opened)
