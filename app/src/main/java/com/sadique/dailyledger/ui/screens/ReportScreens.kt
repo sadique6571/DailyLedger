@@ -111,7 +111,7 @@ fun GlobalSearchScreen(vm: MainViewModel, open: (Int) -> Unit) {
             if (matches.size > 200) Text("Showing the first 200 results. Refine your search to see fewer matches.")
         }
         enteringItems(matches.sortedByDescending { it.date }.take(200), key = { it.key }) { row ->
-            LedgerCard(Modifier.fillMaxWidth().clickable { selected = row }) {
+            LedgerCard(Modifier.fillMaxWidth().testTag("global-search-result-${row.key}").clickable { selected = row }) {
                 Text(if (row.ledger in listOf("Transactions", "Savings")) strings.text(row.title) else row.title, translate = false, style = MaterialTheme.typography.titleMedium); Text(row.ledger); Text(row.date); Text(visibleAmount(row.amount))
             }
         }
