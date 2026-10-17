@@ -188,7 +188,7 @@ fun CreditScreen(
                             Text("Record payment")
                         }
                         history.take(3).forEach { row ->
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) {
+                            com.sadique.dailyledger.ui.LedgerHistoryCard() {
                                 Text("${row.date} • ${money(row.amountMinor)} • ${row.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                             }
                         }
