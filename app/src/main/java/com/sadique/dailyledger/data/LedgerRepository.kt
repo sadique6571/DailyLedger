@@ -250,43 +250,31 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     }
 
     suspend fun saveCommitteeMember(
-        committeeId: String,
-        name: String,
-        phone: String,
-        whatsapp: String,
-        turnNumber: Int,
-        turnMonth: String,
-        isMe: Boolean,
-        note: String,
-        halfUnits: Int = 2,
-    ) = db.withTransaction {
+        committeeId: String, name: String, phone: String, whatsapp: String, turnNumber: Int,
+        turnMonth: String, isMe: Boolean, note: String, halfUnits: Int = 2,
+    ) = saveCommitteeMembers(committeeId,
+        listOf(PersonalTurnDraft(name, phone, whatsapp, turnNumber, turnMonth, isMe, note, halfUnits)), UUID.randomUUID().toString())
+
+    suspend fun saveCommitteeMembers(committeeId: String, drafts: List<PersonalTurnDraft>, requestId: String) = db.withTransaction {
         val committee = requireNotNull(dao.committeeNow(ownerId, committeeId)) { "This kameti no longer exists." }
-        require(turnNumber in 1..committee.totalInstallments) { "Turn number must be between 1 and ${committee.totalInstallments}." }
-        val parsedMonth = YearMonth.parse(turnMonth)
-        val expected = YearMonth.parse(committee.startMonth).plusMonths((turnNumber - 1).toLong())
-        require(parsedMonth == expected) { "Turn #$turnNumber should be $expected." }
-        val members = dao.committeeMembersNow(ownerId).filter { it.committeeId == committeeId }
-        require(halfUnits in 1..2) { "Choose a half or full share." }
-        require(members.filter { it.turnNumber == turnNumber }.sumOf { it.shareHalfUnits } + halfUnits <= 2) { "Turn #$turnNumber has no room for this share." }
-        if (isMe) require(members.filter { it.isMe }.sumOf { it.shareHalfUnits } + halfUnits <= committee.sharesHalfUnits) { "All your Kameti shares are already assigned." }
-        dao.upsertCommitteeMember(
-            CommitteeMemberEntity(
-                id = newId(),
-                ownerId = ownerId,
-                committeeId = committeeId,
-                name = name.trim().ifBlank { if (isMe) "Me" else "Member" },
-                phone = phone.trim(),
-                whatsapp = whatsapp.trim(),
-                turnNumber = turnNumber,
-                turnMonth = turnMonth,
-                isMe = isMe,
-                received = false,
-                receivedDate = null,
-                note = note.trim(),
-                createdAt = System.currentTimeMillis(),
-                shareHalfUnits = halfUnits,
-            )
-        )
+        val checked = drafts.map { it.validated() }
+        val batch = KametiBatch(ownerId, "personal-turn", requestId, committeeId, checked.map { it.fields() })
+        val all = dao.committeeMembersNow(ownerId)
+        if (batch.alreadySaved(all.map { it.id })) return@withTransaction
+        val members = all.filter { it.committeeId == committeeId }.toMutableList()
+        val now = System.currentTimeMillis()
+        val rows = checked.mapIndexed { index, d ->
+            require(d.turn in 1..committee.totalInstallments) { "Turn number must be between 1 and ${committee.totalInstallments}." }
+            val expected = YearMonth.parse(committee.startMonth).plusMonths((d.turn - 1).toLong())
+            require(YearMonth.parse(d.month) == expected) { "Turn #${d.turn} should be $expected." }
+            require(d.halfUnits in 1..2) { "Choose a half or full share." }
+            require(d.halfUnits != 1 || committee.monthlyAmountMinor % 2L == 0L) { "This installment cannot be split into exact half shares." }
+            require(members.filter { it.turnNumber == d.turn }.sumOf { it.shareHalfUnits } + d.halfUnits <= 2) { "Turn #${d.turn} has no room for this share." }
+            if (d.isMe) require(members.filter { it.isMe }.sumOf { it.shareHalfUnits } + d.halfUnits <= committee.sharesHalfUnits) { "All your Kameti shares are already assigned." }
+            CommitteeMemberEntity(batch.ids[index], ownerId, committeeId, d.name, d.phone, d.whatsapp,
+                d.turn, expected.toString(), d.isMe, false, null, d.note, now, d.halfUnits).also { members.add(it) }
+        }
+        rows.forEach { dao.upsertCommitteeMember(it) }
     }
 
     suspend fun markCommitteeMemberReceived(member: CommitteeMemberEntity, date: String) = db.withTransaction {
@@ -607,7 +595,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                 OrganizerCircleEntity(ownedId(o.getString("id")), ownerId, o.getString("name"), o.getLong("fullMonthlyMinor"), o.getInt("totalSlots"), o.getString("startMonth"), o.getLong("createdAt"))
             }
             require(circles.map { it.id }.distinct().size == circles.size)
-            circles.forEach { require(it.totalSlots in 2..120 && it.fullMonthlyMinor > 0 && it.fullMonthlyMinor % 2 == 0L); YearMonth.parse(it.startMonth) }
+            circles.forEach { require(it.totalSlots in 2..120 && it.fullMonthlyMinor > 0 && it.fullMonthlyMinor % 2 == 0L && it.fullMonthlyMinor <= Long.MAX_VALUE / it.totalSlots); YearMonth.parse(it.startMonth) }
             val roster = root.getJSONArray("organizerMembers").objects().map { o ->
                 OrganizerMemberEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), o.getString("name"), o.optString("phone"), o.optString("whatsapp"), o.getInt("halfUnits"), o.getInt("turnNumber"), o.getLong("createdAt"), o.optString("drawMethod", "MANUAL"), o.optLong("drawnAt",0L))
             }

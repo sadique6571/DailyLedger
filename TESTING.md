@@ -1,10 +1,14 @@
-# Auto-backup update — 2026-10-17
+# GitHub integration checks — 2026-10-17
 
-Candidate: version **2.0.0**, version code **21**, based on main `3697489`.
+Candidate: version **2.0.0**, build **23**, existing package and signing identity.
 
-Added regression coverage for lost upload acknowledgements, persistent account checkpoints, offline edits across attempts, no-op backup deduplication, remote-version conflicts, empty/reset-device protection, account switches, disabled backups, wrong-owner/malformed restores, historical restore pause and explicit replacement, cleanup failure, token-service failures beyond five retries, permission/quota errors, cancellation, atomic first upload, checksum verification, revision pinning, conditional updates, duplicate files and history retention.
+Verified baselines: automatic backup PR #8 passed [run 38986493692](https://github.com/sadique6571/DailyLedger/actions/runs/38986493692); organizer/half-share PR #9 passed [run 39004798671](https://github.com/sadique6571/DailyLedger/actions/runs/39004798671). The original PR #12 run failed one obsolete UI label assertion (`1 full`, now `1 full share`); its compilation and JVM tests passed.
 
-Validation status: 19 local Java backup-core checks passed. Android compilation, JVM tests and emulator regressions are pending CI; final results will be recorded after completion. Existing release signature and Play Integrity verification remain mandatory. No live Drive access or Firebase changes have been performed for this candidate.
+The corrected stack adds transactional personal/organizer Save All, complete-request replay checks, in-flight UI locking and retained input on failure. Regression cases exercise database failure on the second insert (complete rollback), date/share conflicts, concurrent writes, foreign owners, UTF-8 bounds, oversized pools, v7 restore, and asynchronous UI failure/retry. PR #12 also tests owner-scoped planning summaries. No additional database migration is introduced; existing V6→V7 and upgrade tests remain in the full suite.
+
+The workflow now tests pull requests targeting feature branches as well as main. Each active PR's Checks tab records its exact tested commit; see [PR #10](https://github.com/sadique6571/DailyLedger/pull/10), [PR #11](https://github.com/sadique6571/DailyLedger/pull/11), and [PR #12](https://github.com/sadique6571/DailyLedger/pull/12). Build gates include Firebase rules, Cloud Functions, 19 Java backup-core checks, Kotlin/JVM, Android emulator data/UI, APK identity, release signature and Play Integrity checks.
+
+Live Google Drive upload and restore on a second physical phone have not been exercised in this environment. The emulator uses isolated test databases and fake transports, never users' remote backups. Drive JSON is not end-to-end encrypted. Unsynced edits still require a completed backup before app data is cleared.
 
 # Daily Ledger 2.0.0 candidate — validation in progress
 

@@ -52,17 +52,21 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         block: suspend LedgerRepository.() -> Unit,
     ) = viewModelScope.launch {
         try {
-            BackupLock.mutex.withLock {
-                check(FirebaseRuntime.auth(getApplication<Application>()).currentUser?.uid == ownerId) {
-                    "This account is no longer signed in. Please sign in again."
-                }
-                SettingsStore(getApplication<Application>()).markDrivePending(ownerId)
-                repo.block()
-            }
-            SyncScheduler.syncNow(getApplication<Application>(), ownerId)
+            saveChange(block)
             onSuccess()
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _error.value = e.message ?: "Your change could not be saved. Please try again." }
+    }
+    /** Suspends until commit; callers keep their form open if validation or storage fails. */
+    suspend fun saveChange(block: suspend LedgerRepository.() -> Unit) {
+        BackupLock.mutex.withLock {
+            checkAccount()
+            SettingsStore(getApplication<Application>()).markDrivePending(ownerId)
+            repo.block()
+        }
+        // The database commit succeeded. A scheduler failure must not be presented as a failed save.
+        // Pending status and the periodic worker retain the backup obligation.
+        runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)

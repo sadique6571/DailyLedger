@@ -25,7 +25,7 @@ class OrganizerKametiUiTest {
         )
         compose.setContent { DailyLedgerTheme("LIGHT") {
             OrganizerKametiScreen(listOf(c), listOf(alice,ahmed,unassigned), payments, emptyList(),
-                onBack = {}, onAddCircle = { _,_,_,_ -> }, onAddMember = { _,_,_,_,_,_ -> },
+                onBack = {}, onAddCircle = { _,_,_,_ -> }, onAddMembers = { _,_,_ -> },
                 onAssignTurn = { _,_,_ -> }, onUpdateContact = { _,_,_,_ -> }, onCollect = { _,_,_,_,_ -> },
                 onPayout = { _,_,_,_ -> }, onDeleteMember = {},
                 onDeleteCircle = {})
@@ -36,7 +36,7 @@ class OrganizerKametiUiTest {
         compose.onNodeWithText("+ Add member / 0.5 or full share").performScrollTo().performClick()
         compose.onNodeWithTag("pick-phone-contact").assertExists()
         compose.onNodeWithText("0.5 share").assertExists()
-        compose.onNodeWithText("1 full").assertExists()
+        compose.onNodeWithText("1 full share").assertExists()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithText("Pick number").performScrollTo().performClick()
         compose.onNodeWithText("Random pick").assertExists()
