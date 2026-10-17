@@ -211,9 +211,39 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.upsertCommittee(committee.copy(received = balance.received + amountMinor >= balance.expected))
     }
 
+    /** Receive money for one identified personal turn. Legacy unassigned receipts remain untouched. */
+    suspend fun addPersonalTurnReceipt(memberId: String, amountMinor: Long, date: String, note: String, method: String) = db.withTransaction {
+        val member = requireNotNull(dao.committeeMemberNow(ownerId, memberId)) { "Turn not found." }
+        require(member.isMe) { "Select one of your own turns." }
+        val committee = requireNotNull(dao.committeeNow(ownerId, member.committeeId)) { "Kameti not found." }
+        val perMonth = Math.addExact(Math.multiplyExact(committee.monthlyAmountMinor, (member.shareHalfUnits / 2).toLong()),
+            if (member.shareHalfUnits == 1) committee.monthlyAmountMinor / 2 else 0L)
+        val expected = Math.multiplyExact(perMonth, committee.totalInstallments.toLong())
+        val previous = dao.committeeReceiptsNow(ownerId).filter { it.memberId == member.id }.sumOf { it.amountMinor }
+        val totalBalance = committeeBalance(committee, dao.committeeReceiptsNow(ownerId))
+        require(amountMinor > 0 && amountMinor <= expected - previous && amountMinor <= totalBalance.remaining) {
+            "Receiving exceeds this turn's remaining share."
+        }
+        LocalDate.parse(date)
+        dao.upsertCommitteeReceipt(CommitteeReceiptEntity(newId(), ownerId, committee.id, amountMinor, date,
+            note.trim(), System.currentTimeMillis(), method.ifBlank { "Cash" }, member.id))
+        if (previous + amountMinor == expected) dao.upsertCommitteeMember(member.copy(received = true, receivedDate = date))
+        if (totalBalance.received + amountMinor == totalBalance.expected) dao.upsertCommittee(committee.copy(received = true))
+    }
+
     suspend fun deleteCommitteeReceipt(receipt: CommitteeReceiptEntity) = db.withTransaction {
         require(receipt.ownerId == ownerId) { "This receipt belongs to another account." }
         dao.deleteCommitteeReceipt(receipt)
+        if (receipt.memberId.isNotBlank()) dao.committeeMemberNow(ownerId, receipt.memberId)?.let { member ->
+            val committee = dao.committeeNow(ownerId, member.committeeId)
+            if (committee != null) {
+                val perMonth = (committee.monthlyAmountMinor * (member.shareHalfUnits / 2)) +
+                    (if (member.shareHalfUnits == 1) committee.monthlyAmountMinor / 2 else 0L)
+                val total = Math.multiplyExact(perMonth, committee.totalInstallments.toLong())
+                val received = dao.committeeReceiptsNow(ownerId).filter { it.memberId == member.id }.sumOf { it.amountMinor }
+                dao.upsertCommitteeMember(member.copy(received = received >= total, receivedDate = if (received >= total) member.receivedDate else null))
+            }
+        }
         dao.committeeNow(ownerId, receipt.committeeId)?.let { committee ->
             dao.upsertCommittee(committee.copy(received = committeeBalance(committee, dao.committeeReceiptsNow(ownerId)).complete))
         }
@@ -340,7 +370,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         root.put("creditPayments", JSONArray().apply { dao.creditPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("creditId",ownedId(x.creditId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
         root.put("committees", JSONArray().apply { dao.committeesNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("monthlyAmountMinor",x.monthlyAmountMinor).put("totalInstallments",x.totalInstallments).put("startMonth",x.startMonth).putNullable("payoutInstallment",x.payoutInstallment).put("received",x.received).put("shares",x.shares).put("sharesHalfUnits",x.sharesHalfUnits).put("active",x.active).put("note",x.note).put("createdAt",x.createdAt).put("organizerPhone",x.organizerPhone).put("memberSchedule",x.memberSchedule)) } })
         root.put("committeePayments", JSONArray().apply { dao.committeePaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("installmentNumber",x.installmentNumber).put("month",x.month).put("amountMinor",x.amountMinor).put("paidAt",x.paidAt).put("method",x.method)) } })
-        root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
+        root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method).put("memberId",ownedId(x.memberId).takeIf { x.memberId.isNotBlank() } ?: "")) } })
         root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("shareHalfUnits",x.shareHalfUnits).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
         root.put("organizerCircles", JSONArray().apply { dao.organizerCirclesNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("fullMonthlyMinor",x.fullMonthlyMinor).put("totalSlots",x.totalSlots).put("startMonth",x.startMonth).put("createdAt",x.createdAt)) } })
         root.put("organizerMembers", JSONArray().apply { dao.organizerMembersNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("halfUnits",x.halfUnits).put("turnNumber",x.turnNumber).put("drawMethod",x.drawMethod).put("drawnAt",x.drawnAt).put("createdAt",x.createdAt)) } })
@@ -508,7 +538,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             savedCommittees.filter { it.received }.map { CommitteeReceiptEntity(it.id + "-payout", ownerId, it.id, it.expectedPayout(), null, "Earlier received status", it.createdAt) }
         } else {
             root.getJSONArray("committeeReceipts").objects().map { o ->
-                CommitteeReceiptEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("committeeId")), o.getLong("amountMinor"), o.optString("date").takeIf { it.isNotBlank() && it != "null" }, o.optString("note"), o.getLong("createdAt"), o.optString("method","Cash"))
+                CommitteeReceiptEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("committeeId")), o.getLong("amountMinor"), o.optString("date").takeIf { it.isNotBlank() && it != "null" }, o.optString("note"), o.getLong("createdAt"), o.optString("method","Cash"), o.optString("memberId").takeIf { it.isNotBlank() }?.let(::ownedId) ?: "")
             }
         }
         require(receipts.map { it.id }.distinct().size == receipts.size) { "Duplicate kameti receipts in backup." }
