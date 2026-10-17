@@ -29,7 +29,7 @@ class OrganizerKametiTest {
             owner.organizer.addMember(circle.id, "Ahmed", "03002222222", "03002222222", 1, 6)
             val roster = owner.organizer.members.first()
             assertEquals(2, filledTurnUnits(roster, 6))
-            assertTrue(availableDraws(roster, roster[0].copy(turnNumber = 0), 20).none { it == 6 })
+            assertTrue(availableDraws(roster, roster[0].copy(id = "new-member", turnNumber = 0), 20).none { it == 6 })
             rejects { owner.organizer.addMember(circle.id, "Extra", "", "", 1, 6) }
             assertTrue(another.organizer.circles.first().isEmpty())
             val ali = roster.first { it.name == "Ali" }
