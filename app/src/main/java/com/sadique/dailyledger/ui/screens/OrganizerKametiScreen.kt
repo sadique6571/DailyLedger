@@ -92,7 +92,7 @@ fun OrganizerKametiScreen(
                 val expected = Math.multiplyExact(circle.fullMonthlyMinor, circle.totalSlots.toLong())
                 val monthPaid = collections.filter { it.circleId == circle.id && it.month == selectedMonth }.sumOf { it.amountMinor }
                 val fraction = (monthPaid.toDouble() / expected).toFloat().coerceIn(0f, 1f)
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(circle.name, Modifier.weight(1f), translate = false, style = MaterialTheme.typography.titleLarge)
