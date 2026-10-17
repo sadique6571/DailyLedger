@@ -27,6 +27,8 @@ import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.YearMonth
 
+private data class OrganizerDraft(val name: String, val phone: String, val whatsapp: String, val units: Int, val turn: Int)
+
 private fun shareLabel(units: Int) = if (units == 1) "0.5" else "1"
 private fun organizerWhatsApp(raw: String): String {
     val digits = raw.filter { it.isDigit() }
@@ -160,8 +162,9 @@ fun OrganizerKametiScreen(
         onAddCircle(name, amount, slots, start); addCircle = false
     }
     memberFor?.let { circle ->
-        OrganizerMemberDialog(circle, members.filter { it.circleId == circle.id }, { memberFor = null }) { name, phone, wa, units, turn ->
-            onAddMember(circle.id, name, phone, wa, units, turn); memberFor = null
+        OrganizerMemberDialog(circle, members.filter { it.circleId == circle.id }, { memberFor = null }) { drafts ->
+            drafts.forEach { entry -> onAddMember(circle.id, entry.name, entry.phone, entry.whatsapp, entry.units, entry.turn) }
+            memberFor = null
         }
     }
     drawMember?.let { member ->
@@ -231,36 +234,80 @@ private fun OrganizerCircleDialog(dismiss: () -> Unit, save: (String, Long, Int,
 }
 
 @Composable
-private fun OrganizerMemberDialog(circle: OrganizerCircleEntity, roster: List<OrganizerMemberEntity>,
-    dismiss: () -> Unit, save: (String, String, String, Int, Int) -> Unit) {
+private fun OrganizerMemberDialog(
+    circle: OrganizerCircleEntity,
+    roster: List<OrganizerMemberEntity>,
+    dismiss: () -> Unit,
+    save: (List<OrganizerDraft>) -> Unit,
+) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var wa by remember { mutableStateOf("") }
     var units by remember { mutableIntStateOf(2) }
     var turn by remember { mutableStateOf("0") }
-    val n = turn.toIntOrNull()
-    val slots = if (n == null) emptyList() else availableDraws(roster,
-        OrganizerMemberEntity("", "", circle.id, name, halfUnits = units, turnNumber = 0, createdAt = 0), circle.totalSlots)
-    val valid = name.isNotBlank() && roster.sumOf { it.halfUnits } + units <= circle.totalSlots * 2 &&
-        (n == 0 || (n != null && n in slots))
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Add member share") },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("For 1.5 shares, add one full and one half ownership row for the same contact.")
-            ContactPickerButton { picked, number -> name = picked; phone = number; if (wa.isBlank()) wa = number }
-            OutlinedTextField(name, { name = it }, label = { Text("Name") })
-            OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-            OutlinedTextField(wa, { wa = it }, label = { Text("WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(units == 1, onClick = { units = 1 }, label = { Text("0.5 share") })
-                FilterChip(units == 2, onClick = { units = 2 }, label = { Text("1 full") })
+    val queued = remember(circle.id) { mutableStateListOf<OrganizerDraft>() }
+    val virtualRoster = roster + queued.mapIndexed { index, entry ->
+        OrganizerMemberEntity("draft-$index", "", circle.id, entry.name,
+            halfUnits = entry.units, turnNumber = entry.turn, createdAt = 0)
+    }
+    val parsedTurn = turn.toIntOrNull()
+    val candidate = OrganizerMemberEntity("candidate", "", circle.id, name,
+        halfUnits = units, turnNumber = 0, createdAt = 0)
+    val available = availableDraws(virtualRoster, candidate, circle.totalSlots)
+    val currentValid = name.isNotBlank() &&
+        virtualRoster.sumOf { it.halfUnits } + units <= circle.totalSlots * 2 &&
+        parsedTurn != null && (parsedTurn == 0 || parsedTurn in available)
+    AlertDialog(
+        onDismissRequest = dismiss,
+        title = { Text("Add all members / turns") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Add each member and each share as a separate row. The same person can have 2 or 3 turns in different months.")
+                Text("Full monthly: ${rowMoney(circle.fullMonthlyMinor)} • Half monthly: ${rowMoney(circle.fullMonthlyMinor / 2)}")
+                queued.forEachIndexed { index, entry ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${index + 1}. ${entry.name} • ${shareLabel(entry.units)} share • ${rowMoney(halfShareMoney(circle.fullMonthlyMinor, entry.units))} • ${if (entry.turn == 0) "Parchi later" else "Turn #${entry.turn}"}",
+                            Modifier.weight(1f), translate = false, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { queued.removeAt(index) }) { Text("Remove") }
+                    }
+                }
+                Text("Shares filled: ${virtualRoster.sumOf { it.halfUnits } / 2.0} / ${circle.totalSlots}")
+                ContactPickerButton { picked, number ->
+                    name = picked
+                    phone = number
+                    if (wa.isBlank()) wa = number
+                }
+                OutlinedTextField(name, { name = it }, label = { Text("Member name") })
+                OutlinedTextField(phone, { phone = it }, label = { Text("Phone (optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                OutlinedTextField(wa, { wa = it }, label = { Text("WhatsApp (optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(units == 1, onClick = { units = 1 }, label = { Text("0.5 share") })
+                    FilterChip(units == 2, onClick = { units = 2 }, label = { Text("1 full share") })
+                }
+                OutlinedTextField(turn, { turn = it }, label = { Text("Turn number (0 = pick later)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = parsedTurn == null || (parsedTurn != 0 && parsedTurn !in available))
+                if (parsedTurn != null && parsedTurn > 0) {
+                    val turnMonth = runCatching { YearMonth.parse(circle.startMonth).plusMonths((parsedTurn - 1).toLong()) }.getOrNull()
+                    Text("Turn month: ${turnMonth ?: "invalid"}")
+                }
+                if (!currentValid && name.isNotBlank()) Text("Check share capacity or turn occupancy.", color = MaterialTheme.colorScheme.error)
+                OutlinedButton(enabled = currentValid, onClick = {
+                    queued.add(OrganizerDraft(name.trim(), phone.trim(), wa.trim(), units, parsedTurn!!))
+                    name = ""; phone = ""; wa = ""; turn = "0"; units = 2
+                }, modifier = Modifier.fillMaxWidth()) { Text("+ Add another member / turn") }
+                Text("Review the full list, then Save all. Nothing is saved until Save all.")
             }
-            OutlinedTextField(turn, { turn = it }, label = { Text("Turn number (0 = pick later)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            if (n != 0 && n != null && n in 1..circle.totalSlots) Text("Slot occupancy: ${filledTurnUnits(roster, n)}/2 half units")
-            if (roster.sumOf { it.halfUnits } + units > circle.totalSlots * 2) Text("No free shares", color = MaterialTheme.colorScheme.error)
-        }},
-        confirmButton = { Button(enabled = valid, onClick = { save(name, phone, wa, units, n!!) }) { Text("Save member") } },
-        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+        },
+        confirmButton = {
+            Button(enabled = queued.isNotEmpty(), onClick = { save(queued.toList()) }) {
+                Text("Save all (${queued.size})")
+            }
+        },
+        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
