@@ -18,13 +18,17 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
         CommitteePaymentEntity::class,
         CommitteeReceiptEntity::class,
         CommitteeMemberEntity::class,
+        OrganizerCircleEntity::class,
+        OrganizerMemberEntity::class,
+        OrganizerCollectionEntity::class,
+        OrganizerPayoutEntity::class,
         SavingEntity::class,
         CreditPurchaseEntity::class,
         CreditPaymentEntity::class,
         LedgerCycleEntity::class,
         LedgerArchiveEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -136,6 +140,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE committees ADD COLUMN sharesHalfUnits INTEGER NOT NULL DEFAULT 2")
+                db.execSQL("UPDATE committees SET sharesHalfUnits = shares * 2")
+                db.execSQL("ALTER TABLE committee_members ADD COLUMN shareHalfUnits INTEGER NOT NULL DEFAULT 2")
+                db.execSQL("CREATE TABLE IF NOT EXISTS organizer_circles (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, name TEXT NOT NULL, fullMonthlyMinor INTEGER NOT NULL, totalSlots INTEGER NOT NULL, startMonth TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_circles_ownerId ON organizer_circles(ownerId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS organizer_members (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, circleId TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, whatsapp TEXT NOT NULL, halfUnits INTEGER NOT NULL, turnNumber INTEGER NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_members_ownerId ON organizer_members(ownerId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_members_circleId ON organizer_members(circleId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS organizer_collections (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, circleId TEXT NOT NULL, memberId TEXT NOT NULL, month TEXT NOT NULL, amountMinor INTEGER NOT NULL, date TEXT NOT NULL, method TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_collections_ownerId ON organizer_collections(ownerId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_collections_circleId ON organizer_collections(circleId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_collections_memberId ON organizer_collections(memberId)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS organizer_payouts (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, circleId TEXT NOT NULL, memberId TEXT NOT NULL, turnNumber INTEGER NOT NULL, amountMinor INTEGER NOT NULL, date TEXT NOT NULL, method TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_payouts_ownerId ON organizer_payouts(ownerId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_payouts_circleId ON organizer_payouts(circleId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_payouts_memberId ON organizer_payouts(memberId)")
+            }
+        }
+
         @Volatile private var INSTANCE: AppDatabase? = null
 
         fun get(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {
@@ -145,7 +170,7 @@ abstract class AppDatabase : RoomDatabase() {
                 DatabaseEncryption.migrate(file, password)
                 Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "daily-ledger.db")
                     .openHelperFactory(EncryptedOpenHelperFactory(password))
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { INSTANCE = it }
             }
         }
