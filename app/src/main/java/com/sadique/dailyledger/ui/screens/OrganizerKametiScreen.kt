@@ -108,6 +108,36 @@ fun OrganizerKametiScreen(
                         LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().height(16.dp).testTag("organizer-collection-progress"))
                         Text("Monthly target: ${rowMoney(expected)} • Remaining: ${rowMoney((expected-monthPaid).coerceAtLeast(0L))}")
                         Button(onClick = { memberFor = circle }, modifier = Modifier.fillMaxWidth()) { Text("+ Add member / 0.5 or full share") }
+                        var showCalendar by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showCalendar = !showCalendar }, modifier = Modifier.fillMaxWidth().testTag("kameti-payment-calendar-toggle")) {
+                            Text(if (showCalendar) "Hide payment calendar" else "Monthly payment calendar")
+                        }
+                        if (showCalendar) {
+                            val calendar = remember(circle, roster, collections) {
+                                runCatching { organizerInstallmentCalendar(circle, roster, collections) }.getOrNull()
+                            }
+                            if (calendar == null) {
+                                Text("Payment calendar could not be calculated. Please check member installments.",
+                                    color = MaterialTheme.colorScheme.error)
+                            } else {
+                                calendar.forEach { entry ->
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(entry.month.toString(), style = MaterialTheme.typography.titleSmall)
+                                            Text("${entry.paidMembers} paid • ${entry.partialMembers} partial • ${entry.unpaidMembers} unpaid",
+                                                style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Text("Collected ${rowMoney(entry.collectedMinor)} / ${rowMoney(entry.expectedAssignedMinor)}",
+                                            style = MaterialTheme.typography.bodySmall)
+                                        LinearProgressIndicator(progress = {
+                                            if (entry.expectedAssignedMinor == 0L) 0f
+                                            else (entry.collectedMinor.toDouble() / entry.expectedAssignedMinor).toFloat().coerceIn(0f, 1f)
+                                        }, modifier = Modifier.fillMaxWidth().height(6.dp))
+                                    }
+                                }
+                            }
+                        }
+
                         roster.sortedWith(compareBy<OrganizerMemberEntity> { it.turnNumber == 0 }.thenBy { it.turnNumber }).forEach { member ->
                             val shareMonthly = halfShareMoney(circle.fullMonthlyMinor, member.halfUnits)
                             val collected = collections.filter { it.memberId == member.id && it.month == selectedMonth }.sumOf { it.amountMinor }
