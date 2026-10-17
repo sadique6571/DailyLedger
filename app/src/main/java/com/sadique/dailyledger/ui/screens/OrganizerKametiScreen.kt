@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.sadique.dailyledger.ui.screens
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -291,7 +293,7 @@ private fun OrganizerPaymentDialog(member: OrganizerMemberEntity, circle: Organi
             Text(if (payout) "Turn #${member.turnNumber} • Member payout due ${rowMoney(remaining)}" else "$month • Due ${rowMoney(remaining)}")
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
             OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") })
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf("Cash","Bank","Easypaisa","JazzCash").forEach { choice ->
                     FilterChip(method == choice, { method = choice }, label = { Text(choice) })
                 }
