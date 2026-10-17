@@ -515,6 +515,7 @@ fun DailyLedgerApp(
                     onDeleteReceipt = { r -> vm.launch { deleteCommitteeReceipt(r) } },
                     onAddMember = { id, name, phone, wa, turn, month, me, note, halfUnits -> vm.launch { saveCommitteeMember(id, name, phone, wa, turn, month, me, note, halfUnits) } },
                     onMemberReceived = { member, date -> vm.launch { markCommitteeMemberReceived(member, date) } },
+                    onPersonalTurnReceive = { memberId, amount, date, note, method -> vm.launch { addPersonalTurnReceipt(memberId, amount, date, note, method) } },
                     onDeleteMember = { member -> vm.launch { deleteCommitteeMember(member) } },
                     onDelete = { c -> vm.launch { deleteCommittee(c) } },
                     onCalendar = { open(CALENDAR) },
