@@ -34,6 +34,7 @@ import com.sadique.dailyledger.ui.*
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 
@@ -48,7 +49,7 @@ fun CommitteeScreen(
     organizerCollections: List<OrganizerCollectionEntity> = emptyList(),
     organizerPayouts: List<OrganizerPayoutEntity> = emptyList(),
     onAddCircle: (String, Long, Int, String) -> Unit = { _, _, _, _ -> },
-    onAddOrganizerMember: (String, String, String, String, Int, Int) -> Unit = { _, _, _, _, _, _ -> },
+    onAddOrganizerMembers: suspend (String, List<OrganizerMemberDraft>, String) -> Unit = { _, _, _ -> error("Organizer saving is unavailable.") },
     onAssignOrganizerTurn: (String, Int, String) -> Unit = { _, _, _ -> },
     onUpdateOrganizerContact: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     onOrganizerCollect: (String, String, Long, String, String) -> Unit = { _, _, _, _, _ -> },
@@ -60,7 +61,7 @@ fun CommitteeScreen(
     onPaid: (CommitteeEntity, Int, String, String) -> Unit,
     onReceive: (String, Long, String, String, String) -> Unit,
     onDeleteReceipt: (CommitteeReceiptEntity) -> Unit,
-    onAddMember: (String, String, String, String, Int, String, Boolean, String, Int) -> Unit,
+    onAddMembers: suspend (String, List<PersonalTurnDraft>, String) -> Unit,
     onMemberReceived: (CommitteeMemberEntity, String) -> Unit,
     onDeleteMember: (CommitteeMemberEntity) -> Unit,
     onDelete: (CommitteeEntity) -> Unit,
@@ -74,7 +75,7 @@ fun CommitteeScreen(
             circles = organizerCircles, members = organizerMembers,
             collections = organizerCollections, payouts = organizerPayouts,
             onBack = { organizerMode = false },
-            onAddCircle = onAddCircle, onAddMember = onAddOrganizerMember,
+            onAddCircle = onAddCircle, onAddMembers = onAddOrganizerMembers,
             onAssignTurn = onAssignOrganizerTurn, onUpdateContact = onUpdateOrganizerContact, onCollect = onOrganizerCollect,
             onPayout = onOrganizerPayout, onDeleteMember = onDeleteOrganizerMember,
             onDeleteCircle = onDeleteOrganizerCircle,
@@ -303,11 +304,8 @@ fun CommitteeScreen(
     }
 
     addMemberTo?.let { committee ->
-        MemberDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null }) { entries ->
-            entries.forEach { entry ->
-                onAddMember(committee.id, entry.name, entry.phone, entry.whatsapp, entry.turn, entry.month, entry.isMe, entry.note, entry.halfUnits)
-            }
-            addMemberTo = null
+        PersonalMemberBatchDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null }) { requestId, entries ->
+            onAddMembers(committee.id, entries, requestId)
         }
     }
 
@@ -534,24 +532,17 @@ private fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Strin
     )
 }
 
-private data class PersonalTurnDraft(
-    val name: String,
-    val phone: String,
-    val whatsapp: String,
-    val turn: Int,
-    val month: String,
-    val isMe: Boolean,
-    val note: String,
-    val halfUnits: Int,
-)
-
 @Composable
-private fun MemberDialog(
+internal fun PersonalMemberBatchDialog(
     committee: CommitteeEntity,
     currentMembers: List<CommitteeMemberEntity>,
     dismiss: () -> Unit,
-    save: (List<PersonalTurnDraft>) -> Unit,
+    save: suspend (String, List<PersonalTurnDraft>) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    val requestId = remember { java.util.UUID.randomUUID().toString() }
+    var saving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
     val queued = remember(committee.id) { mutableStateListOf<PersonalTurnDraft>() }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -571,10 +562,12 @@ private fun MemberDialog(
     val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) &&
         (isMe || name.isNotBlank())
     AlertDialog(
-        onDismissRequest = dismiss,
+        onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / my turns") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (saving) Text("Saving all entries…")
+            else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
                 Text("Use a separate row for every turn. If you own 2 shares, add two full turns; for 3 shares, add three. Every turn displays its calculated month.")
                 Text("My shares assigned: ${myUsedUnits / 2.0} / ${committee.sharesHalfUnits / 2.0}")
                 queued.forEachIndexed { index, entry ->
@@ -619,11 +612,22 @@ private fun MemberDialog(
             }
         },
         confirmButton = {
-            Button(enabled = queued.isNotEmpty(), onClick = { save(queued.toList()) }) {
+            Button(enabled = queued.isNotEmpty() && !saving, modifier = Modifier.testTag("kameti-save-all"), onClick = {
+                if (!saving) {
+                    val snapshot = queued.toList()
+                    saving = true; saveError = null
+                    scope.launch {
+                        try { save(requestId, snapshot); dismiss() }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { saveError = e.message ?: "Could not save. Your list is still here. Please retry." }
+                        finally { saving = false }
+                    }
+                }
+            }) {
                 Text("Save all (${queued.size})")
             }
         },
-        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(enabled = !saving, onClick = dismiss) { Text("Cancel") } },
     )
 }
 

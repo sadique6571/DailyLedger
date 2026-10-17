@@ -19,20 +19,32 @@ class OrganizerKametiRepository(private val db: AppDatabase, private val ownerId
         require(name.isNotBlank()) { "Enter a Kameti name." }
         require(monthlyMinor > 0 && monthlyMinor % 2L == 0L) { "A full monthly share must split equally into two half shares." }
         require(slots in 2..120) { "Choose between 2 and 120 numbered turns." }
+        require(monthlyMinor <= Long.MAX_VALUE / slots) { "The total Kameti amount is too large." }
         YearMonth.parse(start)
         dao.upsertOrganizerCircle(OrganizerCircleEntity(id(), ownerId, name.trim(), monthlyMinor, slots, start, System.currentTimeMillis()))
     }
 
-    suspend fun addMember(circleId: String, name: String, phone: String, whatsapp: String, halfUnits: Int, turn: Int) = db.withTransaction {
-        val c = dao.organizerCirclesNow(ownerId).firstOrNull { it.id == circleId } ?: error("Kameti not found.")
-        require(name.isNotBlank()) { "Choose or enter a member name." }
-        require(halfUnits in 1..2) { "Choose half or full share." }
-        val roster = dao.organizerMembersNow(ownerId).filter { it.circleId == c.id }
-        require(roster.sumOf { it.halfUnits } + halfUnits <= c.totalSlots * 2) { "All share places are occupied." }
-        require(turn == 0 || (turn in 1..c.totalSlots && filledTurnUnits(roster, turn) + halfUnits <= 2)) {
-            "That turn is full. Pair a half share with another half, not with a full."
+    suspend fun addMember(circleId: String, name: String, phone: String, whatsapp: String, halfUnits: Int, turn: Int) =
+        addMembers(circleId, listOf(OrganizerMemberDraft(name, phone, whatsapp, halfUnits, turn)), id())
+
+    suspend fun addMembers(circleId: String, drafts: List<OrganizerMemberDraft>, requestId: String) = db.withTransaction {
+        val c = requireNotNull(dao.organizerCirclesNow(ownerId).firstOrNull { it.id == circleId }) { "Kameti not found." }
+        val checked = drafts.map { it.validated() }
+        val batch = KametiBatch(ownerId, "organizer", requestId, circleId, checked.map { it.fields() })
+        val all = dao.organizerMembersNow(ownerId)
+        if (batch.alreadySaved(all.map { it.id })) return@withTransaction
+        val roster = all.filter { it.circleId == c.id }.toMutableList()
+        val now = System.currentTimeMillis()
+        val rows = checked.mapIndexed { index, d ->
+            require(d.units in 1..2) { "Choose half or full share." }
+            require(roster.sumOf { it.halfUnits } + d.units <= c.totalSlots * 2) { "All share places are occupied." }
+            require(d.turn == 0 || (d.turn in 1..c.totalSlots && filledTurnUnits(roster, d.turn) + d.units <= 2)) {
+                "That turn is full. Pair a half share with another half, not with a full."
+            }
+            OrganizerMemberEntity(batch.ids[index], ownerId, c.id, d.name, d.phone, d.whatsapp,
+                d.units, d.turn, now, "MANUAL", if (d.turn == 0) 0L else now).also { roster.add(it) }
         }
-        dao.upsertOrganizerMember(OrganizerMemberEntity(id(), ownerId, c.id, name.trim(), phone.trim(), whatsapp.trim(), halfUnits, turn, System.currentTimeMillis(), "MANUAL", if (turn == 0) 0L else System.currentTimeMillis()))
+        rows.forEach { dao.upsertOrganizerMember(it) }
     }
 
     suspend fun updateContact(memberId: String, name: String, phone: String, whatsapp: String) = db.withTransaction {

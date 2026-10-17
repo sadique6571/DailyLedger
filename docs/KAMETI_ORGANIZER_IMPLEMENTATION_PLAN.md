@@ -3,10 +3,10 @@ Status: DRAFT / NOT RELEASE APPROVED. Base: PR #10 (depends on PR #9). This is a
 
 ## Current baseline and risks (17 Oct 2026)
 - PR #10 implements UI queue-and-save for multiple personal/organizer turn rows and personal installment progress. Existing organizer monthly collected-money progress is on PR #9.
-- Existing callbacks save rows separately: **Save all is NOT atomic**. Must not declare batch feature done until repository transaction + conflict checks are wired into UI.
+- The integration fix replaces per-row callbacks with one awaited Room transaction, complete-request replay checks, in-flight locking, and draft retention on failure. Regression tests cover rollback, capacity, retries, concurrent saves and account isolation; exact CI results are linked from TESTING.md.
 - OrganizerCircle/Member/Collection/Payout data is account-scoped in Room; individual collection and payout operations validate remaining amount in transactions.
 - Always distinguish personal contribution from organizer pooled money. Never add organizer cash collection to salary income.
-- Live Drive second-device restoration, Android CI, APK signing and migration tests are not yet verified for this change.
+- Live Drive second-device restoration still needs a physical-device smoke test. Android, signing and migration checks run on each corrected PR head; see TESTING.md and the PR Checks tab.
 
 ## P0 — data integrity before additional UI
 1. Add shared domain batch DTOs for organizer roster and personal-turn roster; replace the current per-row loop callbacks with one suspend repository call.
