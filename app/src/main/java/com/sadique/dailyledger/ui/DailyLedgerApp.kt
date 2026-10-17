@@ -137,6 +137,10 @@ fun DailyLedgerApp(
     val cp by vm.committeePayments.collectAsState()
     val receipts by vm.committeeReceipts.collectAsState()
     val committeeMembers by vm.committeeMembers.collectAsState()
+    val organizerCircles by vm.organizerCircles.collectAsState()
+    val organizerMembers by vm.organizerMembers.collectAsState()
+    val organizerCollections by vm.organizerCollections.collectAsState()
+    val organizerPayouts by vm.organizerPayouts.collectAsState()
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
     val ledgerArchives by vm.ledgerArchives.collectAsState()
@@ -493,6 +497,17 @@ fun DailyLedgerApp(
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
+                    organizerCircles = organizerCircles,
+                    organizerMembers = organizerMembers,
+                    organizerCollections = organizerCollections,
+                    organizerPayouts = organizerPayouts,
+                    onAddCircle = { name, amount, turns, month -> vm.launch { organizer.addCircle(name, amount, turns, month) } },
+                    onAddOrganizerMember = { circle, name, phone, wa, units, turn -> vm.launch { organizer.addMember(circle, name, phone, wa, units, turn) } },
+                    onAssignOrganizerTurn = { member, turn -> vm.launch { organizer.assignTurn(member, turn) } },
+                    onOrganizerCollect = { member, month, amount, date, method -> vm.launch { organizer.collect(member, month, amount, date, method) } },
+                    onOrganizerPayout = { member, amount, date, method -> vm.launch { organizer.payOut(member, amount, date, method) } },
+                    onDeleteOrganizerMember = { id -> vm.launch { organizer.deleteMember(id) } },
+                    onDeleteOrganizerCircle = { id -> vm.launch { organizer.deleteCircle(id) } },
                     onAdd = { n, a, t, s, p, note, shares, phone -> vm.launch { saveCommittee(n, a, t, s, p, note, shares, phone) } },
                     onPaid = { c, i, m, method -> vm.launch { markCommitteePaid(c, i, m, method) } },
                     onReceive = { id, a, d, n, method -> vm.launch { addCommitteeReceipt(id, a, d, n, method) } },
