@@ -49,6 +49,7 @@ fun OrganizerKametiScreen(
     onAddCircle: (String, Long, Int, String) -> Unit,
     onAddMember: (String, String, String, String, Int, Int) -> Unit,
     onAssignTurn: (String, Int, String) -> Unit,
+    onUpdateContact: (String, String, String, String) -> Unit,
     onCollect: (String, String, Long, String, String) -> Unit,
     onPayout: (String, Long, String, String) -> Unit,
     onDeleteMember: (String) -> Unit,
@@ -58,6 +59,7 @@ fun OrganizerKametiScreen(
     var memberFor by remember { mutableStateOf<OrganizerCircleEntity?>(null) }
     var payMember by remember { mutableStateOf<Pair<OrganizerMemberEntity, Boolean>?>(null) }
     var drawMember by remember { mutableStateOf<OrganizerMemberEntity?>(null) }
+    var editContact by remember { mutableStateOf<OrganizerMemberEntity?>(null) }
     var deleteMember by remember { mutableStateOf<OrganizerMemberEntity?>(null) }
     var deleteCircle by remember { mutableStateOf<OrganizerCircleEntity?>(null) }
     var shareMessage by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -129,8 +131,13 @@ fun OrganizerKametiScreen(
                                 if (wa.isNotBlank()) TextButton(onClick = {
                                     shareMessage = wa to "Assalam o Alaikum ${member.name}, ${circle.name} ki $selectedMonth installment mein $reminderDue remaining hain."
                                 }) { Text("WhatsApp") }
+                                if (phone.isNotBlank()) TextButton(onClick = {
+                                    val msg = "Assalam o Alaikum ${member.name}, ${circle.name} ki $selectedMonth Kameti installment ka reminder."
+                                    context.openContactAction(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$phone")).putExtra("sms_body", msg))
+                                }) { Text("SMS") }
                                 if (member.turnNumber == 0) TextButton(onClick = { drawMember = member }) { Text("Pick number") }
                             }
+                            TextButton(onClick = { editContact = member }) { Text("Edit contact") }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = { payMember = member to false }, enabled = collected < shareMonthly,
                                     modifier = Modifier.weight(1f)) { Text("Collect") }
@@ -172,6 +179,11 @@ fun OrganizerKametiScreen(
             { payMember = null }) { amount, month, date, method ->
             if (payout) onPayout(member.id, amount, date, method) else onCollect(member.id, month, amount, date, method)
             payMember = null
+        }
+    }
+    editContact?.let { member ->
+        OrganizerContactDialog(member, { editContact = null }) { name, phone, whatsapp ->
+            onUpdateContact(member.id, name, phone, whatsapp); editContact = null
         }
     }
     deleteMember?.let { member ->
@@ -301,5 +313,21 @@ private fun OrganizerPaymentDialog(member: OrganizerMemberEntity, circle: Organi
             if (payout) Text("This is a pooled payout, not a personal salary expense.")
         }},
         confirmButton = { Button(enabled = valid, onClick = { save(minor!!, month, date, method) }) { Text("Record") } },
+        dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+}
+
+@Composable
+private fun OrganizerContactDialog(member: OrganizerMemberEntity, dismiss: () -> Unit, save: (String, String, String) -> Unit) {
+    var name by remember(member.id) { mutableStateOf(member.name) }
+    var phone by remember(member.id) { mutableStateOf(member.phone) }
+    var wa by remember(member.id) { mutableStateOf(member.whatsapp) }
+    AlertDialog(onDismissRequest = dismiss, title = { Text("Edit member contact") },
+        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ContactPickerButton { picked, number -> name = picked; phone = number; if (wa.isBlank()) wa = number }
+            OutlinedTextField(name, { name = it }, label = { Text("Name") })
+            OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+            OutlinedTextField(wa, { wa = it }, label = { Text("WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+        }},
+        confirmButton = { Button(enabled = name.isNotBlank(), onClick = { save(name, phone, wa) }) { Text("Save contact") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }
