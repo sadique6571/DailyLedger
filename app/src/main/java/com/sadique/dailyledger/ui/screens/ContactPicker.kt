@@ -14,6 +14,9 @@ import androidx.compose.material.icons.outlined.ContactPhone
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.platform.testTag
 
 /**
  * Lets Android's system contact picker grant one-time access to a selected phone row.
@@ -25,7 +28,7 @@ internal fun ContactPickerButton(onPicked: (name: String, phone: String) -> Unit
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
-        runCatching {
+        val resultRead = runCatching {
             context.contentResolver.query(
                 uri,
                 arrayOf(
@@ -45,12 +48,16 @@ internal fun ContactPickerButton(onPicked: (name: String, phone: String) -> Unit
                 }
             }
         }
+        if (resultRead.isFailure) android.widget.Toast.makeText(
+            context, "Could not read selected contact. Enter the number manually.",
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
     }
-    OutlinedButton(onClick = {
+    OutlinedButton(modifier = Modifier.fillMaxWidth().testTag("pick-phone-contact"), onClick = {
         try { launcher.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }
         catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, "Contact picker is unavailable. Enter the number manually.", android.widget.Toast.LENGTH_SHORT).show() }
     }) {
         Icon(Icons.Outlined.ContactPhone, contentDescription = null)
-        Text(" Pick contact")
+        Text(" Choose phone contact")
     }
 }
