@@ -504,6 +504,7 @@ fun DailyLedgerApp(
                     onAddCircle = { name, amount, turns, month -> vm.launch { organizer.addCircle(name, amount, turns, month) } },
                     onAddOrganizerMember = { circle, name, phone, wa, units, turn -> vm.launch { organizer.addMember(circle, name, phone, wa, units, turn) } },
                     onAssignOrganizerTurn = { member, turn, method -> vm.launch { organizer.assignTurn(member, turn, method) } },
+                    onUpdateOrganizerContact = { id, name, phone, wa -> vm.launch { organizer.updateContact(id, name, phone, wa) } },
                     onOrganizerCollect = { member, month, amount, date, method -> vm.launch { organizer.collect(member, month, amount, date, method) } },
                     onOrganizerPayout = { member, amount, date, method -> vm.launch { organizer.payOut(member, amount, date, method) } },
                     onDeleteOrganizerMember = { id -> vm.launch { organizer.deleteMember(id) } },
