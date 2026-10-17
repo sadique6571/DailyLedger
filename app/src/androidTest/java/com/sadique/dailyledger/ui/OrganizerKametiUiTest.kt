@@ -26,7 +26,7 @@ class OrganizerKametiUiTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             OrganizerKametiScreen(listOf(c), listOf(alice,ahmed,unassigned), payments, emptyList(),
                 onBack = {}, onAddCircle = { _,_,_,_ -> }, onAddMember = { _,_,_,_,_,_ -> },
-                onAssignTurn = { _,_ -> }, onCollect = { _,_,_,_,_ -> },
+                onAssignTurn = { _,_,_ -> }, onCollect = { _,_,_,_,_ -> },
                 onPayout = { _,_,_,_ -> }, onDeleteMember = {},
                 onDeleteCircle = {})
         } }
