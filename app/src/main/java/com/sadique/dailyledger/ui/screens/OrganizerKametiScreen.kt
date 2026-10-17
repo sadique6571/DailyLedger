@@ -5,6 +5,8 @@ package com.sadique.dailyledger.ui.screens
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -249,6 +251,30 @@ internal fun OrganizerMemberDialog(
     var units by remember { mutableIntStateOf(2) }
     var turn by remember { mutableStateOf("0") }
     val queued = remember(circle.id) { mutableStateListOf<OrganizerMemberDraft>() }
+    var bulkText by remember(circle.id) { mutableStateOf("") }
+    var bulkError by remember(circle.id) { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    fun previewRows(input: String) {
+        try {
+            val parsed = parseOrganizerRosterText(input)
+            checkOrganizerImportCapacity(circle.totalSlots, roster, queued + parsed)
+            queued.addAll(parsed)
+            bulkError = null
+            bulkText = ""
+        } catch (e: IllegalArgumentException) {
+            bulkError = e.message ?: "Invalid import."
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && !saving) {
+            try {
+                val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    ?: error("Cannot read selected CSV file.")
+                previewRows(content)
+            } catch (e: Exception) { bulkError = e.message ?: "Could not import CSV." }
+        }
+    }
+
     val virtualRoster = roster + queued.mapIndexed { index, entry ->
         OrganizerMemberEntity("draft-$index", "", circle.id, entry.name,
             halfUnits = entry.units, turnNumber = entry.turn, createdAt = 0)
@@ -268,6 +294,15 @@ internal fun OrganizerMemberDialog(
             else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
                 Text("Add each member and each share as a separate row. The same person can have 2 or 3 turns in different months.")
+                Text("Bulk paste: name, phone, WhatsApp, share (0.5/1), turn. Use CSV commas or spreadsheet tabs; review every row before saving.")
+                OutlinedTextField(bulkText, { bulkText = it }, label = { Text("Paste CSV / spreadsheet rows") },
+                    modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 5)
+                bulkError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(enabled = bulkText.isNotBlank(), onClick = { previewRows(bulkText) }) { Text("Preview paste") }
+                    OutlinedButton(onClick = { importLauncher.launch("text/*") }) { Text("Import CSV") }
+                }
+
                 Text("Full monthly: ${rowMoney(circle.fullMonthlyMinor)} • Half monthly: ${rowMoney(circle.fullMonthlyMinor / 2)}")
                 queued.forEachIndexed { index, entry ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
