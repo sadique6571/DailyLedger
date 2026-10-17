@@ -187,7 +187,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     suspend fun saveCommittee(name: String, monthlyMinor: Long, total: Int, startMonth: String, payout: Int?, note: String, shares: Int = 1, organizerPhone: String = "", memberSchedule: String = "", sharesHalfUnits: Int = shares * 2) {
         require(monthlyMinor > 0 && total > 0 && sharesHalfUnits > 0 && sharesHalfUnits <= total * 2) { "Enter valid Kameti shares and installments." }
         require(sharesHalfUnits % 2 == 0 || monthlyMinor % 2 == 0L) { "This amount cannot be split exactly into two halves." }
-        Math.multiplyExact(Math.multiplyExact(monthlyMinor / 2, sharesHalfUnits.toLong()), total.toLong())
+        Math.multiplyExact(Math.addExact(Math.multiplyExact(monthlyMinor, (sharesHalfUnits / 2).toLong()), if (sharesHalfUnits % 2 == 1) monthlyMinor / 2 else 0L), total.toLong())
         require(payout == null || payout in 1..total) { "Payout installment must be within the total installments." }
         YearMonth.parse(startMonth)
         dao.upsertCommittee(CommitteeEntity(newId(), ownerId, name.trim().ifBlank { "Kameti" }, monthlyMinor, total, startMonth, payout, false, true, note.trim(), System.currentTimeMillis(), shares, organizerPhone.trim(), memberSchedule.trim(), sharesHalfUnits))
