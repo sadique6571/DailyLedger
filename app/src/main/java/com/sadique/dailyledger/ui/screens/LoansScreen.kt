@@ -74,7 +74,11 @@ fun LoansScreen(
                         val allPayments = payments.filter { it.loanId == loan.id }
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
                         val history = if (showHistory) allPayments else allPayments.take(3)
-                        history.forEach { Text("${it.date} • ${visibleMoney(it.amountMinor)} • ${it.method}", style = MaterialTheme.typography.bodySmall) }
+                        history.forEach { payment ->
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) {
+                                Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }
