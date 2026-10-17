@@ -26,7 +26,16 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 private fun shareLabel(units: Int) = if (units == 1) "0.5" else "1"
-private fun rowMoney(amount: Long) = money(amount)
+private fun organizerWhatsApp(raw: String): String {
+    val digits = raw.filter { it.isDigit() }
+    return when {
+        digits.startsWith("0092") -> digits.removePrefix("00")
+        digits.startsWith("92") -> digits
+        digits.startsWith("0") && digits.length >= 10 -> "92" + digits.drop(1)
+        else -> digits
+    }
+}
+@Composable private fun rowMoney(amount: Long) = visibleAmount(amount)
 
 @Composable
 fun OrganizerKametiScreen(
@@ -109,13 +118,13 @@ fun OrganizerKametiScreen(
                             Text("This month: ${rowMoney(collected)} / ${rowMoney(shareMonthly)} • Payout: ${rowMoney(received)} / ${rowMoney(payoutExpected)}", style = MaterialTheme.typography.bodySmall)
                             val phone = member.phone
                             val wa = member.whatsapp.ifBlank { phone }
+                            val reminderDue = rowMoney((shareMonthly - collected).coerceAtLeast(0L))
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 if (phone.isNotBlank()) TextButton(onClick = {
                                     context.openContactAction(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")))
                                 }) { Text("Call") }
                                 if (wa.isNotBlank()) TextButton(onClick = {
-                                    val due = (shareMonthly - collected).coerceAtLeast(0L)
-                                    shareMessage = wa to "Assalam o Alaikum ${member.name}, ${circle.name} ki $selectedMonth installment mein ${rowMoney(due)} remaining hain."
+                                    shareMessage = wa to "Assalam o Alaikum ${member.name}, ${circle.name} ki $selectedMonth installment mein $reminderDue remaining hain."
                                 }) { Text("WhatsApp") }
                                 if (member.turnNumber == 0) TextButton(onClick = { drawMember = member }) { Text("Pick number") }
                             }
@@ -178,7 +187,7 @@ fun OrganizerKametiScreen(
         AlertDialog(onDismissRequest = { shareMessage = null }, title = { Text("Review WhatsApp reminder") },
             text = { Text(message, translate = false) },
             confirmButton = { Button(onClick = {
-                context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${phone.filter { it.isDigit() }}?text=${URLEncoder.encode(message, "UTF-8")}")))
+                context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${organizerWhatsApp(phone)}?text=${URLEncoder.encode(message, "UTF-8")}")))
                 shareMessage = null
             }) { Text("Open WhatsApp") } },
             dismissButton = { TextButton(onClick = { shareMessage = null }) { Text("Cancel") } })
