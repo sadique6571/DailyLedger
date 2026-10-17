@@ -259,18 +259,22 @@ fun CommitteeScreen(
                         if (history) {
                             if (rs.isNotEmpty()) Text("Receiving history", style = MaterialTheme.typography.titleSmall)
                             rs.sortedWith(compareByDescending<CommitteeReceiptEntity> { it.date }.thenByDescending { it.createdAt }).forEach { receipt ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = RoundedCornerShape(14.dp)) {
+                                  Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
                                         Text("${receipt.date ?: "Date not recorded"} • ${receipt.method}", style = MaterialTheme.typography.bodySmall)
                                         if (receipt.note.isNotBlank()) Text(receipt.note, translate = false, style = MaterialTheme.typography.bodySmall)
                                     }
                                     IconButton(onClick = { deleteReceipt = receipt }) { Icon(Icons.Outlined.DeleteOutline, "Delete receiving") }
+                                  }
                                 }
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", style = MaterialTheme.typography.bodySmall)
+                                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = RoundedCornerShape(14.dp)) {
+                                    Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                         }
                     }
