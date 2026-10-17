@@ -32,16 +32,17 @@ class OrganizerKametiRepository(private val db: AppDatabase, private val ownerId
         require(turn == 0 || (turn in 1..c.totalSlots && filledTurnUnits(roster, turn) + halfUnits <= 2)) {
             "That turn is full. Pair a half share with another half, not with a full."
         }
-        dao.upsertOrganizerMember(OrganizerMemberEntity(id(), ownerId, c.id, name.trim(), phone.trim(), whatsapp.trim(), halfUnits, turn, System.currentTimeMillis()))
+        dao.upsertOrganizerMember(OrganizerMemberEntity(id(), ownerId, c.id, name.trim(), phone.trim(), whatsapp.trim(), halfUnits, turn, System.currentTimeMillis(), "MANUAL", if (turn == 0) 0L else System.currentTimeMillis()))
     }
 
-    suspend fun assignTurn(memberId: String, turn: Int) = db.withTransaction {
+    suspend fun assignTurn(memberId: String, turn: Int, method: String = "MANUAL") = db.withTransaction {
         val member = dao.organizerMembersNow(ownerId).firstOrNull { it.id == memberId } ?: error("Member not found.")
         val circle = dao.organizerCirclesNow(ownerId).firstOrNull { it.id == member.circleId } ?: error("Kameti not found.")
         require(member.turnNumber == 0) { "Turn already confirmed; changes need review." }
         val options = availableDraws(dao.organizerMembersNow(ownerId).filter { it.circleId == circle.id }, member, circle.totalSlots)
         require(turn in options) { "This turn has no room for that share." }
-        dao.upsertOrganizerMember(member.copy(turnNumber = turn))
+        require(method in setOf("MANUAL", "RANDOM"))
+        dao.upsertOrganizerMember(member.copy(turnNumber = turn, drawMethod = method, drawnAt = System.currentTimeMillis()))
     }
 
     suspend fun collect(memberId: String, month: String, amount: Long, date: String, method: String) = db.withTransaction {
