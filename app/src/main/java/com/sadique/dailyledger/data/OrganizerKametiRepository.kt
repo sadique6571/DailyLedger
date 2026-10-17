@@ -35,6 +35,12 @@ class OrganizerKametiRepository(private val db: AppDatabase, private val ownerId
         dao.upsertOrganizerMember(OrganizerMemberEntity(id(), ownerId, c.id, name.trim(), phone.trim(), whatsapp.trim(), halfUnits, turn, System.currentTimeMillis(), "MANUAL", if (turn == 0) 0L else System.currentTimeMillis()))
     }
 
+    suspend fun updateContact(memberId: String, name: String, phone: String, whatsapp: String) = db.withTransaction {
+        val member = dao.organizerMembersNow(ownerId).firstOrNull { it.id == memberId } ?: error("Member not found.")
+        require(name.isNotBlank()) { "Enter the member's name." }
+        dao.upsertOrganizerMember(member.copy(name = name.trim(), phone = phone.trim(), whatsapp = whatsapp.trim()))
+    }
+
     suspend fun assignTurn(memberId: String, turn: Int, method: String = "MANUAL") = db.withTransaction {
         val member = dao.organizerMembersNow(ownerId).firstOrNull { it.id == memberId } ?: error("Member not found.")
         val circle = dao.organizerCirclesNow(ownerId).firstOrNull { it.id == member.circleId } ?: error("Kameti not found.")
