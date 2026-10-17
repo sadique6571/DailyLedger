@@ -112,6 +112,7 @@ fun OrganizerKametiScreen(
                             HorizontalDivider()
                             Text(member.name, translate = false, style = MaterialTheme.typography.titleMedium)
                             Text("${shareLabel(member.halfUnits)} share • Monthly ${rowMoney(shareMonthly)} • Turn ${if(member.turnNumber == 0) "not drawn" else "#${member.turnNumber}"}")
+                            if (member.turnNumber > 0 && member.drawnAt > 0L) Text("Turn picked: ${member.drawMethod} • ${java.time.Instant.ofEpochMilli(member.drawnAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()}", style = MaterialTheme.typography.bodySmall)
                             if (member.halfUnits == 1 && member.turnNumber > 0) {
                                 Text(if (slotUnitCount == 2) "Paired: ${pairedWith.joinToString { it.name }}" else "Half share waiting for another half", style = MaterialTheme.typography.bodySmall)
                             }
