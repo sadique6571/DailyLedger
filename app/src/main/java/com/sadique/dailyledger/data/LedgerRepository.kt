@@ -343,7 +343,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
         root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("shareHalfUnits",x.shareHalfUnits).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
         root.put("organizerCircles", JSONArray().apply { dao.organizerCirclesNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("fullMonthlyMinor",x.fullMonthlyMinor).put("totalSlots",x.totalSlots).put("startMonth",x.startMonth).put("createdAt",x.createdAt)) } })
-        root.put("organizerMembers", JSONArray().apply { dao.organizerMembersNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("halfUnits",x.halfUnits).put("turnNumber",x.turnNumber).put("createdAt",x.createdAt)) } })
+        root.put("organizerMembers", JSONArray().apply { dao.organizerMembersNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("halfUnits",x.halfUnits).put("turnNumber",x.turnNumber).put("drawMethod",x.drawMethod).put("drawnAt",x.drawnAt).put("createdAt",x.createdAt)) } })
         root.put("organizerCollections", JSONArray().apply { dao.organizerCollectionsNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("memberId",ownedId(x.memberId)).put("month",x.month).put("amountMinor",x.amountMinor).put("date",x.date).put("method",x.method).put("createdAt",x.createdAt)) } })
         root.put("organizerPayouts", JSONArray().apply { dao.organizerPayoutsNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("memberId",ownedId(x.memberId)).put("turnNumber",x.turnNumber).put("amountMinor",x.amountMinor).put("date",x.date).put("method",x.method).put("createdAt",x.createdAt)) } })
         root.put("savings", JSONArray().apply { dao.savingsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("kind",x.kind).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt)) } })
@@ -557,12 +557,13 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             require(circles.map { it.id }.distinct().size == circles.size)
             circles.forEach { require(it.totalSlots in 2..120 && it.fullMonthlyMinor > 0 && it.fullMonthlyMinor % 2 == 0L); YearMonth.parse(it.startMonth) }
             val roster = root.getJSONArray("organizerMembers").objects().map { o ->
-                OrganizerMemberEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), o.getString("name"), o.optString("phone"), o.optString("whatsapp"), o.getInt("halfUnits"), o.getInt("turnNumber"), o.getLong("createdAt"))
+                OrganizerMemberEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), o.getString("name"), o.optString("phone"), o.optString("whatsapp"), o.getInt("halfUnits"), o.getInt("turnNumber"), o.getLong("createdAt"), o.optString("drawMethod", "MANUAL"), o.optLong("drawnAt",0L))
             }
             require(roster.map { it.id }.distinct().size == roster.size)
             roster.forEach { m ->
                 val circle = circles.firstOrNull { it.id == m.circleId } ?: error("Missing Kameti for member.")
                 require(m.name.isNotBlank() && m.halfUnits in 1..2 && m.turnNumber in 0..circle.totalSlots)
+                require(m.drawMethod in setOf("MANUAL", "RANDOM") && m.drawnAt >= 0L)
             }
             circles.forEach { circle ->
                 val subset = roster.filter { it.circleId == circle.id }
