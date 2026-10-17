@@ -579,6 +579,24 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                 require(committee.sharesHalfUnits > 0 && members.filter { it.committeeId == committee.id && it.isMe }.sumOf { it.shareHalfUnits } <= committee.sharesHalfUnits) { "Too many personal kameti shares in backup." }
             }
             dao.insertCommitteeMembers(members)
+            if (version >= 7) {
+                receipts.filter { it.memberId.isNotBlank() }.forEach { receipt ->
+                    require(members.any { it.id == receipt.memberId && it.committeeId == receipt.committeeId && it.isMe }) {
+                        "Personal Kameti receiving refers to a missing own turn."
+                    }
+                }
+                receipts.filter { it.memberId.isNotBlank() }.groupBy { it.memberId }.forEach { (memberId, rows) ->
+                    val member = members.first { it.id == memberId }
+                    val committee = savedCommittees.first { it.id == member.committeeId }
+                    val perMonth = Math.addExact(
+                        Math.multiplyExact(committee.monthlyAmountMinor, (member.shareHalfUnits / 2).toLong()),
+                        if (member.shareHalfUnits == 1) committee.monthlyAmountMinor / 2 else 0L,
+                    )
+                    require(rows.sumOf { it.amountMinor } <= Math.multiplyExact(perMonth, committee.totalInstallments.toLong())) {
+                        "Personal Kameti turn is overpaid in the backup."
+                    }
+                }
+            }
         }
         if (version >= 7) {
             val circles = root.getJSONArray("organizerCircles").objects().map { o ->
