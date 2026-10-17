@@ -297,9 +297,13 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.upsertCommitteeMember(current.copy(received = true, receivedDate = date))
     }
 
-    suspend fun deleteCommitteeMember(member: CommitteeMemberEntity) {
+    suspend fun deleteCommitteeMember(member: CommitteeMemberEntity) = db.withTransaction {
         require(member.ownerId == ownerId)
-        dao.deleteCommitteeMember(member)
+        val current = dao.committeeMemberNow(ownerId, member.id) ?: return@withTransaction
+        require(dao.committeeReceiptsNow(ownerId).none { it.memberId == current.id }) {
+            "This turn has receiving history. Delete or correct its receiving first."
+        }
+        dao.deleteCommitteeMember(current)
     }
 
     suspend fun deleteCommittee(item: CommitteeEntity) = db.withTransaction {
