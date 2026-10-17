@@ -259,7 +259,7 @@ fun CommitteeScreen(
                         if (history) {
                             if (rs.isNotEmpty()) Text("Receiving history", style = MaterialTheme.typography.titleSmall)
                             rs.sortedWith(compareByDescending<CommitteeReceiptEntity> { it.date }.thenByDescending { it.createdAt }).forEach { receipt ->
-                                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = RoundedCornerShape(14.dp)) {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
                                   Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
@@ -272,7 +272,7 @@ fun CommitteeScreen(
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = RoundedCornerShape(14.dp)) {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
                                     Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
