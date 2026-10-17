@@ -1,5 +1,7 @@
 # Daily Ledger
 
+Salary day can be selected from **1–31** using **Set salary day** on the Home balance card or Salary Received & Cycle Options. The countdown and daily spending guide use that day; shorter months use their last date. Choose **Estimate from last salary** to restore automatic estimates. The choice is saved locally for the signed-in account (it is not part of Drive ledger backup). Selecting a day does not post income or start/archive a salary cycle. All manual input fields use shared rounded, theme-colored surfaces with focus, error and disabled states.
+
 ## Reliable automatic backup and Kameti batch saves
 
 Automatic backup keeps account-bound pending changes until a Google Drive upload is verified. It retries temporary connection failures, preserves backup history, and pauses on remote-copy conflicts or after restoring an older backup. Settings shows the actual backup state and last verified time. Keep Drive connected and check that the latest backup has completed before clearing app data or changing phones; changes that never uploaded cannot be recovered from Drive.

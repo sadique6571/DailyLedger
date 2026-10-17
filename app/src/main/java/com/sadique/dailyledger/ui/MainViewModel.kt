@@ -71,6 +71,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
     private val categoryLearning=CategoryLearningStore(app,ownerId)
+    val salarySchedule = SalaryScheduleStore(app, ownerId)
     val planner = com.sadique.dailyledger.planning.PlannerStore(app, ownerId)
     private val learningRevision = MutableStateFlow(0)
     private val _learningError = MutableStateFlow<String?>(null)

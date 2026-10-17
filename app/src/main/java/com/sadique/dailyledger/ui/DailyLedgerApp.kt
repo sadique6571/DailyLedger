@@ -427,6 +427,7 @@ fun DailyLedgerApp(
           settingsState.SaveableStateProvider("screen-${user.id}-$tab") {
             when (tab) {
                 0 -> DashboardScreen(
+                    salaryDay = vm.salarySchedule.day, onSetSalaryDay = vm.salarySchedule::setDay,
                     tx = tx,
                     loans = loans,
                     lp = lp,

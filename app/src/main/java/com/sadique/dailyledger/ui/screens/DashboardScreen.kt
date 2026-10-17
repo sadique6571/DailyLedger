@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -71,6 +73,7 @@ fun DashboardScreen(
     udharOutstanding: Long = 0L,
     creditPayments: List<CreditPaymentEntity> = emptyList(),
     onStartNewMonth: () -> Unit = {}, onArchivePreviousMonth: ((Boolean) -> Unit) -> Unit = {},
+    salaryDay: Int? = null, onSetSalaryDay: (Int?) -> Unit = {},
     planningNotices: List<String> = emptyList(),
     onOpenPlanning: () -> Unit = {},
 ) {
@@ -92,6 +95,7 @@ fun DashboardScreen(
     val categories = grouped.map { it.key to it.value }
     var balanceDetails by remember { mutableStateOf(false) }
     var showBalance by remember { mutableStateOf(true) }
+    var salaryDayOpen by remember { mutableStateOf(false) }
     var salaryOptionsOpen by remember { mutableStateOf(false) }
     var confirmNewMonth by remember { mutableStateOf(false) }
     var confirmArchive by remember { mutableStateOf(false) }
@@ -109,7 +113,7 @@ fun DashboardScreen(
     val availableForCycle = summary.salary + summary.otherIncome + summary.openingBalanceMinor
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
-    val guide = DailySpendingGuide.calculate(tx, summary, today)
+    val guide = DailySpendingGuide.calculate(tx, summary, today, salaryDay)
     val display = LocalDisplayPreferences.current!!
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
@@ -231,7 +235,12 @@ fun DashboardScreen(
                                 }
                                 Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                                     color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
-                                Text("Estimate from your last salary. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                                Text(if (salaryDay == null) "Estimate from your last salary. Reserve upcoming bills first." else "Based on your selected salary day. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                            }
+                            TextButton(onClick = { salaryDayOpen = true }, modifier = Modifier.testTag("set-salary-day")) {
+                                Icon(Icons.Rounded.CalendarMonth, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (salaryDay == null) "Set salary day" else "Salary day: $salaryDay · Change", color = Color.White)
                             }
                             if (guide.lowBalance) {
                                 Surface(color = Color(0xFFFFE5E8), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("low-balance-notice")) {
@@ -467,6 +476,9 @@ fun DashboardScreen(
         confirmButton = { TextButton(onClick = { balanceDetails = false; onAllTransactions?.invoke() }) { Text("View history") } },
         dismissButton = { TextButton(onClick = { balanceDetails = false }) { Text("Close") } },
     )
+    if (salaryDayOpen) SalaryDayDialog(salaryDay, { salaryDayOpen = false }) { day ->
+        onSetSalaryDay(day); salaryDayOpen = false
+    }
     if (salaryOptionsOpen) {
         AlertDialog(
             onDismissRequest = { salaryOptionsOpen = false },
@@ -481,6 +493,9 @@ fun DashboardScreen(
                             modifier = Modifier.testTag("salary-received-option"),
                         )
                         Text("Salary entry", modifier = Modifier.weight(1f))
+                    }
+                    OutlinedButton(onClick = { salaryDayOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (salaryDay == null) "Set salary day" else "Salary day: $salaryDay · Change")
                     }
                     if (receiveSalarySelected) OutlinedTextField(
                         value = salaryAmountInput,
