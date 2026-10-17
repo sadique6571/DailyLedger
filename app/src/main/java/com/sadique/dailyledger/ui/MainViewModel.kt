@@ -52,10 +52,11 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
                 check(FirebaseRuntime.auth(getApplication<Application>()).currentUser?.uid == ownerId) {
                     "This account is no longer signed in. Please sign in again."
                 }
+                SettingsStore(getApplication<Application>()).markDrivePending(ownerId)
                 repo.block()
             }
+            SyncScheduler.syncNow(getApplication<Application>(), ownerId)
             onSuccess()
-            SyncScheduler.syncNow(getApplication<Application>())
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _error.value = e.message ?: "Your change could not be saved. Please try again." }
     }
@@ -87,10 +88,11 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         BackupLock.mutex.withLock {
             checkAccount()
             check(planner.data.value.bills.any { it.id == bill.id && it.nextDue() == due }) { "This reminder has already been handled. Refresh the list." }
+            SettingsStore(getApplication<Application>()).markDrivePending(ownerId)
             repo.saveDraftBatch(listOf(draft), bill.batchId())
             planner.markHandled(bill.id, due)
         }
-        runCatching { SyncScheduler.syncNow(getApplication<Application>()) }
+        runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
     }
     private val manualInsights = ManualInsights(viewModelScope, aiPrefs.enabled, aiPrefs::cached, aiPrefs::save)
     val aiEnabled = manualInsights.enabled
@@ -130,17 +132,17 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         learningRevision.value++
         null
     }catch(e:Exception){e.message?:"Could not save this category correction on this device."}
-    suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();repo.saveDraftBatch(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
+    suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.saveDraftBatch(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
     fun startNewMonth() = launch { startNewLedgerCycle() }
     fun archivePreviousMonth(onSuccess:(Boolean)->Unit) = viewModelScope.launch {
         try {
-            val archived = BackupLock.mutex.withLock { checkAccount(); repo.archivePreviousCalendarMonth() }
+            val archived = BackupLock.mutex.withLock { checkAccount(); SettingsStore(getApplication<Application>()).markDrivePending(ownerId); repo.archivePreviousCalendarMonth() }
             onSuccess(archived)
-            SyncScheduler.syncNow(getApplication<Application>())
+            SyncScheduler.syncNow(getApplication<Application>(), ownerId)
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _error.value = e.message ?: "Could not archive last month." }
     }
-    suspend fun saveCreditDrafts(drafts:List<CreditDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();repo.saveCreditDrafts(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
-    suspend fun saveCreditPayment(id:String,amount:Long,date:String,note:String,method:String){BackupLock.mutex.withLock{checkAccount();repo.addCreditPayment(id,amount,date,note,method)};runCatching{SyncScheduler.syncNow(getApplication<Application>())}}
+    suspend fun saveCreditDrafts(drafts:List<CreditDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.saveCreditDrafts(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
+    suspend fun saveCreditPayment(id:String,amount:Long,date:String,note:String,method:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.addCreditPayment(id,amount,date,note,method)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
     class Factory(private val app:Application,private val owner:String):ViewModelProvider.Factory{override fun <T:ViewModel> create(modelClass:Class<T>):T=MainViewModel(app,owner) as T}
 }

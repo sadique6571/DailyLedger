@@ -1,5 +1,18 @@
 # Daily Ledger
 
+
+## Automatic backup reliability update (2.0.0, build 21)
+
+- Saving ledger changes records a pending state and queues account-bound Google Drive work. Offline/auth-service connection failures retry with exponential backoff without the old five-attempt cutoff. An hourly WorkManager check and app-start/sign-in checks recover missed work. Android can delay background work; this is not a real-time sync guarantee.
+- Uploads compare the actual file checksum and returned/fetched version before acknowledging success. The checkpoint is committed atomically. A lost upload response is reconciled by content, so a retry does not falsely conflict or create another identical revision. First upload creates metadata and data together.
+- The existing Drive file/JSON format remains compatible. Before replacement, its prior revision is retained. **Backup history** in Settings offers dated recovery copies: latest 10 revisions plus the newest copy on each of the last 7 recorded backup days. Retention applies to this app's backup file; retained copies consume Drive storage.
+- A fresh/empty device, a changed remote version, a replaced/missing file or duplicate backup files cannot silently overwrite the existing backup. Account-bound jobs cannot become another account's upload. Concurrent devices are not a merged live ledger: conflicts require review.
+- Settings distinguishes verified, pending, paused and failed backups, shows the last successful backup, and gives actionable access/storage errors. Resetting local data pauses backup. Restoring an older copy also pauses backup and invalidates the overwrite checkpoint; review it, then explicitly choose **Back up now** to make it current.
+
+**Before changing phones or clearing app data:** enable Drive backup, approve access, use Back up now and wait for verified status. Restore with the same Daily Ledger login and Google account. Unuploaded local edits cannot be recovered if the phone/app data is lost. Export newer records before restoring: restore replaces the local ledger, it does not merge it. Budgets, reminder schedules, AI learning and display preferences are still device-only; PDF/CSV are reports, not full restore files. Local SQLCipher encryption and the readable JSON Drive backup remain as documented below.
+
+Implementation references: [Android retry/background constraints](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work), [Google Drive retained revisions](https://developers.google.com/workspace/drive/api/guides/manage-revisions). Automated tests use simulated Drive responses; they do not establish a live Google account upload or second-phone restore.
+
 A native Android personal-finance app for PKR income, spending, savings, loans, kameti and shop credit (Udhar). The **2.0.0** candidate adds an offline Urdu interface with bundled Nastaleeq, planning tools, full screen history and reviewed PDF sharing. Insights stays on Home; online suggestions refresh only when requested. Existing Google Drive backup, local SQLCipher encryption, Firebase sign-in/AI and APK signing are retained.
 
 ## What's new in 2.0
@@ -78,7 +91,7 @@ Source/CI checks do not prove a successful request to the live Firebase project.
 
 ## APK and verification
 
-The 2.0.0 candidate uses version code **20** with the same application ID and signing certificate for in-place updates. Build and regression evidence is recorded in [TESTING.md](TESTING.md); a source change is not a claim that a live Firebase or Drive operation was tested.
+The 2.0.0 candidate uses version code **21** with the same application ID and signing certificate for in-place updates. Build and regression evidence is recorded in [TESTING.md](TESTING.md); a source change is not a claim that a live Firebase or Drive operation was tested.
 
 Build locally with `./gradlew testDebugUnitTest assembleRelease` (Windows: `gradlew.bat`). Install over the existing app; do not uninstall or clear data to update. The release uses the existing shared development signing identity for compatibility. Earlier release artifacts remain historical releases.
 

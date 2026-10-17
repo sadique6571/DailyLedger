@@ -1,3 +1,11 @@
+# Auto-backup update — 2026-10-17
+
+Candidate: version **2.0.0**, version code **21**, based on main `3697489`.
+
+Added regression coverage for lost upload acknowledgements, persistent account checkpoints, offline edits across attempts, no-op backup deduplication, remote-version conflicts, empty/reset-device protection, account switches, disabled backups, wrong-owner/malformed restores, historical restore pause and explicit replacement, cleanup failure, token-service failures beyond five retries, permission/quota errors, cancellation, atomic first upload, checksum verification, revision pinning, conditional updates, duplicate files and history retention.
+
+Validation status: 19 local Java backup-core checks passed. Android compilation, JVM tests and emulator regressions are pending CI; final results will be recorded after completion. Existing release signature and Play Integrity verification remain mandatory. No live Drive access or Firebase changes have been performed for this candidate.
+
 # Daily Ledger 2.0.0 candidate — validation in progress
 
 Base: `7491aee223f68b398a7481479b6037e1aeb28a36` (2.0.0-beta1/code 19).
