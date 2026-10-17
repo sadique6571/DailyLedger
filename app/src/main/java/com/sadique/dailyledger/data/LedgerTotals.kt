@@ -67,7 +67,11 @@ fun monthlySalarySummary(
     )
 }
 
-fun CommitteeEntity.monthlyContribution(): Long = Math.multiplyExact(monthlyAmountMinor, shares.toLong())
+fun CommitteeEntity.monthlyContribution(): Long =
+    Math.addExact(
+        Math.multiplyExact(monthlyAmountMinor, (sharesHalfUnits / 2).toLong()),
+        if (sharesHalfUnits % 2 == 1) monthlyAmountMinor / 2L else 0L,
+    )
 fun CommitteeEntity.expectedPayout(): Long = Math.multiplyExact(monthlyContribution(), totalInstallments.toLong())
 
 data class CommitteeBalance(val expected: Long, val received: Long) {
