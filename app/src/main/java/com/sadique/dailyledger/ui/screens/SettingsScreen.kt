@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -110,6 +112,7 @@ fun SettingsScreen(
     val settingsStore = remember { SettingsStore(context.applicationContext) }
     val backupState by remember(settingsStore) { settingsStore.all.map { it.driveState } }.collectAsState(initial = "unknown")
     val display = LocalDisplayPreferences.current!!
+    val salaryTransactions by vm.transactions.collectAsState()
     val savings by vm.savings.collectAsState()
     val backupReady = lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
@@ -354,6 +357,10 @@ fun SettingsScreen(
             OutlinedTextField(settingsQuery, { settingsQuery = it.take(80) }, label = { Text("Search settings") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("settings-search"), trailingIcon = { if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Rounded.Close, "Clear search") } })
         }
+        if (matchesSetting("Salary calendar next expected date")) enteringItem(key = "settings-salary", index = 3, entranceKey = entranceVisit) {
+            SalarySettingsCard(vm.salarySchedule, salaryTransactions)
+        }
+
         if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
                 driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false }, backupState)
@@ -616,7 +623,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionCard(title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
+internal fun SectionCard(title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

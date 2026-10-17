@@ -1041,5 +1041,11 @@
   "Backup checksum did not match. Local records were not changed.": "بیک اپ کی سالمیت کی تصدیق نہیں ہوئی۔ مقامی ریکارڈ نہیں بدلے گئے۔",
   "Google Drive backup verification failed. The upload will be checked again.": "گوگل ڈرائیو بیک اپ کی تصدیق ناکام رہی۔ اپ لوڈ دوبارہ جانچا جائے گا۔",
   "This backup copy is no longer available.": "بیک اپ کی یہ نقل اب دستیاب نہیں ہے۔",
-  "More than one backup was found. Automatic backup paused to protect both copies. Contact support before replacing either copy.": "ایک سے زیادہ بیک اپ ملے ہیں۔ دونوں محفوظ رکھنے کے لیے خودکار بیک اپ روک دیا گیا۔ کسی نقل کو بدلنے سے پہلے مدد حاصل کریں۔"
+  "More than one backup was found. Automatic backup paused to protect both copies. Contact support before replacing either copy.": "ایک سے زیادہ بیک اپ ملے ہیں۔ دونوں محفوظ رکھنے کے لیے خودکار بیک اپ روک دیا گیا۔ کسی نقل کو بدلنے سے پہلے مدد حاصل کریں۔",
+  "Set salary day": "تنخواہ کا دن مقرر کریں",
+  "Choose your monthly salary day": "ماہانہ تنخواہ کا دن منتخب کریں",
+  "Estimate from last salary": "پچھلی تنخواہ سے اندازہ لگائیں",
+  "For shorter months, the last available day is used. This changes the estimate only; record received salary separately.": "چھوٹے مہینوں میں آخری دستیاب دن لیا جائے گا۔ یہ صرف اندازہ بدلتا ہے؛ موصول ہونے والی تنخواہ الگ درج کریں۔",
+  "Based on your selected salary day. Reserve upcoming bills first.": "آپ کے منتخب کردہ تنخواہ کے دن کے مطابق۔ آنے والے بلوں کی رقم پہلے الگ رکھیں۔",
+  "Salary day: {0} · Change": "تنخواہ کا دن: {0} · تبدیل کریں"
 }

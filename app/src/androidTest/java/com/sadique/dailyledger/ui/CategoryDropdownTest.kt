@@ -30,7 +30,7 @@ class CategoryDropdownTest {
         compose.onNodeWithText("Saman / item").assertDoesNotExist()
         compose.onNodeWithTag("udhar-category").assertExists()
         compose.onNodeWithTag("category-dropdown").performClick()
-        compose.onNodeWithTag("category-search").performTextInput("piyaz")
+        compose.onNodeWithTag("category-dropdown").performTextInput("piyaz")
         compose.onNodeWithText("Onions").performScrollTo().performClick()
         compose.onNodeWithText("Amount PKR").performTextInput("120")
         compose.onNodeWithText("Save").performClick()
@@ -46,7 +46,7 @@ class CategoryDropdownTest {
             Column { CategoryDropdown("EXPENSE", selected, { selected = it; picked = it }); Text("Selected: $selected") }
         } }
         compose.onNodeWithTag("category-dropdown").performClick()
-        compose.onNodeWithTag("category-search").performTextInput("piyaz")
+        compose.onNodeWithTag("category-dropdown").performTextInput("piyaz")
         compose.onNodeWithText("Onions").performScrollTo().performClick()
         assertEquals("Onions", picked)
         compose.onNodeWithText("Selected: Onions").assertIsDisplayed()

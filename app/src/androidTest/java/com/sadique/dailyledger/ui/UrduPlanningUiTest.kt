@@ -103,7 +103,7 @@ class UrduPlanningUiTest {
             }
         } } }
         compose.onNodeWithTag("category-dropdown").performClick()
-        compose.onNodeWithTag("category-search").performTextInput("مونگ")
+        compose.onNodeWithTag("category-dropdown").performTextInput("مونگ")
         compose.onNodeWithText("دال مونگ").performClick()
         assertEquals("Moong dal", selected); assertEquals(LayoutDirection.Rtl, direction)
         compose.onNodeWithText("Milk from Aslam").assertExists()
