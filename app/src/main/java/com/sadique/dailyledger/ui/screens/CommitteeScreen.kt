@@ -49,6 +49,7 @@ fun CommitteeScreen(
     onAddCircle: (String, Long, Int, String) -> Unit = { _, _, _, _ -> },
     onAddOrganizerMember: (String, String, String, String, Int, Int) -> Unit = { _, _, _, _, _, _ -> },
     onAssignOrganizerTurn: (String, Int, String) -> Unit = { _, _, _ -> },
+    onUpdateOrganizerContact: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     onOrganizerCollect: (String, String, Long, String, String) -> Unit = { _, _, _, _, _ -> },
     onOrganizerPayout: (String, Long, String, String) -> Unit = { _, _, _, _ -> },
     onDeleteOrganizerMember: (String) -> Unit = {},
@@ -72,7 +73,7 @@ fun CommitteeScreen(
             collections = organizerCollections, payouts = organizerPayouts,
             onBack = { organizerMode = false },
             onAddCircle = onAddCircle, onAddMember = onAddOrganizerMember,
-            onAssignTurn = onAssignOrganizerTurn, onCollect = onOrganizerCollect,
+            onAssignTurn = onAssignOrganizerTurn, onUpdateContact = onUpdateOrganizerContact, onCollect = onOrganizerCollect,
             onPayout = onOrganizerPayout, onDeleteMember = onDeleteOrganizerMember,
             onDeleteCircle = onDeleteOrganizerCircle,
         )
