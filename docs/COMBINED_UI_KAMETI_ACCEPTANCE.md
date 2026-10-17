@@ -12,10 +12,10 @@ The user selected all 15 upgrades **plus one Single Design System**. Keep them g
 
 ## Kameti
 - [x] Month-wise organizer payment calendar with per-month full/partial/unpaid counts and progress (read-only; new JVM tests).
-- [ ] Numbered payment receipt preview and consent-based sharing.
-- [ ] Next turn countdown with explicit timezone and no premature payout claims.
+- [x] Stable original-payment-ID receipt reference and consent-based text sharing; PDF and server-confirmed numbering remain pending.
+- [x] Turn-month-start countdown (local date estimate; not a payout promise).
 - [ ] Opt-in payment reminders with dedupe and no silent message sending.
-- [ ] Daily cash reconciliation persisted with auditable close and adjustment history.
+- [ ] Persisted daily cash close and adjustment history (read-only pooled-balance overview now added).
 
 ## App reliability and accessibility
 - [ ] Compensating correction/undo journal with transaction boundaries.
