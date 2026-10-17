@@ -32,6 +32,8 @@ data class OrganizerMemberEntity(
     val halfUnits: Int = 2,
     val turnNumber: Int = 0,
     val createdAt: Long,
+    val drawMethod: String = "MANUAL",
+    val drawnAt: Long = 0L,
 )
 
 @Entity(tableName = "organizer_collections", indices = [Index("ownerId"), Index("circleId"), Index("memberId")])
