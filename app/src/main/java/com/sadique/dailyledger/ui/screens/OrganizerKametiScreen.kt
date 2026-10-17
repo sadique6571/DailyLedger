@@ -138,6 +138,55 @@ fun OrganizerKametiScreen(
                             }
                         }
 
+                        var showOverview by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showOverview = !showOverview }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showOverview) "Hide money overview" else "Money overview & next turns")
+                        }
+                        if (showOverview) {
+                            val overview = remember(circle, roster, collections, payouts, selectedMonth) {
+                                runCatching { organizerCircleHealth(circle, roster, collections, payouts, YearMonth.parse(selectedMonth)) }.getOrNull()
+                            }
+                            com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                if (overview == null) Text("Cannot calculate overview. Review financial records.", color = MaterialTheme.colorScheme.error)
+                                else {
+                                    Text("Recorded collections: ${rowMoney(overview.recordedCollectionsMinor)}")
+                                    Text("Recorded payouts: ${rowMoney(overview.recordedPayoutsMinor)}")
+                                    Text("Recorded pooled balance: ${rowMoney(overview.pooledBalanceMinor)}")
+                                    Text("Members with installment outstanding: ${overview.membersWithOutstanding}")
+                                    Text("Recorded amounts are not bank-verified or a physical cash close.", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            roster.filter { it.turnNumber > 0 }.sortedBy { it.turnNumber }.take(5).forEach { member ->
+                                val days = organizerTurnCountdown(circle.startMonth, member.turnNumber, LocalDate.now())
+                                Text("${member.name} • Turn #${member.turnNumber} • ${days ?: 0} days until month start",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        val circleReceipts = collections.filter { it.circleId == circle.id }
+                        var showReceipts by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showReceipts = !showReceipts }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showReceipts) "Hide payment receipts" else "Payment receipts")
+                        }
+                        if (showReceipts) {
+                            circleReceipts.sortedByDescending { it.createdAt }.take(50).forEach { payment ->
+                                val payee = roster.firstOrNull { it.id == payment.memberId && it.ownerId == circle.ownerId }
+                                if (payee != null) {
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                        Text(payee.name, translate = false, style = MaterialTheme.typography.titleSmall)
+                                        Text("${organizerReceiptNumber(payment)} • ${payment.date}", style = MaterialTheme.typography.bodySmall)
+                                        Text("${rowMoney(payment.amountMinor)} • ${payment.method}")
+                                        TextButton(onClick = {
+                                            val receipt = organizerReceiptText(circle, payee, payment)
+                                            val send = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, receipt)
+                                            }
+                                            context.startActivity(Intent.createChooser(send, "Share Kameti receipt"))
+                                        }) { Text("Share receipt") }
+                                    }
+                                }
+                            }
+                        }
                         roster.sortedWith(compareBy<OrganizerMemberEntity> { it.turnNumber == 0 }.thenBy { it.turnNumber }).forEach { member ->
                             val shareMonthly = halfShareMoney(circle.fullMonthlyMinor, member.halfUnits)
                             val collected = collections.filter { it.memberId == member.id && it.month == selectedMonth }.sumOf { it.amountMinor }
