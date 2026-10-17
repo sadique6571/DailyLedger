@@ -14,7 +14,7 @@ The user selected all 15 upgrades **plus one Single Design System**. Keep them g
 - [x] Month-wise organizer payment calendar with per-month full/partial/unpaid counts and progress (read-only; new JVM tests).
 - [x] Stable original-payment-ID receipt reference and consent-based text sharing; PDF and server-confirmed numbering remain pending.
 - [x] Turn-month-start countdown (local date estimate; not a payout promise).
-- [ ] Opt-in payment reminders with dedupe and no silent message sending.
+- [x] Manual pending/overdue reminder review and WhatsApp compose (assumed day 10; no automatic sending). Persistent reminders, due-date settings and dedupe are pending.
 - [ ] Persisted daily cash close and adjustment history (read-only pooled-balance overview now added).
 
 ## App reliability and accessibility
