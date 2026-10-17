@@ -188,7 +188,9 @@ fun CreditScreen(
                             Text("Record payment")
                         }
                         history.take(3).forEach { row ->
-                            Text("${row.date} • ${money(row.amountMinor)} • ${row.method}", style = MaterialTheme.typography.bodySmall)
+                            com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                Text("${row.date} • ${money(row.amountMinor)} • ${row.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }

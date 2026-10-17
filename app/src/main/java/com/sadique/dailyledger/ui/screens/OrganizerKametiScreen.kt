@@ -92,7 +92,7 @@ fun OrganizerKametiScreen(
                 val expected = Math.multiplyExact(circle.fullMonthlyMinor, circle.totalSlots.toLong())
                 val monthPaid = collections.filter { it.circleId == circle.id && it.month == selectedMonth }.sumOf { it.amountMinor }
                 val fraction = (monthPaid.toDouble() / expected).toFloat().coerceIn(0f, 1f)
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(circle.name, Modifier.weight(1f), translate = false, style = MaterialTheme.typography.titleLarge)
@@ -108,6 +108,110 @@ fun OrganizerKametiScreen(
                         LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().height(16.dp).testTag("organizer-collection-progress"))
                         Text("Monthly target: ${rowMoney(expected)} • Remaining: ${rowMoney((expected-monthPaid).coerceAtLeast(0L))}")
                         Button(onClick = { memberFor = circle }, modifier = Modifier.fillMaxWidth()) { Text("+ Add member / 0.5 or full share") }
+                        var showReminders by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showReminders = !showReminders }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showReminders) "Hide payment reminders" else "Pending payments & reminders")
+                        }
+                        if (showReminders) {
+                            val month = runCatching { YearMonth.parse(selectedMonth) }.getOrNull()
+                            val reminders = if (month == null) null else
+                                runCatching { organizerReminderCandidates(circle, roster, collections, month, LocalDate.now()) }.getOrNull()
+                            if (reminders == null) {
+                                Text("Cannot calculate reminders for this month.", color = MaterialTheme.colorScheme.error)
+                            } else if (reminders.isEmpty()) {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard { Text("All assigned members are fully paid for this month.") }
+                            } else reminders.forEach { candidate ->
+                                com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                    Text(candidate.name, translate = false, style = MaterialTheme.typography.titleSmall)
+                                    Text("${if (candidate.overdue) "Overdue" else "Pending"} • ${rowMoney(candidate.outstandingMinor)} remaining")
+                                    val contact = candidate.whatsapp.ifBlank { candidate.phone }
+                                    if (contact.isNotBlank()) {
+                                        TextButton(onClick = {
+                                            shareMessage = contact to organizerReminderMessage(circle.name, month!!, candidate)
+                                        }) { Text("Review WhatsApp reminder") }
+                                    }
+                                }
+                            }
+                        }
+                        var showCalendar by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showCalendar = !showCalendar }, modifier = Modifier.fillMaxWidth().testTag("kameti-payment-calendar-toggle")) {
+                            Text(if (showCalendar) "Hide payment calendar" else "Monthly payment calendar")
+                        }
+                        if (showCalendar) {
+                            val calendar = remember(circle, roster, collections) {
+                                runCatching { organizerInstallmentCalendar(circle, roster, collections) }.getOrNull()
+                            }
+                            if (calendar == null) {
+                                Text("Payment calendar could not be calculated. Please check member installments.",
+                                    color = MaterialTheme.colorScheme.error)
+                            } else {
+                                calendar.forEach { entry ->
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(entry.month.toString(), style = MaterialTheme.typography.titleSmall)
+                                            Text("${entry.paidMembers} paid • ${entry.partialMembers} partial • ${entry.unpaidMembers} unpaid",
+                                                style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Text("Collected ${rowMoney(entry.collectedMinor)} / ${rowMoney(entry.expectedAssignedMinor)}",
+                                            style = MaterialTheme.typography.bodySmall)
+                                        LinearProgressIndicator(progress = {
+                                            if (entry.expectedAssignedMinor == 0L) 0f
+                                            else (entry.collectedMinor.toDouble() / entry.expectedAssignedMinor).toFloat().coerceIn(0f, 1f)
+                                        }, modifier = Modifier.fillMaxWidth().height(6.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        var showOverview by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showOverview = !showOverview }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showOverview) "Hide money overview" else "Money overview & next turns")
+                        }
+                        if (showOverview) {
+                            val overview = remember(circle, roster, collections, payouts, selectedMonth) {
+                                runCatching { organizerCircleHealth(circle, roster, collections, payouts, YearMonth.parse(selectedMonth)) }.getOrNull()
+                            }
+                            com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                if (overview == null) Text("Cannot calculate overview. Review financial records.", color = MaterialTheme.colorScheme.error)
+                                else {
+                                    Text("Recorded collections: ${rowMoney(overview.recordedCollectionsMinor)}")
+                                    Text("Recorded payouts: ${rowMoney(overview.recordedPayoutsMinor)}")
+                                    Text("Recorded pooled balance: ${rowMoney(overview.pooledBalanceMinor)}")
+                                    Text("Members with installment outstanding: ${overview.membersWithOutstanding}")
+                                    Text("Recorded amounts are not bank-verified or a physical cash close.", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            roster.filter { it.turnNumber > 0 }.sortedBy { it.turnNumber }.take(5).forEach { member ->
+                                val days = organizerTurnCountdown(circle.startMonth, member.turnNumber, LocalDate.now())
+                                Text("${member.name} • Turn #${member.turnNumber} • ${days ?: 0} days until month start",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        val circleReceipts = collections.filter { it.circleId == circle.id }
+                        var showReceipts by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showReceipts = !showReceipts }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showReceipts) "Hide payment receipts" else "Payment receipts")
+                        }
+                        if (showReceipts) {
+                            circleReceipts.sortedByDescending { it.createdAt }.take(50).forEach { payment ->
+                                val payee = roster.firstOrNull { it.id == payment.memberId && it.ownerId == circle.ownerId }
+                                if (payee != null) {
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                        Text(payee.name, translate = false, style = MaterialTheme.typography.titleSmall)
+                                        Text("${organizerReceiptNumber(payment)} • ${payment.date}", style = MaterialTheme.typography.bodySmall)
+                                        Text("${rowMoney(payment.amountMinor)} • ${payment.method}")
+                                        TextButton(onClick = {
+                                            val receipt = organizerReceiptText(circle, payee, payment)
+                                            val send = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, receipt)
+                                            }
+                                            context.startActivity(Intent.createChooser(send, "Share Kameti receipt"))
+                                        }) { Text("Share receipt") }
+                                    }
+                                }
+                            }
+                        }
                         roster.sortedWith(compareBy<OrganizerMemberEntity> { it.turnNumber == 0 }.thenBy { it.turnNumber }).forEach { member ->
                             val shareMonthly = halfShareMoney(circle.fullMonthlyMinor, member.halfUnits)
                             val collected = collections.filter { it.memberId == member.id && it.month == selectedMonth }.sumOf { it.amountMinor }

@@ -50,16 +50,15 @@ fun SummaryCard(
         else -> scheme.secondary
     }
     val shape = RoundedCornerShape(20.dp)
-    val cardFill = if (isKameti) lerp(scheme.surface, accent, if (dark) .24f else .11f)
-        else scheme.surface
+    val cardFill = scheme.surface
     Card(
         modifier = modifier.fillMaxWidth()
             .then(if (isKameti) Modifier.testTag("kameti-paid-card") else Modifier)
             .clickable(enabled = onClick != null) { onClick?.invoke() },
         shape = shape,
         border = BorderStroke(
-            if (isKameti) 1.5.dp else 1.dp,
-            accent.copy(alpha = if (isKameti) .86f else if (dark) .42f else .28f),
+            1.dp,
+            accent.copy(alpha = if (isKameti) .34f else if (dark) .42f else .28f),
         ),
         colors = CardDefaults.cardColors(containerColor = cardFill),
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
@@ -68,7 +67,7 @@ fun SummaryCard(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
                     Brush.verticalGradient(listOf(
-                        lerp(cardFill, accent, if (isKameti) .12f else .06f),
+                        lerp(cardFill, accent, if (isKameti) .035f else .06f),
                         cardFill,
                     )),
                     shape = shape,

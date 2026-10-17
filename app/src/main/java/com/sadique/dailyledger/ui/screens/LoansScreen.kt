@@ -54,7 +54,7 @@ fun LoansScreen(
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                com.sadique.dailyledger.ui.LedgerRecordCard() {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
                             Column(Modifier.weight(1f)) {
@@ -74,7 +74,11 @@ fun LoansScreen(
                         val allPayments = payments.filter { it.loanId == loan.id }
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
                         val history = if (showHistory) allPayments else allPayments.take(3)
-                        history.forEach { Text("${it.date} • ${visibleMoney(it.amountMinor)} • ${it.method}", style = MaterialTheme.typography.bodySmall) }
+                        history.forEach { payment ->
+                            com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }

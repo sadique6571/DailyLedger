@@ -131,7 +131,8 @@ fun CommitteeScreen(
                 Card(
                     Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (balance.complete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,7 +244,7 @@ fun CommitteeScreen(
                                 Text("Legacy member turns", style = MaterialTheme.typography.titleSmall)
                                 committee.memberSchedule.lineSequence().filter { it.isNotBlank() }.take(24).forEach { line ->
                                     val parts = line.split("|").map { it.trim() }
-                                    Text("${parts.getOrNull(2).orEmpty()} • ${parts.getOrNull(0).orEmpty()}${parts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { " • $it" } ?: ""}", style = MaterialTheme.typography.bodySmall)
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard { Text("${parts.getOrNull(2).orEmpty()} • ${parts.getOrNull(0).orEmpty()}${parts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { " • $it" } ?: ""}", style = MaterialTheme.typography.bodySmall) }
                                 }
                                 Text("Naye member records ke liye ‘Add member / turn’ use karein.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -259,18 +260,22 @@ fun CommitteeScreen(
                         if (history) {
                             if (rs.isNotEmpty()) Text("Receiving history", style = MaterialTheme.typography.titleSmall)
                             rs.sortedWith(compareByDescending<CommitteeReceiptEntity> { it.date }.thenByDescending { it.createdAt }).forEach { receipt ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                  Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
                                         Text("${receipt.date ?: "Date not recorded"} • ${receipt.method}", style = MaterialTheme.typography.bodySmall)
                                         if (receipt.note.isNotBlank()) Text(receipt.note, translate = false, style = MaterialTheme.typography.bodySmall)
                                     }
                                     IconButton(onClick = { deleteReceipt = receipt }) { Icon(Icons.Outlined.DeleteOutline, "Delete receiving") }
+                                  }
                                 }
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", style = MaterialTheme.typography.bodySmall)
+                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                    Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                         }
                     }

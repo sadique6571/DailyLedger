@@ -274,7 +274,7 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenPlanning) { Text("Review") }
                 }
             }
-            if (display.showSpending) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
+            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -311,7 +311,7 @@ fun DashboardScreen(
                     }
                 }
             }
-            if (display.showRecent) enteringItem(key = "recent", index = 6) {
+            if (true) enteringItem(key = "recent", index = 6) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
@@ -360,7 +360,7 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
-            if (display.showSpaces) enteringItem(key = "separate-totals", index = 8) {
+            if (true) enteringItem(key = "separate-totals", index = 8) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 14.dp) {
                     Text("Your money spaces", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("Savings and kameti stay separate from salary.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -448,9 +448,9 @@ fun DashboardScreen(
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.takeIf { display.showInsights }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
+            snapshot?.takeIf { true }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
             }
-            sections.render(this, display.dashboardOrder)
+            sections.render(this, DisplayPreferences.DEFAULT_ORDER)
         }
     }
     if (balanceDetails) AlertDialog(
