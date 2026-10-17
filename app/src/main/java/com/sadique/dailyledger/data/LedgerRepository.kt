@@ -10,6 +10,7 @@ import java.util.UUID
 
 class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     private val dao = db.ledgerDao()
+    val organizer = OrganizerKametiRepository(db, ownerId)
     val transactions = dao.observeTransactions(ownerId)
     val loans = dao.observeLoans(ownerId)
     val loanPayments = dao.observeLoanPayments(ownerId)
@@ -289,7 +290,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     suspend fun hasRecords(): Boolean = dao.transactionsNow(ownerId).isNotEmpty() ||
         dao.loansNow(ownerId).isNotEmpty() || dao.loanPaymentsNow(ownerId).isNotEmpty() ||
         dao.committeesNow(ownerId).isNotEmpty() || dao.committeePaymentsNow(ownerId).isNotEmpty() ||
-        dao.committeeReceiptsNow(ownerId).isNotEmpty() || dao.committeeMembersNow(ownerId).isNotEmpty() ||
+        dao.committeeReceiptsNow(ownerId).isNotEmpty() || dao.committeeMembersNow(ownerId).isNotEmpty() || dao.organizerCirclesNow(ownerId).isNotEmpty() ||
         dao.creditPurchasesNow(ownerId).isNotEmpty() || dao.creditPaymentsNow(ownerId).isNotEmpty() ||
         dao.savingsNow(ownerId).isNotEmpty() ||
         dao.ledgerArchivesNow(ownerId).any {
@@ -310,6 +311,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             dao.migrateCommitteePayments(oldOwner, ownerId)
             dao.migrateCommitteeReceipts(oldOwner, ownerId)
             dao.migrateCommitteeMembers(oldOwner, ownerId)
+            dao.migrateOrganizerCircles(oldOwner, ownerId)
+            dao.migrateOrganizerMembers(oldOwner, ownerId)
+            dao.migrateOrganizerCollections(oldOwner, ownerId)
+            dao.migrateOrganizerPayouts(oldOwner, ownerId)
             dao.migrateSavings(oldOwner, ownerId)
             dao.migrateLedgerCycle(oldOwner, ownerId)
             dao.migrateLedgerArchives(oldOwner, ownerId)
@@ -323,7 +328,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
             0L,
         ).also { dao.insertLedgerCycle(it) }
-        val root = JSONObject().put("version", 6).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        val root = JSONObject().put("version", 7).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
         root.put("transactions", JSONArray().apply { dao.transactionsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("type",x.type).put("amountMinor",x.amountMinor).put("category",x.category).put("note",x.note).put("date",x.date).put("createdAt",x.createdAt).put("updatedAt",x.updatedAt)) } })
         root.put("loans", JSONArray().apply { dao.loansNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("direction",x.direction).put("person",x.person).put("principalMinor",x.principalMinor).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
         root.put("loanPayments", JSONArray().apply { dao.loanPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("loanId",ownedId(x.loanId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
@@ -333,6 +338,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         root.put("committeePayments", JSONArray().apply { dao.committeePaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("installmentNumber",x.installmentNumber).put("month",x.month).put("amountMinor",x.amountMinor).put("paidAt",x.paidAt).put("method",x.method)) } })
         root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
         root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
+        root.put("organizerCircles", JSONArray().apply { dao.organizerCirclesNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("fullMonthlyMinor",x.fullMonthlyMinor).put("totalSlots",x.totalSlots).put("startMonth",x.startMonth).put("createdAt",x.createdAt)) } })
+        root.put("organizerMembers", JSONArray().apply { dao.organizerMembersNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("halfUnits",x.halfUnits).put("turnNumber",x.turnNumber).put("createdAt",x.createdAt)) } })
+        root.put("organizerCollections", JSONArray().apply { dao.organizerCollectionsNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("memberId",ownedId(x.memberId)).put("month",x.month).put("amountMinor",x.amountMinor).put("date",x.date).put("method",x.method).put("createdAt",x.createdAt)) } })
+        root.put("organizerPayouts", JSONArray().apply { dao.organizerPayoutsNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("memberId",ownedId(x.memberId)).put("turnNumber",x.turnNumber).put("amountMinor",x.amountMinor).put("date",x.date).put("method",x.method).put("createdAt",x.createdAt)) } })
         root.put("savings", JSONArray().apply { dao.savingsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("kind",x.kind).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt)) } })
         root.put("ledgerCycle", JSONObject().put("startAt", cycle.startAt).put("openingBalanceMinor", cycle.openingBalanceMinor))
         root.put("ledgerArchives", JSONArray().apply {
@@ -358,6 +367,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         dao.clearCommitteePayments(ownerId)
         dao.clearCommitteeReceipts(ownerId)
         dao.clearCommitteeMembers(ownerId)
+        dao.clearOrganizerPayouts(ownerId)
+        dao.clearOrganizerCollections(ownerId)
+        dao.clearOrganizerMembers(ownerId)
+        dao.clearOrganizerCircles(ownerId)
         dao.clearSavings(ownerId)
         dao.clearLedgerCycle(ownerId)
         dao.clearLedgerArchives(ownerId)
@@ -373,11 +386,14 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     suspend fun importJson(json: String) = db.withTransaction {
         val root = JSONObject(json)
         val version = root.optInt("version")
-        require(version in 1..6) { "Unsupported backup version. Update the app to restore it." }
+        require(version in 1..7) { "Unsupported backup version. Update the app to restore it." }
         require(version == 1 || root.optJSONArray("committeeReceipts") != null) { "Backup is missing kameti receipts; your local data was not changed." }
         if (version >= 3) require(root.optJSONArray("committeeMembers") != null) { "Backup is missing kameti members; your local data was not changed." }
         if (version >= 4) {
             require(root.optJSONArray("creditPurchases") != null && root.optJSONArray("creditPayments") != null) { "Backup is missing udhar records; your local data was not changed." }
+        }
+        if (version >= 7) {
+            require(listOf("organizerCircles", "organizerMembers", "organizerCollections", "organizerPayouts").all { root.optJSONArray(it) != null }) { "Backup has missing organizer Kameti records." }
         }
         if (version >= 5) {
             require(root.optJSONObject("ledgerCycle") != null && root.optJSONArray("ledgerArchives") != null) { "Backup is missing salary-cycle data; your local data was not changed." }
@@ -395,6 +411,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         val cp = root.getJSONArray("committeePayments")
         val savings = root.getJSONArray("savings")
 
+        dao.clearOrganizerPayouts(ownerId)
+        dao.clearOrganizerCollections(ownerId)
+        dao.clearOrganizerMembers(ownerId)
+        dao.clearOrganizerCircles(ownerId)
         dao.clearCommitteeMembers(ownerId)
         dao.clearLedgerCycle(ownerId)
         dao.clearLedgerArchives(ownerId)
