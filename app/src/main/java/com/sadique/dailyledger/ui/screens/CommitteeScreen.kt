@@ -42,6 +42,18 @@ fun CommitteeScreen(
     payments: List<CommitteePaymentEntity>,
     receipts: List<CommitteeReceiptEntity>,
     members: List<CommitteeMemberEntity>,
+    organizerCircles: List<OrganizerCircleEntity> = emptyList(),
+    organizerMembers: List<OrganizerMemberEntity> = emptyList(),
+    organizerCollections: List<OrganizerCollectionEntity> = emptyList(),
+    organizerPayouts: List<OrganizerPayoutEntity> = emptyList(),
+    onAddCircle: (String, Long, Int, String) -> Unit = { _, _, _, _ -> },
+    onAddOrganizerMember: (String, String, String, String, Int, Int) -> Unit = { _, _, _, _, _, _ -> },
+    onAssignOrganizerTurn: (String, Int) -> Unit = { _, _ -> },
+    onOrganizerCollect: (String, String, Long, String, String) -> Unit = { _, _, _, _, _ -> },
+    onOrganizerPayout: (String, Long, String, String) -> Unit = { _, _, _, _ -> },
+    onDeleteOrganizerMember: (String) -> Unit = {},
+    onDeleteOrganizerCircle: (String) -> Unit = {},
+
     onAdd: (String, Long, Int, String, Int?, String, Int, String) -> Unit,
     onPaid: (CommitteeEntity, Int, String, String) -> Unit,
     onReceive: (String, Long, String, String, String) -> Unit,
@@ -53,6 +65,19 @@ fun CommitteeScreen(
     onCalendar: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    var organizerMode by remember { mutableStateOf(false) }
+    if (organizerMode) {
+        OrganizerKametiScreen(
+            circles = organizerCircles, members = organizerMembers,
+            collections = organizerCollections, payouts = organizerPayouts,
+            onBack = { organizerMode = false },
+            onAddCircle = onAddCircle, onAddMember = onAddOrganizerMember,
+            onAssignTurn = onAssignOrganizerTurn, onCollect = onOrganizerCollect,
+            onPayout = onOrganizerPayout, onDeleteMember = onDeleteOrganizerMember,
+            onDeleteCircle = onDeleteOrganizerCircle,
+        )
+        return
+    }
     var add by remember { mutableStateOf(false) }
     var receivingId by remember { mutableStateOf<String?>(null) }
     var deleteCommittee by remember { mutableStateOf<CommitteeEntity?>(null) }
@@ -74,7 +99,10 @@ fun CommitteeScreen(
             enteringItem {
                 Text("Kameti", style = MaterialTheme.typography.headlineMedium)
                 Text("Apni installments, receiving, members ke turns aur contacts ek jagah track karein.")
-                OutlinedButton(onClick = onCalendar) { Text("Kameti calendar") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onCalendar) { Text("Kameti calendar") }
+                    FilledTonalButton(onClick = { organizerMode = true }) { Text("Collection / Organizer") }
+                }
             }
             enteringItem {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -460,6 +488,7 @@ private fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Strin
                 OutlinedTextField(start, { start = it }, label = { Text("Start month YYYY-MM") }, isError = !isValidMonth(start), singleLine = true)
                 OutlinedTextField(payout, { payout = it }, label = { Text("My turn number (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 if (p != null && t != null && p in 1..t && isValidMonth(start)) Text("My month: ${YearMonth.parse(start).plusMonths((p - 1).toLong())}", style = MaterialTheme.typography.bodySmall)
+                ContactPickerButton { _, pickedPhone -> organizerPhone = pickedPhone }
                 OutlinedTextField(organizerPhone, { organizerPhone = it }, label = { Text("Organizer phone / WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
             }
@@ -499,7 +528,7 @@ private fun MemberDialog(
                     Switch(isMe, onCheckedChange = { isMe = it; if (it && name.isBlank()) name = "Me" }, enabled = canAddMyTurn || isMe)
                 }
                 if (!canAddMyTurn) Text("All ${committee.shares} of your own turn(s) are already assigned.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (!isMe) ContactPickerButton { pickedName, pickedPhone -> if (name.isBlank()) name = pickedName; phone = pickedPhone; if (whatsapp.isBlank()) whatsapp = pickedPhone }
+                ContactPickerButton { pickedName, pickedPhone -> if (name.isBlank() || name == "Me") name = pickedName; phone = pickedPhone; if (whatsapp.isBlank()) whatsapp = pickedPhone }
                 OutlinedTextField(name, { name = it }, label = { Text(if (isMe) "Name (e.g. Me)" else "Member name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(phone, { phone = it }, label = { Text("Phone (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                 OutlinedTextField(whatsapp, { whatsapp = it }, label = { Text("WhatsApp (optional, blank = phone)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
