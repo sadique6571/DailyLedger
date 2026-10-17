@@ -131,7 +131,8 @@ fun CommitteeScreen(
                 Card(
                     Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (balance.complete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,7 +244,7 @@ fun CommitteeScreen(
                                 Text("Legacy member turns", style = MaterialTheme.typography.titleSmall)
                                 committee.memberSchedule.lineSequence().filter { it.isNotBlank() }.take(24).forEach { line ->
                                     val parts = line.split("|").map { it.trim() }
-                                    Text("${parts.getOrNull(2).orEmpty()} • ${parts.getOrNull(0).orEmpty()}${parts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { " • $it" } ?: ""}", style = MaterialTheme.typography.bodySmall)
+                                    com.sadique.dailyledger.ui.LedgerHistoryCard { Text("${parts.getOrNull(2).orEmpty()} • ${parts.getOrNull(0).orEmpty()}${parts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { " • $it" } ?: ""}", style = MaterialTheme.typography.bodySmall) }
                                 }
                                 Text("Naye member records ke liye ‘Add member / turn’ use karein.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
