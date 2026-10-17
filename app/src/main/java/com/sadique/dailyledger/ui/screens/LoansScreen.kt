@@ -54,7 +54,7 @@ fun LoansScreen(
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)
-                Card(modifier = Modifier.fillMaxWidth()) {
+                com.sadique.dailyledger.ui.LedgerRecordCard() {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
                             Column(Modifier.weight(1f)) {
