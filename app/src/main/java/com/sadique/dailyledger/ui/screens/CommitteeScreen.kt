@@ -143,6 +143,16 @@ fun CommitteeScreen(
                         }
 
                         Text("Monthly payment: ${visibleMoney(committee.monthlyContribution())}", style = MaterialTheme.typography.titleSmall)
+                        val paidCount = ps.map { it.installmentNumber }.distinct().size
+                        val paidFraction = (paidCount.toFloat() / committee.totalInstallments.coerceAtLeast(1)).coerceIn(0f, 1f)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Installment progress", style = MaterialTheme.typography.bodySmall)
+                            Text("$paidCount / ${committee.totalInstallments} • ${(paidFraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                        }
+                        LinearProgressIndicator(
+                            progress = { paidFraction },
+                            modifier = Modifier.fillMaxWidth().height(12.dp).testTag("kameti-installment-progress"),
+                        )
                         nextMonth?.let { month ->
                             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -292,8 +302,10 @@ fun CommitteeScreen(
     }
 
     addMemberTo?.let { committee ->
-        MemberDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null }) { name, phone, wa, turn, month, me, note, halfUnits ->
-            onAddMember(committee.id, name, phone, wa, turn, month, me, note, halfUnits)
+        MemberDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null }) { entries ->
+            entries.forEach { entry ->
+                onAddMember(committee.id, entry.name, entry.phone, entry.whatsapp, entry.turn, entry.month, entry.isMe, entry.note, entry.halfUnits)
+            }
             addMemberTo = null
         }
     }
@@ -521,52 +533,95 @@ private fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Strin
     )
 }
 
+private data class PersonalTurnDraft(
+    val name: String,
+    val phone: String,
+    val whatsapp: String,
+    val turn: Int,
+    val month: String,
+    val isMe: Boolean,
+    val note: String,
+    val halfUnits: Int,
+)
+
 @Composable
 private fun MemberDialog(
     committee: CommitteeEntity,
     currentMembers: List<CommitteeMemberEntity>,
     dismiss: () -> Unit,
-    save: (String, String, String, Int, String, Boolean, String, Int) -> Unit,
+    save: (List<PersonalTurnDraft>) -> Unit,
 ) {
-    val nextTurn = (1..committee.totalInstallments).firstOrNull { n -> currentMembers.filter { it.turnNumber == n }.sumOf { it.shareHalfUnits } < 2 } ?: committee.totalInstallments
+    val queued = remember(committee.id) { mutableStateListOf<PersonalTurnDraft>() }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var whatsapp by remember { mutableStateOf("") }
-    var turn by remember { mutableStateOf(nextTurn.toString()) }
+    var turn by remember { mutableStateOf("") }
     var isMe by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
     var halfUnits by remember { mutableIntStateOf(2) }
-    val canAddMyTurn = currentMembers.filter { it.isMe }.sumOf { it.shareHalfUnits } + halfUnits <= committee.sharesHalfUnits
     val turnNumber = turn.toIntOrNull()
     val turnMonth = turnNumber?.takeIf { it in 1..committee.totalInstallments }?.let { scheduledMonth(committee, it) }
-    val duplicate = turnNumber != null && currentMembers.filter { it.turnNumber == turnNumber }.sumOf { it.shareHalfUnits } + halfUnits > 2
-    val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) && (isMe || name.isNotBlank())
-
+    val sameTurnUnits = currentMembers.filter { it.turnNumber == turnNumber }.sumOf { it.shareHalfUnits } +
+        queued.filter { it.turn == turnNumber }.sumOf { it.halfUnits }
+    val myUsedUnits = currentMembers.filter { it.isMe }.sumOf { it.shareHalfUnits } +
+        queued.filter { it.isMe }.sumOf { it.halfUnits }
+    val duplicate = sameTurnUnits + halfUnits > 2
+    val canAddMyTurn = myUsedUnits + halfUnits <= committee.sharesHalfUnits
+    val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) &&
+        (isMe || name.isNotBlank())
     AlertDialog(
         onDismissRequest = dismiss,
-        title = { Text("Add member / turn") },
+        title = { Text("Add all members / my turns") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Use a separate row for every turn. If you own 2 shares, add two full turns; for 3 shares, add three. Every turn displays its calculated month.")
+                Text("My shares assigned: ${myUsedUnits / 2.0} / ${committee.sharesHalfUnits / 2.0}")
+                queued.forEachIndexed { index, entry ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${index + 1}. ${entry.name} • ${if (entry.isMe) "My" else "Member"} • ${if (entry.halfUnits == 1) "0.5" else "1"} share • #${entry.turn} • ${entry.month}",
+                            Modifier.weight(1f), translate = false, style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { queued.removeAt(index) }) { Text("Remove") }
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("This is my turn", Modifier.weight(1f))
-                    Switch(isMe, onCheckedChange = { isMe = it; if (it && name.isBlank()) name = "Me" }, enabled = canAddMyTurn || isMe)
+                    Switch(isMe, onCheckedChange = { isMe = it; if (it && name.isBlank()) name = "Me" })
                 }
-                if (!canAddMyTurn) Text("All your personal shares are already assigned.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                ContactPickerButton { pickedName, pickedPhone -> if (name.isBlank() || name == "Me") name = pickedName; phone = pickedPhone; if (whatsapp.isBlank()) whatsapp = pickedPhone }
-                OutlinedTextField(name, { name = it }, label = { Text(if (isMe) "Name (e.g. Me)" else "Member name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(phone, { phone = it }, label = { Text("Phone (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
-                OutlinedTextField(whatsapp, { whatsapp = it }, label = { Text("WhatsApp (optional, blank = phone)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                ContactPickerButton { pickedName, pickedPhone ->
+                    if (!isMe) name = pickedName
+                    phone = pickedPhone
+                    if (whatsapp.isBlank()) whatsapp = pickedPhone
+                }
+                OutlinedTextField(name, { name = it }, label = { Text(if (isMe) "Your name" else "Member name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(phone, { phone = it }, label = { Text("Phone (optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                OutlinedTextField(whatsapp, { whatsapp = it }, label = { Text("WhatsApp (optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(halfUnits == 1, { halfUnits = 1 }, label = { Text("Half 0.5") })
                     FilterChip(halfUnits == 2, { halfUnits = 2 }, label = { Text("Full 1") })
                 }
-                OutlinedTextField(turn, { turn = it }, label = { Text("Turn number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, isError = turnNumber == null || turnNumber !in 1..committee.totalInstallments || duplicate)
-                turnMonth?.let { Text("Turn month: $it", style = MaterialTheme.typography.titleSmall) }
-                if (duplicate) Text("This turn is full: only one full or two half shares are allowed.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(turn, { turn = it }, label = { Text("Turn number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true,
+                    isError = turn.isNotBlank() && (turnMonth == null || duplicate))
+                turnMonth?.let { Text("Receiving month: $it", style = MaterialTheme.typography.titleSmall) }
+                if (duplicate) Text("This turn already has a full share (or two half shares).", color = MaterialTheme.colorScheme.error)
+                if (isMe && !canAddMyTurn) Text("Your declared shares are already allocated; increase shares in a new Kameti if needed.", color = MaterialTheme.colorScheme.error)
                 OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedButton(enabled = valid, onClick = {
+                    queued.add(PersonalTurnDraft(name.ifBlank { "Me" }.trim(), phone.trim(), whatsapp.trim(), turnNumber!!,
+                        turnMonth!!, isMe, note.trim(), halfUnits))
+                    name = if (isMe) "Me" else ""
+                    phone = ""; whatsapp = ""; turn = ""; note = ""
+                }, modifier = Modifier.fillMaxWidth()) { Text("+ Add another turn / member") }
+                Text("Review all rows before saving.")
             }
         },
-        confirmButton = { Button(enabled = valid, onClick = { save(name.ifBlank { "Me" }, phone, whatsapp, turnNumber!!, turnMonth!!, isMe, note, halfUnits) }) { Text("Save turn") } },
+        confirmButton = {
+            Button(enabled = queued.isNotEmpty(), onClick = { save(queued.toList()) }) {
+                Text("Save all (${queued.size})")
+            }
+        },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
