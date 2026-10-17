@@ -11,6 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,6 +40,8 @@ import com.sadique.dailyledger.sync.*
 import com.sadique.dailyledger.ui.MainViewModel
 import com.sadique.dailyledger.weather.WeatherService
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
 import java.time.LocalDate
 import java.time.YearMonth
@@ -100,11 +104,14 @@ fun SettingsScreen(
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
     var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
+    var backupHistory by remember { mutableStateOf<List<DriveRevision>?>(null) }
+    var selectedRevision by remember { mutableStateOf<DriveRevision?>(null) }
     var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
     val settingsStore = remember { SettingsStore(context.applicationContext) }
+    val backupState by remember(settingsStore) { settingsStore.all.map { it.driveState } }.collectAsState(initial = "unknown")
     val display = LocalDisplayPreferences.current!!
     val savings by vm.savings.collectAsState()
-    val backupReady = driveEnabled && lastSync > 0L
+    val backupReady = lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
     var cityEditor by rememberSaveable { mutableStateOf(false) }
     fun export(pdf: Boolean, previewOnly: Boolean = false) {
@@ -152,9 +159,12 @@ fun SettingsScreen(
     }
     suspend fun runDrive(token: String, action: String) {
         try {
-            if (action == "RESTORE") {
-                DriveSync(context, vm.ownerId).restore(token)
-                message = "Google Drive backup restored to this phone."
+            if (action == "HISTORY") {
+                backupHistory = DriveSync(context, vm.ownerId).history(token)
+            } else if (action == "RESTORE" || action == "HISTORY_RESTORE") {
+                DriveSync(context, vm.ownerId).restore(token, if (action == "HISTORY_RESTORE") selectedRevision else null)
+                message = if (action == "HISTORY_RESTORE") "Backup copy restored. Check the backup status before making more changes." else "Google Drive backup restored to this phone."
+                selectedRevision = null
             } else {
                 DriveSync(context, vm.ownerId).upload(token, allowReplace = true)
                 message = "Backup saved to your Google Drive account."
@@ -163,6 +173,7 @@ fun SettingsScreen(
             throw e
         } catch (e: Exception) {
             message = e.message ?: "Google Drive operation failed."
+            settingsStore.setDriveStatus(user.id, message.orEmpty())
         } finally {
             busy = false
         }
@@ -195,6 +206,26 @@ fun SettingsScreen(
         }
     }
 
+    backupHistory?.let { copies ->
+        AlertDialog(
+            onDismissRequest = { backupHistory = null },
+            title = { Text("Backup history") },
+            text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    Text("Choose a copy to restore. Restoring replaces this phone's ledger; export any newer records you want to keep first.")
+                    if (copies.isEmpty()) Text("No backup copies were found.")
+                    copies.take(30).forEach { copy ->
+                        val time = runCatching { formatTime(java.time.Instant.parse(copy.modifiedTime).toEpochMilli()) }.getOrDefault(copy.modifiedTime)
+                        TextButton(onClick = {
+                            selectedRevision = copy; backupHistory = null; confirmation = "DRIVE_HISTORY_RESTORE"
+                        }, modifier = Modifier.fillMaxWidth()) { Text(time) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { backupHistory = null }) { Text("Close") } },
+        )
+    }
+
     offlineImport?.let { oldOwner ->
         AlertDialog(
             onDismissRequest = { offlineImport = null },
@@ -221,10 +252,12 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    if (restore)
+                    if (action == "DRIVE_HISTORY_RESTORE")
+                        "This replaces this phone's ledger with the selected older copy. Automatic backup pauses after restoring an older copy so your latest Drive backup stays safe. Review the restored records before using Back up now."
+                    else if (restore)
                         "This replaces the records for ${user.email} on this phone with the backup in the selected Google account. Export any changes you want to keep first."
                     else
-                        "This uploads this phone's full ledger to the selected Google account and replaces its previous Daily Ledger backup."
+                        "This makes this phone's ledger the latest Google Drive backup. Previous copies are kept in Backup history within the retention limit."
                 )
             },
             confirmButton = {
@@ -233,6 +266,7 @@ fun SettingsScreen(
                     when (action) {
                         "DRIVE_RESTORE" -> drive("RESTORE")
                         "DRIVE_UPLOAD" -> drive("UPLOAD")
+                        "DRIVE_HISTORY_RESTORE" -> drive("HISTORY_RESTORE")
                     }
                 }) { Text(if (restore) "Restore" else "Back up now") }
             },
@@ -253,7 +287,13 @@ fun SettingsScreen(
                         resetStage = 0
                         scope.launch {
                             try {
-                                vm.repo.clearAllForOwner()
+                                BackupLock.mutex.withLock {
+                                    check(com.sadique.dailyledger.auth.FirebaseRuntime.auth(context).currentUser?.uid == vm.ownerId) { "Please sign in again." }
+                                    settingsStore.pauseDriveBackup(vm.ownerId, "Local reset in progress. Automatic backup is paused.")
+                                    vm.repo.clearAllForOwner()
+                                    settingsStore.setDriveStatus(vm.ownerId, "Local data was reset. Automatic backup is paused to protect your Drive copy. Restore data, or use Back up now to replace it intentionally.", "paused")
+                                }
+                                SyncScheduler.cancelImmediate(context)
                                 message = "Local records for this account were reset on this phone."
                             } catch (e: CancellationException) {
                                 throw e
@@ -316,7 +356,12 @@ fun SettingsScreen(
         }
         if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
-                driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false })
+                driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false }, backupState)
+            TextButton(onClick = { drive("HISTORY") }, enabled = !busy, modifier = Modifier.testTag("backup-history")) {
+                Icon(Icons.Rounded.History, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Backup history")
+            }
         }
 
         if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
@@ -324,6 +369,8 @@ fun SettingsScreen(
                 Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
                 Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
                 Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
+                Text("Changes queue a backup when saved. Failed connections retry automatically, with an hourly background check. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
+                Text("History keeps the latest 10 copies plus a copy for each of the last 7 backup days. Unchanged records do not create extra copies. Budgets, reminder schedules and AI learning remain on this phone only.", style = MaterialTheme.typography.bodySmall)
             }
         }
 

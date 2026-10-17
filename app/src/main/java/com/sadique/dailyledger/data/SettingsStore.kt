@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore("daily_ledger_settings")
 
+data class DriveCheckpoint(val version: String, val fileId: String, val contentHash: String, val checksum: String)
+data class DriveUploadAttempt(val contentHash: String, val fileId: String)
+
 data class AppSettings(
     val user: UserProfile?,
     val theme: String,
@@ -19,6 +22,7 @@ data class AppSettings(
     val lastSync: Long,
     val driveStatus: String = "Connect Google Drive to back up your records.",
     val driveVersion: String = "",
+    val driveState: String = "unknown",
     val weatherEnabled: Boolean = false,
     val weatherCity: String = "",
     val weatherTemperature: String = "",
@@ -49,6 +53,12 @@ class SettingsStore(private val context: Context) {
     private fun driveTime(owner: String) = longPreferencesKey("drive_time:$owner")
     private fun driveStatus(owner: String) = stringPreferencesKey("drive_status:$owner")
     private fun driveVersionKey(owner: String) = stringPreferencesKey("drive_version:$owner")
+    private fun driveStateKey(owner: String) = stringPreferencesKey("drive_state:$owner")
+    private fun driveHashKey(owner: String) = stringPreferencesKey("drive_hash:$owner")
+    private fun driveChecksumKey(owner: String) = stringPreferencesKey("drive_checksum:$owner")
+    private fun driveFileKey(owner: String) = stringPreferencesKey("drive_file:$owner")
+    private fun driveAttemptHashKey(owner: String) = stringPreferencesKey("drive_attempt_hash:$owner")
+    private fun driveAttemptFileKey(owner: String) = stringPreferencesKey("drive_attempt_file:$owner")
     private fun skippedDriveBackupKey(owner: String) = stringPreferencesKey("drive_restore_skipped:$owner")
     private fun profile(p: Preferences) = p[K.userId]?.let {
         UserProfile(it, p[K.email].orEmpty(), p[K.name].orEmpty(), p[K.photo], p[K.googleEmail])
@@ -63,6 +73,7 @@ class SettingsStore(private val context: Context) {
             lastSync = p[driveTime(id)] ?: 0L,
             driveStatus = p[driveStatus(id)] ?: "Connect Google Drive to back up your records.",
             driveVersion = p[driveVersionKey(id)].orEmpty(),
+            driveState = p[driveStateKey(id)] ?: "unknown",
             weatherEnabled = p[K.weatherEnabled] ?: false,
             weatherCity = p[K.weatherCity].orEmpty(),
             weatherTemperature = p[K.weatherTemperature].orEmpty(),
@@ -92,8 +103,43 @@ class SettingsStore(private val context: Context) {
     suspend fun setBiometric(value: Boolean) { context.dataStore.edit { it[K.biometric] = value } }
     suspend fun setDriveEnabled(owner: String, value: Boolean) { context.dataStore.edit { it[drive(owner)] = value } }
     suspend fun setLastSync(owner: String, value: Long) { context.dataStore.edit { it[driveTime(owner)] = value } }
-    suspend fun setDriveStatus(owner: String, value: String) {
-        context.dataStore.edit { it[driveStatus(owner)] = value }
+    suspend fun setDriveStatus(owner: String, value: String, state: String = "error") {
+        context.dataStore.edit { it[driveStatus(owner)] = value; it[driveStateKey(owner)] = state }
+    }
+    suspend fun markDrivePending(owner: String) = setDriveStatus(owner,
+        "Changes are saved on this phone. Waiting for Google Drive backup.", "pending")
+    suspend fun pauseDriveBackup(owner: String, status: String) {
+        context.dataStore.edit {
+            it[drive(owner)] = false
+            it[driveVersionKey(owner)] = ""
+            it.remove(driveAttemptHashKey(owner)); it.remove(driveAttemptFileKey(owner))
+            it[driveStateKey(owner)] = "paused"
+            it[driveStatus(owner)] = status
+        }
+    }
+    suspend fun driveCheckpoint(owner: String): DriveCheckpoint = context.dataStore.data.first().let {
+        DriveCheckpoint(it[driveVersionKey(owner)].orEmpty(), it[driveFileKey(owner)].orEmpty(),
+            it[driveHashKey(owner)].orEmpty(), it[driveChecksumKey(owner)].orEmpty())
+    }
+    suspend fun driveUploadAttempt(owner: String): DriveUploadAttempt = context.dataStore.data.first().let {
+        DriveUploadAttempt(it[driveAttemptHashKey(owner)].orEmpty(), it[driveAttemptFileKey(owner)].orEmpty())
+    }
+    suspend fun beginDriveUpload(owner: String, hash: String, fileId: String) {
+        context.dataStore.edit { it[driveAttemptHashKey(owner)] = hash; it[driveAttemptFileKey(owner)] = fileId }
+    }
+    /** Version, content identity and successful status are committed together, never before verification. */
+    suspend fun completeDriveBackup(owner: String, checkpoint: DriveCheckpoint, time: Long, status: String, enable: Boolean = false, state: String = "verified") {
+        context.dataStore.edit {
+            it[driveVersionKey(owner)] = checkpoint.version
+            it[driveFileKey(owner)] = checkpoint.fileId
+            it[driveHashKey(owner)] = checkpoint.contentHash
+            it[driveChecksumKey(owner)] = checkpoint.checksum
+            it[driveTime(owner)] = time
+            it[driveStatus(owner)] = status
+            it[driveStateKey(owner)] = state
+            it.remove(driveAttemptHashKey(owner)); it.remove(driveAttemptFileKey(owner))
+            if (enable) it[drive(owner)] = true
+        }
     }
     suspend fun driveVersion(owner: String): String =
         context.dataStore.data.first()[driveVersionKey(owner)].orEmpty()

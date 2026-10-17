@@ -43,7 +43,7 @@ object DriveAuth {
     }
 
     suspend fun silentToken(context: Context, email: String): String? = withContext(Dispatchers.IO) {
-        val result = Tasks.await(Identity.getAuthorizationClient(context).authorize(request(email)))
+        val result = Tasks.await(Identity.getAuthorizationClient(context).authorize(request(email)), 30, java.util.concurrent.TimeUnit.SECONDS)
         if (result.hasResolution()) null else result.accessToken
             ?: error("Google Drive did not return an access token.")
     }

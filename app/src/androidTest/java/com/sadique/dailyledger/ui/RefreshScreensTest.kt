@@ -40,21 +40,28 @@ class RefreshScreensTest {
     }
     @Test fun backupCardNeverCallsAnUnverifiedBackupSuccessfulAndActionsWork() {
         var action = ""
+        val backupState = androidx.compose.runtime.mutableStateOf("unknown")
+        val knownBackup = androidx.compose.runtime.mutableStateOf(false)
         compose.setContent { DailyLedgerTheme("AQUA") { LedgerBackdrop {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 LedgerBrandHeader("Settings & backup")
-                AccountBackupCard(true, false, "", "", false, {}, { action = "restore" }, { action = "backup" }, { action = "details" })
+                AccountBackupCard(true, knownBackup.value, "17 Oct 2026", "", false, {}, { action = "restore" }, { action = "backup" }, { action = "details" }, backupState.value)
                 PersonalizationCard(true, true, "Okara", {}, {}, { action = "location" }, {})
                 SavingsSettingsCard(0) { action = "savings" }
                 EncryptionBanner()
             }
         } } }
-        compose.onNodeWithText("Awaiting first Drive backup").assertIsDisplayed()
-        compose.onNodeWithText("Google Drive backup available").assertDoesNotExist()
+        compose.onNodeWithText("Backup has not been verified yet").assertIsDisplayed()
+        compose.onNodeWithText("Google Drive backup verified").assertDoesNotExist()
         compose.onNodeWithText("Restore data").performClick()
         assertEquals("restore", action)
         compose.onNodeWithText("Back up now").performClick()
         assertEquals("backup", action)
+        compose.runOnIdle { knownBackup.value = true; backupState.value = "pending" }
+        compose.onNodeWithText("Changes waiting for backup").assertIsDisplayed()
+        compose.onNodeWithText("Google Drive backup verified").assertDoesNotExist()
+        compose.runOnIdle { backupState.value = "verified" }
+        compose.onNodeWithText("Google Drive backup verified").assertIsDisplayed()
         shot("aqua-settings")
         compose.onNodeWithText("Change").performScrollTo().performClick()
         assertEquals("location", action)

@@ -24,7 +24,15 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String, status: String, busy: Boolean,
-    onToggle: (Boolean) -> Unit, onRestore: () -> Unit, onBackup: () -> Unit, onDetails: () -> Unit) {
+    onToggle: (Boolean) -> Unit, onRestore: () -> Unit, onBackup: () -> Unit, onDetails: () -> Unit, backupState: String = "unknown") {
+    val verified = enabled && knownBackup && backupState == "verified"
+    val title = when {
+        !enabled -> "Automatic backup is off"
+        backupState == "pending" -> "Changes waiting for backup"
+        backupState in setOf("error", "auth", "conflict", "paused") -> "Backup needs attention"
+        verified -> "Google Drive backup verified"
+        else -> "Backup has not been verified yet"
+    }
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GlowIcon(Icons.Rounded.CloudUpload, Color(0xFF468FFF), size = 49.dp)
@@ -38,17 +46,17 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
         Surface(shape = RoundedCornerShape(18.dp), color = if (ledgerIsDark()) Color(0xFF153449) else Color(0xFFEDF9FF)) {
             Column(Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    GlowIcon(if (knownBackup) Icons.Rounded.CheckCircle else Icons.Rounded.CloudSync,
-                        if (knownBackup) LedgerColors.Green else LedgerColors.Blue, size = 42.dp)
+                    GlowIcon(if (verified) Icons.Rounded.CheckCircle else Icons.Rounded.CloudSync,
+                        if (verified) LedgerColors.Green else LedgerColors.Amber, size = 42.dp)
                     Column(Modifier.weight(1f)) {
-                        Text(if (knownBackup) "Google Drive backup available" else if (enabled) "Awaiting first Drive backup" else "Automatic backup is off",
+                        Text(title,
                             fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Text(if (knownBackup) "Last backup: $lastCheck" else if (enabled) "Approve Drive access with Back up now. Manual restore is also available." else "Automatic backup is off. Manual backup and restore are still available.",
                             fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box(Modifier.size(44.dp)) {
                         Icon(Icons.Rounded.Cloud, null, Modifier.size(40.dp), tint = Color(0xFF91CBFF))
-                        Icon(Icons.Rounded.VerifiedUser, null, Modifier.align(Alignment.BottomEnd).size(29.dp), tint = if (knownBackup) LedgerColors.Green else LedgerColors.Teal)
+                        Icon(if (verified) Icons.Rounded.VerifiedUser else Icons.Rounded.Info, null, Modifier.align(Alignment.BottomEnd).size(29.dp), tint = if (verified) LedgerColors.Green else LedgerColors.Amber)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
