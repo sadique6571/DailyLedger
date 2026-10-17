@@ -108,6 +108,31 @@ fun OrganizerKametiScreen(
                         LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().height(16.dp).testTag("organizer-collection-progress"))
                         Text("Monthly target: ${rowMoney(expected)} • Remaining: ${rowMoney((expected-monthPaid).coerceAtLeast(0L))}")
                         Button(onClick = { memberFor = circle }, modifier = Modifier.fillMaxWidth()) { Text("+ Add member / 0.5 or full share") }
+                        var showReminders by remember(circle.id) { mutableStateOf(false) }
+                        OutlinedButton(onClick = { showReminders = !showReminders }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showReminders) "Hide payment reminders" else "Pending payments & reminders")
+                        }
+                        if (showReminders) {
+                            val month = runCatching { YearMonth.parse(selectedMonth) }.getOrNull()
+                            val reminders = if (month == null) null else
+                                runCatching { organizerReminderCandidates(circle, roster, collections, month, LocalDate.now()) }.getOrNull()
+                            if (reminders == null) {
+                                Text("Cannot calculate reminders for this month.", color = MaterialTheme.colorScheme.error)
+                            } else if (reminders.isEmpty()) {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard { Text("All assigned members are fully paid for this month.") }
+                            } else reminders.forEach { candidate ->
+                                com.sadique.dailyledger.ui.LedgerHistoryCard {
+                                    Text(candidate.name, translate = false, style = MaterialTheme.typography.titleSmall)
+                                    Text("${if (candidate.overdue) "Overdue" else "Pending"} • ${rowMoney(candidate.outstandingMinor)} remaining")
+                                    val contact = candidate.whatsapp.ifBlank { candidate.phone }
+                                    if (contact.isNotBlank()) {
+                                        TextButton(onClick = {
+                                            shareMessage = contact to organizerReminderMessage(circle.name, month!!, candidate)
+                                        }) { Text("Review WhatsApp reminder") }
+                                    }
+                                }
+                            }
+                        }
                         var showCalendar by remember(circle.id) { mutableStateOf(false) }
                         OutlinedButton(onClick = { showCalendar = !showCalendar }, modifier = Modifier.fillMaxWidth().testTag("kameti-payment-calendar-toggle")) {
                             Text(if (showCalendar) "Hide payment calendar" else "Monthly payment calendar")
