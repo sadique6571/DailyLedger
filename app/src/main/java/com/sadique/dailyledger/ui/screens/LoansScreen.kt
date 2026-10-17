@@ -75,7 +75,7 @@ fun LoansScreen(
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
                         val history = if (showHistory) allPayments else allPayments.take(3)
                         history.forEach { payment ->
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) {
+                            com.sadique.dailyledger.ui.LedgerHistoryCard() {
                                 Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                             }
                         }
