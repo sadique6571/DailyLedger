@@ -44,7 +44,8 @@ class DriveSync internal constructor(
             if (!allowReplace && settings.all.first().let { !it.driveEnabled || it.user?.id != ownerId }) return@withContext
             val api = apiFactory(token)
             val existing = api.findBackup()
-            val known = settings.driveCheckpoint(ownerId)
+            var known = settings.driveCheckpoint(ownerId)
+            val attempt = settings.driveUploadAttempt(ownerId)
             val json = repo.exportJson()
             require(JSONObject(json).optString("ownerId") == ownerId) { "Local records do not belong to the signed-in account. Nothing was uploaded." }
             val hash = driveContentHash(json)
@@ -52,17 +53,28 @@ class DriveSync internal constructor(
                 val unchanged = known.fileId == existing.fileId && known.version == existing.version &&
                     known.checksum == existing.checksum && known.contentHash == hash
                 // Reconcile an upload whose response was lost, or a crash before the local checkpoint committed.
-                val matchingRemote = !unchanged && (known.version != existing.version || known.fileId != existing.fileId) &&
-                    driveContentHash(String(api.download(existing).data, Charsets.UTF_8)) == hash
-                if (unchanged || matchingRemote) {
+                val remoteHash = if (!unchanged && (known.version != existing.version || known.fileId != existing.fileId))
+                    driveContentHash(String(api.download(existing).data, Charsets.UTF_8)) else null
+                if (unchanged || remoteHash == hash) {
                     verified(existing, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
                     return@withContext
+                }
+                if (attempt.contentHash.isNotBlank() && remoteHash == attempt.contentHash &&
+                    (attempt.fileId.isBlank() || attempt.fileId == existing.fileId)) {
+                    // Edits may have arrived since the lost acknowledgement. Accept only our attempted
+                    // content as the new baseline, keep the UI pending, then upload the latest local snapshot.
+                    checkAccount()
+                    known = DriveCheckpoint(existing.version, existing.fileId, attempt.contentHash, existing.checksum)
+                    val time = runCatching { java.time.Instant.parse(existing.modifiedTime).toEpochMilli() }.getOrDefault(System.currentTimeMillis())
+                    settings.completeDriveBackup(ownerId, known, time,
+                        "Changes are saved on this phone. Waiting for Google Drive backup.", state = "pending")
                 }
             }
             if (!allowReplace && (driveBackupHasConflict(known.version, existing?.version, repo.hasRecords()) ||
                     (known.fileId.isNotBlank() && existing?.fileId != known.fileId))) throw DriveBackupConflictException()
             checkAccount()
             settings.setDriveStatus(ownerId, "Backing up ledger changes to Google Drive...", "pending")
+            settings.beginDriveUpload(ownerId, hash, existing?.fileId.orEmpty())
             val updated = api.upload(json.toByteArray(Charsets.UTF_8), existing)
             verified(updated, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
             try { api.trimHistory(updated) }

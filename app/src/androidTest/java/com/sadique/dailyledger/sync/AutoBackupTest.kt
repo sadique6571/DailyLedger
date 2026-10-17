@@ -91,6 +91,16 @@ class AutoBackupTest {
         sync.upload("token")
         assertEquals(1, remote.writes) // unchanged startup/periodic jobs do not upload again
     } }
+    @Test fun lostResponseFollowedByMoreOfflineEditsContinuesAutomatically() = runBlocking { fixture {
+        add(); remote.loseAcknowledgement = true
+        assertTrue(runCatching { sync.upload("token") }.isFailure)
+        add(30000)
+        sync.upload("new-token")
+        assertEquals(2, remote.writes)
+        assertEquals(2, JSONObject(String(remote.bytes)).getJSONArray("transactions").length())
+        assertEquals("verified", state().driveState)
+        assertEquals("", settings.driveUploadAttempt(owner).contentHash)
+    } }
     @Test fun newerRemoteCopyAndEmptyResetCannotBeOverwrittenAutomatically() = runBlocking { fixture {
         add(); sync.upload("token")
         remote.set(String(remote.bytes).replace("10000", "99999"))
