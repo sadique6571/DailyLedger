@@ -87,6 +87,7 @@ data class CommitteeReceiptEntity(
     val note: String,
     val createdAt: Long,
     @ColumnInfo(defaultValue = "Cash") val method: String = "Cash",
+    @ColumnInfo(defaultValue = "''") val memberId: String = "",
 )
 
 @Entity(
