@@ -9,6 +9,7 @@ on:
       - codex/build-apk-20261005
       - codex/ledger-ui-offline-20261014
       - codex/ledger-fixes-20261015
+      - codex/kameti-financial-operations-phase3-20261017
 
   # Include stacked PRs targeting feature branches, not only main.
   pull_request:
