@@ -171,9 +171,24 @@ fun TransactionsScreen(
                 }
             }
             if (filtered.isEmpty()) {
-                item { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 28.dp)) }
+                item { com.sadique.dailyledger.ui.LedgerRecordCard { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             }
-            enteringItems(sorted, key = { it.id }) { x ->
+            sorted.forEachIndexed { index, x ->
+                if (sortOrder in setOf("NEWEST", "OLDEST") && (index == 0 || sorted[index - 1].date != x.date)) {
+                    enteringItem(key = "transaction-date-${x.date}") {
+                        Text(
+                            when (x.date) {
+                                today.toString() -> "Today"
+                                today.minusDays(1).toString() -> "Yesterday"
+                                else -> x.date
+                            },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                        )
+                    }
+                }
+                enteringItem(key = x.id) {
                 Card(onClick = { quickTemplate = null; edit = x; show = true }, modifier = Modifier.fillMaxWidth(),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -198,6 +213,7 @@ fun TransactionsScreen(
                             IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
                     }
+                }
                 }
             }
         }
