@@ -46,7 +46,7 @@ fun OrganizerKametiScreen(
     onBack: () -> Unit,
     onAddCircle: (String, Long, Int, String) -> Unit,
     onAddMember: (String, String, String, String, Int, Int) -> Unit,
-    onAssignTurn: (String, Int) -> Unit,
+    onAssignTurn: (String, Int, String) -> Unit,
     onCollect: (String, String, Long, String, String) -> Unit,
     onPayout: (String, Long, String, String) -> Unit,
     onDeleteMember: (String) -> Unit,
@@ -157,8 +157,8 @@ fun OrganizerKametiScreen(
     drawMember?.let { member ->
         val circle = circles.firstOrNull { it.id == member.circleId }
         if (circle != null) OrganizerDrawDialog(member, circle,
-            members.filter { it.circleId == circle.id }, { drawMember = null }) { n ->
-            onAssignTurn(member.id, n); drawMember = null
+            members.filter { it.circleId == circle.id }, { drawMember = null }) { n, method ->
+            onAssignTurn(member.id, n, method); drawMember = null
         }
     }
     payMember?.let { (member, payout) ->
@@ -250,23 +250,24 @@ private fun OrganizerMemberDialog(circle: OrganizerCircleEntity, roster: List<Or
 
 @Composable
 private fun OrganizerDrawDialog(member: OrganizerMemberEntity, circle: OrganizerCircleEntity,
-    roster: List<OrganizerMemberEntity>, dismiss: () -> Unit, save: (Int) -> Unit) {
+    roster: List<OrganizerMemberEntity>, dismiss: () -> Unit, save: (Int, String) -> Unit) {
     val choices = availableDraws(roster, member, circle.totalSlots)
     var proposed by remember(member.id) { mutableIntStateOf(0) }
+    var method by remember(member.id) { mutableStateOf("MANUAL") }
     AlertDialog(onDismissRequest = dismiss, title = { Text("Turn / parchi number") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${member.name} • ${shareLabel(member.halfUnits)} share", translate = false)
             Text("Random draws only from slots with free capacity. A half can share a number with another half.")
-            Button(onClick = { proposed = choices.randomOrNull() ?: 0 }, enabled = choices.isNotEmpty()) { Text("Random pick") }
+            Button(onClick = { proposed = choices.randomOrNull() ?: 0; method = "RANDOM" }, enabled = choices.isNotEmpty()) { Text("Random pick") }
             Text("Or manually choose:")
             choices.forEach { n ->
-                FilterChip(selected = proposed == n, onClick = { proposed = n },
+                FilterChip(selected = proposed == n, onClick = { proposed = n; method = "MANUAL" },
                     label = { Text("#$n • ${if (filledTurnUnits(roster, n) == 1) "Pair with half" else "Free"}") })
             }
             if (proposed > 0) Text("Preview: #$proposed — ${YearMonth.parse(circle.startMonth).plusMonths((proposed-1).toLong())}",
                 fontWeight = FontWeight.Bold)
         }},
-        confirmButton = { Button(enabled = proposed in choices, onClick = { save(proposed) }) { Text("Confirm number") } },
+        confirmButton = { Button(enabled = proposed in choices, onClick = { save(proposed, method) }) { Text("Confirm number") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }
 
