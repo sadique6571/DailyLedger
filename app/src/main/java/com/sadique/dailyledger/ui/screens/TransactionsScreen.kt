@@ -173,11 +173,17 @@ fun TransactionsScreen(
                 item { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 28.dp)) }
             }
             enteringItems(sorted, key = { it.id }) { x ->
-                Card(onClick = { quickTemplate = null; edit = x; show = true }, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(if (compactRows) 7.dp else 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Card(onClick = { quickTemplate = null; edit = x; show = true }, modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
+                    Row(Modifier.fillMaxWidth().padding(if (compactRows) 10.dp else 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("${x.category} • ${x.type}")
-                            Text(x.date, style = MaterialTheme.typography.bodySmall)
+                            Text(x.category, style = MaterialTheme.typography.titleMedium)
+                             Text(x.type.lowercase().replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.labelSmall,
+                                 color = if (x.type == "INCOME") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            Text(x.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { showDetails = x }, contentPadding = PaddingValues(0.dp)) { Text("Details") }
                             if (x.note.isNotBlank()) {
                                 Text(x.note, translate = false, modifier = Modifier.clickable { expandedNoteId = if (expandedNoteId == x.id) null else x.id }, maxLines = if (expandedNoteId == x.id) Int.MAX_VALUE else 2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
