@@ -145,6 +145,7 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE committees ADD COLUMN sharesHalfUnits INTEGER NOT NULL DEFAULT 2")
                 db.execSQL("UPDATE committees SET sharesHalfUnits = shares * 2")
                 db.execSQL("ALTER TABLE committee_members ADD COLUMN shareHalfUnits INTEGER NOT NULL DEFAULT 2")
+                db.execSQL("ALTER TABLE committee_receipts ADD COLUMN memberId TEXT NOT NULL DEFAULT ''")
                 db.execSQL("CREATE TABLE IF NOT EXISTS organizer_circles (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, name TEXT NOT NULL, fullMonthlyMinor INTEGER NOT NULL, totalSlots INTEGER NOT NULL, startMonth TEXT NOT NULL, createdAt INTEGER NOT NULL)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_organizer_circles_ownerId ON organizer_circles(ownerId)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS organizer_members (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, circleId TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, whatsapp TEXT NOT NULL, halfUnits INTEGER NOT NULL, turnNumber INTEGER NOT NULL, createdAt INTEGER NOT NULL, drawMethod TEXT NOT NULL, drawnAt INTEGER NOT NULL)")
