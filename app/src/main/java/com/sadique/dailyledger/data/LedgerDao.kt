@@ -40,6 +40,46 @@ interface LedgerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCreditPayment(item: CreditPaymentEntity)
     @Delete suspend fun deleteCreditPayment(item: CreditPaymentEntity)
 
+    @Query("SELECT * FROM organizer_circles WHERE ownerId=:owner ORDER BY createdAt DESC")
+    fun observeOrganizerCircles(owner: String): Flow<List<OrganizerCircleEntity>>
+    @Query("SELECT * FROM organizer_members WHERE ownerId=:owner ORDER BY createdAt ASC")
+    fun observeOrganizerMembers(owner: String): Flow<List<OrganizerMemberEntity>>
+    @Query("SELECT * FROM organizer_collections WHERE ownerId=:owner ORDER BY date DESC, createdAt DESC")
+    fun observeOrganizerCollections(owner: String): Flow<List<OrganizerCollectionEntity>>
+    @Query("SELECT * FROM organizer_payouts WHERE ownerId=:owner ORDER BY date DESC, createdAt DESC")
+    fun observeOrganizerPayouts(owner: String): Flow<List<OrganizerPayoutEntity>>
+    @Query("SELECT * FROM organizer_circles WHERE ownerId=:owner ORDER BY id")
+    suspend fun organizerCirclesNow(owner: String): List<OrganizerCircleEntity>
+    @Query("SELECT * FROM organizer_members WHERE ownerId=:owner ORDER BY id")
+    suspend fun organizerMembersNow(owner: String): List<OrganizerMemberEntity>
+    @Query("SELECT * FROM organizer_collections WHERE ownerId=:owner ORDER BY id")
+    suspend fun organizerCollectionsNow(owner: String): List<OrganizerCollectionEntity>
+    @Query("SELECT * FROM organizer_payouts WHERE ownerId=:owner ORDER BY id")
+    suspend fun organizerPayoutsNow(owner: String): List<OrganizerPayoutEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertOrganizerCircle(item: OrganizerCircleEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertOrganizerMember(item: OrganizerMemberEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertOrganizerCollection(item: OrganizerCollectionEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertOrganizerPayout(item: OrganizerPayoutEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertOrganizerCircles(items: List<OrganizerCircleEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertOrganizerMembers(items: List<OrganizerMemberEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertOrganizerCollections(items: List<OrganizerCollectionEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertOrganizerPayouts(items: List<OrganizerPayoutEntity>)
+    @Query("DELETE FROM organizer_payouts WHERE ownerId=:owner") suspend fun clearOrganizerPayouts(owner: String)
+    @Query("DELETE FROM organizer_collections WHERE ownerId=:owner") suspend fun clearOrganizerCollections(owner: String)
+    @Query("DELETE FROM organizer_members WHERE ownerId=:owner") suspend fun clearOrganizerMembers(owner: String)
+    @Query("DELETE FROM organizer_circles WHERE ownerId=:owner") suspend fun clearOrganizerCircles(owner: String)
+    @Query("UPDATE organizer_circles SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateOrganizerCircles(oldOwner: String, newOwner: String)
+    @Query("UPDATE organizer_members SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateOrganizerMembers(oldOwner: String, newOwner: String)
+    @Query("UPDATE organizer_collections SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateOrganizerCollections(oldOwner: String, newOwner: String)
+    @Query("UPDATE organizer_payouts SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateOrganizerPayouts(oldOwner: String, newOwner: String)
+    @Delete suspend fun deleteOrganizerCircle(item: OrganizerCircleEntity)
+    @Delete suspend fun deleteOrganizerMember(item: OrganizerMemberEntity)
+    @Query("DELETE FROM organizer_collections WHERE ownerId=:owner AND memberId=:memberId") suspend fun clearMemberCollections(owner: String, memberId: String)
+    @Query("DELETE FROM organizer_payouts WHERE ownerId=:owner AND memberId=:memberId") suspend fun clearMemberPayouts(owner: String, memberId: String)
+    @Query("DELETE FROM organizer_members WHERE ownerId=:owner AND circleId=:circleId") suspend fun clearCircleMembers(owner: String, circleId: String)
+    @Query("DELETE FROM organizer_collections WHERE ownerId=:owner AND circleId=:circleId") suspend fun clearCircleCollections(owner: String, circleId: String)
+    @Query("DELETE FROM organizer_payouts WHERE ownerId=:owner AND circleId=:circleId") suspend fun clearCirclePayouts(owner: String, circleId: String)
+
     @Query("SELECT * FROM committees WHERE ownerId=:owner ORDER BY active DESC, createdAt DESC")
     fun observeCommittees(owner: String): Flow<List<CommitteeEntity>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertCommittee(item: CommitteeEntity)
