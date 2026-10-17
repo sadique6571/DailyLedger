@@ -184,12 +184,13 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         if (amountMinor == remaining) dao.upsertCreditPurchase(credit.copy(closed = true))
     }
 
-    suspend fun saveCommittee(name: String, monthlyMinor: Long, total: Int, startMonth: String, payout: Int?, note: String, shares: Int = 1, organizerPhone: String = "", memberSchedule: String = "") {
-        require(monthlyMinor > 0 && total > 0 && shares > 0) { "Enter a valid monthly amount, number of kametis and installments." }
-        Math.multiplyExact(Math.multiplyExact(monthlyMinor, shares.toLong()), total.toLong())
+    suspend fun saveCommittee(name: String, monthlyMinor: Long, total: Int, startMonth: String, payout: Int?, note: String, shares: Int = 1, organizerPhone: String = "", memberSchedule: String = "", sharesHalfUnits: Int = shares * 2) {
+        require(monthlyMinor > 0 && total > 0 && sharesHalfUnits > 0 && sharesHalfUnits <= total * 2) { "Enter valid Kameti shares and installments." }
+        require(sharesHalfUnits % 2 == 0 || monthlyMinor % 2 == 0L) { "This amount cannot be split exactly into two halves." }
+        Math.multiplyExact(Math.multiplyExact(monthlyMinor / 2, sharesHalfUnits.toLong()), total.toLong())
         require(payout == null || payout in 1..total) { "Payout installment must be within the total installments." }
         YearMonth.parse(startMonth)
-        dao.upsertCommittee(CommitteeEntity(newId(), ownerId, name.trim().ifBlank { "Kameti" }, monthlyMinor, total, startMonth, payout, false, true, note.trim(), System.currentTimeMillis(), shares, organizerPhone.trim(), memberSchedule.trim()))
+        dao.upsertCommittee(CommitteeEntity(newId(), ownerId, name.trim().ifBlank { "Kameti" }, monthlyMinor, total, startMonth, payout, false, true, note.trim(), System.currentTimeMillis(), shares, organizerPhone.trim(), memberSchedule.trim(), sharesHalfUnits))
     }
 
     suspend fun markCommitteePaid(committee: CommitteeEntity, installment: Int, month: String, method: String = "Cash") = db.withTransaction {
@@ -227,6 +228,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         turnMonth: String,
         isMe: Boolean,
         note: String,
+        halfUnits: Int = 2,
     ) = db.withTransaction {
         val committee = requireNotNull(dao.committeeNow(ownerId, committeeId)) { "This kameti no longer exists." }
         require(turnNumber in 1..committee.totalInstallments) { "Turn number must be between 1 and ${committee.totalInstallments}." }
@@ -234,8 +236,9 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         val expected = YearMonth.parse(committee.startMonth).plusMonths((turnNumber - 1).toLong())
         require(parsedMonth == expected) { "Turn #$turnNumber should be $expected." }
         val members = dao.committeeMembersNow(ownerId).filter { it.committeeId == committeeId }
-        require(members.none { it.turnNumber == turnNumber }) { "Turn #$turnNumber is already assigned." }
-        if (isMe) require(members.count { it.isMe } < committee.shares) { "You already assigned all ${committee.shares} of your kameti turn(s)." }
+        require(halfUnits in 1..2) { "Choose a half or full share." }
+        require(members.filter { it.turnNumber == turnNumber }.sumOf { it.shareHalfUnits } + halfUnits <= 2) { "Turn #$turnNumber has no room for this share." }
+        if (isMe) require(members.filter { it.isMe }.sumOf { it.shareHalfUnits } + halfUnits <= committee.sharesHalfUnits) { "All your Kameti shares are already assigned." }
         dao.upsertCommitteeMember(
             CommitteeMemberEntity(
                 id = newId(),
@@ -251,6 +254,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                 receivedDate = null,
                 note = note.trim(),
                 createdAt = System.currentTimeMillis(),
+                shareHalfUnits = halfUnits,
             )
         )
     }
@@ -334,10 +338,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
         root.put("loanPayments", JSONArray().apply { dao.loanPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("loanId",ownedId(x.loanId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
         root.put("creditPurchases", JSONArray().apply { dao.creditPurchasesNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("creditor",x.creditor).put("item",x.item).put("amountMinor",x.amountMinor).put("category",x.category).put("purchaseDate",x.purchaseDate).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
         root.put("creditPayments", JSONArray().apply { dao.creditPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("creditId",ownedId(x.creditId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
-        root.put("committees", JSONArray().apply { dao.committeesNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("monthlyAmountMinor",x.monthlyAmountMinor).put("totalInstallments",x.totalInstallments).put("startMonth",x.startMonth).putNullable("payoutInstallment",x.payoutInstallment).put("received",x.received).put("shares",x.shares).put("active",x.active).put("note",x.note).put("createdAt",x.createdAt).put("organizerPhone",x.organizerPhone).put("memberSchedule",x.memberSchedule)) } })
+        root.put("committees", JSONArray().apply { dao.committeesNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("monthlyAmountMinor",x.monthlyAmountMinor).put("totalInstallments",x.totalInstallments).put("startMonth",x.startMonth).putNullable("payoutInstallment",x.payoutInstallment).put("received",x.received).put("shares",x.shares).put("sharesHalfUnits",x.sharesHalfUnits).put("active",x.active).put("note",x.note).put("createdAt",x.createdAt).put("organizerPhone",x.organizerPhone).put("memberSchedule",x.memberSchedule)) } })
         root.put("committeePayments", JSONArray().apply { dao.committeePaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("installmentNumber",x.installmentNumber).put("month",x.month).put("amountMinor",x.amountMinor).put("paidAt",x.paidAt).put("method",x.method)) } })
         root.put("committeeReceipts", JSONArray().apply { dao.committeeReceiptsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("amountMinor",x.amountMinor).putNullable("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
-        root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
+        root.put("committeeMembers", JSONArray().apply { dao.committeeMembersNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("committeeId",ownedId(x.committeeId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("turnNumber",x.turnNumber).put("turnMonth",x.turnMonth).put("isMe",x.isMe).put("shareHalfUnits",x.shareHalfUnits).put("received",x.received).putNullable("receivedDate",x.receivedDate).put("note",x.note).put("createdAt",x.createdAt)) } })
         root.put("organizerCircles", JSONArray().apply { dao.organizerCirclesNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("name",x.name).put("fullMonthlyMinor",x.fullMonthlyMinor).put("totalSlots",x.totalSlots).put("startMonth",x.startMonth).put("createdAt",x.createdAt)) } })
         root.put("organizerMembers", JSONArray().apply { dao.organizerMembersNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("name",x.name).put("phone",x.phone).put("whatsapp",x.whatsapp).put("halfUnits",x.halfUnits).put("turnNumber",x.turnNumber).put("createdAt",x.createdAt)) } })
         root.put("organizerCollections", JSONArray().apply { dao.organizerCollectionsNow(ownerId).forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("circleId",ownedId(x.circleId)).put("memberId",ownedId(x.memberId)).put("month",x.month).put("amountMinor",x.amountMinor).put("date",x.date).put("method",x.method).put("createdAt",x.createdAt)) } })
@@ -460,7 +464,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             val paid = restoredCreditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }
             dao.upsertCreditPurchase(c.copy(closed = paid >= c.amountMinor))
         }
-        dao.insertCommittees(committees.objects().map { o -> CommitteeEntity(ownedId(o.getString("id")),ownerId,o.optString("name"),o.getLong("monthlyAmountMinor"),o.getInt("totalInstallments"),o.getString("startMonth"),if(o.isNull("payoutInstallment")) null else o.getInt("payoutInstallment"),o.optBoolean("received"),o.optBoolean("active",true),o.optString("note"),o.getLong("createdAt"),o.optInt("shares",1),o.optString("organizerPhone"),o.optString("memberSchedule")) })
+        dao.insertCommittees(committees.objects().map { o -> CommitteeEntity(ownedId(o.getString("id")),ownerId,o.optString("name"),o.getLong("monthlyAmountMinor"),o.getInt("totalInstallments"),o.getString("startMonth"),if(o.isNull("payoutInstallment")) null else o.getInt("payoutInstallment"),o.optBoolean("received"),o.optBoolean("active",true),o.optString("note"),o.getLong("createdAt"),o.optInt("shares",1),o.optString("organizerPhone"),o.optString("memberSchedule"),o.optInt("sharesHalfUnits",o.optInt("shares",1)*2)) })
         dao.insertCommitteePayments(cp.objects().map { o -> CommitteePaymentEntity(ownedId(o.getString("id")),ownerId,ownedId(o.getString("committeeId")),o.getInt("installmentNumber"),o.getString("month"),o.getLong("amountMinor"),o.getLong("paidAt"),o.optString("method","Cash")) })
         dao.insertSavings(savings.objects().map { o -> SavingEntity(ownedId(o.getString("id")),ownerId,o.getString("kind"),o.getLong("amountMinor"),o.getString("date"),o.optString("note"),o.getLong("createdAt")) })
         val defaultStart = YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -526,6 +530,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                     turnNumber = o.getInt("turnNumber"),
                     turnMonth = o.getString("turnMonth"),
                     isMe = o.optBoolean("isMe"),
+                    shareHalfUnits = o.optInt("shareHalfUnits", 2),
                     received = o.optBoolean("received"),
                     receivedDate = o.optString("receivedDate").takeIf { it.isNotBlank() && it != "null" },
                     note = o.optString("note"),
@@ -539,9 +544,9 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                 require(YearMonth.parse(m.turnMonth) == YearMonth.parse(committee.startMonth).plusMonths((m.turnNumber - 1).toLong()))
                 m.receivedDate?.let { LocalDate.parse(it) }
             }
-            require(members.groupBy { it.committeeId to it.turnNumber }.values.none { it.size > 1 }) { "Duplicate kameti turns in backup." }
+            require(members.groupBy { it.committeeId to it.turnNumber }.values.all { rows -> rows.sumOf { it.shareHalfUnits } <= 2 }) { "Kameti turns exceed one full share." }
             savedCommittees.forEach { committee ->
-                require(members.count { it.committeeId == committee.id && it.isMe } <= committee.shares) { "Too many personal kameti turns in backup." }
+                require(committee.sharesHalfUnits > 0 && members.filter { it.committeeId == committee.id && it.isMe }.sumOf { it.shareHalfUnits } <= committee.sharesHalfUnits) { "Too many personal kameti shares in backup." }
             }
             dao.insertCommitteeMembers(members)
         }
