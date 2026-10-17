@@ -1,6 +1,6 @@
 # Daily Ledger
 
-Salary day can be selected from **1–31** using **Set salary day** on the Home balance card or Salary Received & Cycle Options. The countdown and daily spending guide use that day; shorter months use their last date. Choose **Estimate from last salary** to restore automatic estimates. The choice is saved locally for the signed-in account (it is not part of Drive ledger backup). Selecting a day does not post income or start/archive a salary cycle. All manual input fields use shared rounded, theme-colored surfaces with focus, error and disabled states.
+Salary dates are configured in **Settings → Salary calendar**. Select this month's salary date to suggest the same date next month (month-end dates clamp safely). Edit **Next expected salary** in the calendar at any time for irregular 20/40-day gaps. Home shows only the countdown; new recorded salary suggests its date next month. Scheduling dates never posts income or starts/archives a cycle. Preferences are account-scoped and local, outside Drive ledger backup. Category selection now uses the same rounded colored input as other fields: type directly in it to search canonical categories, Urdu/Roman Urdu aliases, history and custom categories. There is no separate search field inside the dropdown.
 
 ## Reliable automatic backup and Kameti batch saves
 

@@ -17,13 +17,16 @@ data class DailySpendingGuide(
 ) {
     companion object {
         /** Uses this account's recorded balance only. Never advances or resets a salary cycle. */
-        fun calculate(transactions: List<TransactionEntity>, summary: SalarySummary, today: LocalDate, salaryDay: Int? = null): DailySpendingGuide {
+        fun calculate(transactions: List<TransactionEntity>, summary: SalarySummary, today: LocalDate, salaryDay: Int? = null, plannedSalaryDate: LocalDate? = null, salaryRecordedWhenPlanned: LocalDate? = null): DailySpendingGuide {
             require(salaryDay == null || salaryDay in 1..31)
             val lastSalary = transactions.asSequence().filter { it.isSalary() && it.amountMinor > 0 }
                 .mapNotNull { runCatching { LocalDate.parse(it.date) }.getOrNull() }
                 .filter { it <= today }.maxOrNull()
             // LocalDate clamps month-end salaries (e.g. 31 January -> 28 February).
-            val expected = if (salaryDay == null) lastSalary?.plusMonths(1) else {
+            val expected = if (plannedSalaryDate != null) {
+                if (lastSalary != null && lastSalary > (salaryRecordedWhenPlanned ?: LocalDate.MIN)) lastSalary.plusMonths(1)
+                else plannedSalaryDate
+            } else if (salaryDay == null) lastSalary?.plusMonths(1) else {
                 fun inMonth(month: YearMonth) = month.atDay(minOf(salaryDay, month.lengthOfMonth()))
                 val month = YearMonth.from(today)
                 val candidate = inMonth(month)

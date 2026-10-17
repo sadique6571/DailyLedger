@@ -66,4 +66,32 @@ class DailySpendingGuideTest {
     @Test(expected = IllegalArgumentException::class) fun manualDayRejectsAbove31() {
         DailySpendingGuide.calculate(emptyList(), SalarySummary(0, 0, 0), LocalDate.parse("2026-10-17"), 32)
     }
+    @Test fun editableCalendarSupportsTwentyAndFortyDaySalaryGaps() {
+        val last = LocalDate.parse("2026-10-05")
+        val summary = SalarySummary(100000, 70000, 0)
+        val rows = listOf(salary(last.toString()))
+        for (gap in listOf(20L, 40L)) {
+            val expected = last.plusDays(gap)
+            val guide = DailySpendingGuide.calculate(rows, summary, last.plusDays(10),
+                plannedSalaryDate = expected, salaryRecordedWhenPlanned = last)
+            assertEquals(expected, guide.expectedSalaryDate)
+            assertEquals(gap - 10, guide.daysUntilSalary)
+        }
+        val overdue = DailySpendingGuide.calculate(rows, summary, last.plusDays(41),
+            plannedSalaryDate = last.plusDays(40), salaryRecordedWhenPlanned = last)
+        assertEquals(-1L, overdue.daysUntilSalary)
+        assertNull(overdue.dailyAllowanceMinor)
+    }
+    @Test fun newRecordedSalarySuggestsSameDateNextMonthWithoutLosingManualOverrides() {
+        val summary = SalarySummary(100000, 70000, 0)
+        val first = LocalDate.parse("2026-10-05")
+        val next = LocalDate.parse("2026-10-25")
+        val rows = listOf(salary(first.toString()), salary(next.toString()))
+        assertEquals(next.plusMonths(1), DailySpendingGuide.calculate(rows, summary, next,
+            plannedSalaryDate = first.plusMonths(1), salaryRecordedWhenPlanned = first).expectedSalaryDate)
+        val manual = LocalDate.parse("2026-12-04")
+        assertEquals(manual, DailySpendingGuide.calculate(rows, summary, next,
+            plannedSalaryDate = manual, salaryRecordedWhenPlanned = next).expectedSalaryDate)
+    }
+
 }
