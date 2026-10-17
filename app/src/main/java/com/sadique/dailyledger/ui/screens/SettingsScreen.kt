@@ -493,24 +493,6 @@ fun SettingsScreen(
                     Text("Block screenshots and app previews", Modifier.weight(1f))
                     Switch(checked = display.secureScreens, onCheckedChange = display::updateSecureScreens)
                 }
-                Text("Dashboard cards", style = MaterialTheme.typography.titleMedium)
-                listOf(
-                    Triple("Spending chart", display.showSpending, display::updateShowSpending),
-                    Triple("Recent transactions", display.showRecent, display::updateShowRecent),
-                    Triple("Frequent purchases", display.showFrequent, display::updateShowFrequent),
-                    Triple("Savings, kameti & loans", display.showSpaces, display::updateShowSpaces),
-                    Triple("AI insights", display.showInsights, display::updateShowInsights),
-                ).forEach { (label, checked, change) ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(label, Modifier.weight(1f))
-                        Switch(checked = checked, onCheckedChange = change)
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Savings before loans", Modifier.weight(1f))
-                    Switch(checked = display.savingsFirst, onCheckedChange = display::updateSavingsFirst)
-                }
-                DashboardOrderEditor(display)
                 Text("Live preview", style = MaterialTheme.typography.titleMedium)
                 LedgerCard(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
