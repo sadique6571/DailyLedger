@@ -44,4 +44,14 @@ class OrganizerPlanningMathTest {
         assertEquals(250000L, organizerPayoutShortfall(1000000, 750000))
         assertEquals(0L, organizerPayoutShortfall(750000, 1000000))
     }
+    @Test fun sameCircleIdsFromOtherAccountsNeverEnterSummary() {
+        val result = organizerMonthlySummary(circle,
+            listOf(member("ali", 2), member("stranger", 2).copy(ownerId = "other")),
+            listOf(payment("ali", 100), payment("stranger", 500000).copy(ownerId = "other"),
+                payment("ali", 500000).copy(id = "other-payment", ownerId = "other")), YearMonth.of(2027, 1))
+        assertEquals(100L, result.collectedMinor)
+        assertEquals(1, result.partialShares)
+        assertEquals(0, result.fullyPaidShares)
+        assertEquals(0, result.unpaidShares)
+    }
 }

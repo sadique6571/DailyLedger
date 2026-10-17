@@ -31,8 +31,8 @@ fun organizerMonthlySummary(
 ): OrganizerMonthSummary {
     val start = YearMonth.parse(circle.startMonth)
     require(!month.isBefore(start) && month.isBefore(start.plusMonths(circle.totalSlots.toLong())))
-    val roster = members.filter { it.circleId == circle.id }
-    val monthPaid = collections.filter { it.circleId == circle.id && it.month == month.toString() }
+    val roster = members.filter { it.ownerId == circle.ownerId && it.circleId == circle.id }
+    val monthPaid = collections.filter { it.ownerId == circle.ownerId && it.circleId == circle.id && it.month == month.toString() }
     val amounts = monthPaid.groupBy { it.memberId }.mapValues { (_, rows) ->
         rows.fold(0L) { total, row -> Math.addExact(total, row.amountMinor) }
     }

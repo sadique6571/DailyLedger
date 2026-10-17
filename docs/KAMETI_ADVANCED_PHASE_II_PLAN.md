@@ -2,7 +2,7 @@
 Depends on PR #11 → #10 → #9. DRAFT. No claims of shipping until signed Android CI and real device validation.
 
 ## Baseline
-PR #10 provides multiple roster form rows, but Save All is not atomic. PR #11 already mandates all-or-nothing Room writes, v7 JSON round-trip and cross-account isolation. These remain hard blockers. This branch introduces only read-only organizer math primitives and preliminary JVM regression cases, not a complete feature implementation.
+The corrected PR #10 provides atomic multiple-row Save All, complete-request replay protection and error-preserving UI. Regression coverage includes rollback, v7 JSON round-trip and account isolation. Every corrected head must pass the linked CI checks; live second-device Drive restore remains a physical-device check. This branch introduces only read-only organizer math primitives and preliminary JVM regression cases, not a complete feature implementation.
 
 ## A. Identity, shares and rollover (after atomic batch work)
 1. One contact, multiple circles: owner-scoped stable member/contact identity, multiple independent memberships, never merge names/phone alone. Migration preserves every old member row, merges only after user review. Member profile shows circle-scoped sums.
