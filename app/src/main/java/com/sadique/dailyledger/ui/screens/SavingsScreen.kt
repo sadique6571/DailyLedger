@@ -47,8 +47,8 @@ fun SavingsScreen(
                 SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${visibleMoney(direct)} • Leftover: ${visibleMoney(leftover)}", onClick = { add = true })
             }
             enteringItems(savings, key = { it.id }) { saving ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(14.dp)) {
+                com.sadique.dailyledger.ui.LedgerRecordCard() {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(if (saving.kind == "LEFTOVER") "Leftover saving" else "Direct saving")
                             Text("${saving.date} • ${saving.note}", translate = false, style = MaterialTheme.typography.bodySmall)
