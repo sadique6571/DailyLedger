@@ -18,7 +18,7 @@ class SalaryDayUiTest {
         val store = SalaryScheduleStore(context, owner)
         val other = SalaryScheduleStore(context, "$owner-other")
         compose.setContent { DailyLedgerTheme("DARK") {
-            SalaryDayDialog(null, {}) { store.setDay(it) }
+            SalaryDayDialog(null, {}) { store.updateDay(it) }
         } }
         compose.onNodeWithTag("salary-day-31").performScrollTo().performClick()
         compose.onNodeWithTag("save-salary-day").performClick()

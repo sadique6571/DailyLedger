@@ -14,7 +14,7 @@ class SalaryScheduleStore(context: Context, ownerId: String) {
     var day: Int? by mutableStateOf(prefs.getInt("day", 0).takeIf { it in 1..31 })
         private set
 
-    fun setDay(value: Int?) {
+    fun updateDay(value: Int?) {
         require(value == null || value in 1..31)
         prefs.edit().putInt("day", value ?: 0).apply()
         day = value
