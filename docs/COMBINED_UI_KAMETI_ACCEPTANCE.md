@@ -11,7 +11,7 @@ The user selected all 15 upgrades **plus one Single Design System**. Keep them g
 - [ ] Quick actions and empty-state affordances.
 
 ## Kameti
-- [ ] Month-wise member payment calendar.
+- [x] Month-wise organizer payment calendar with per-month full/partial/unpaid counts and progress (read-only; new JVM tests).
 - [ ] Numbered payment receipt preview and consent-based sharing.
 - [ ] Next turn countdown with explicit timezone and no premature payout claims.
 - [ ] Opt-in payment reminders with dedupe and no silent message sending.
