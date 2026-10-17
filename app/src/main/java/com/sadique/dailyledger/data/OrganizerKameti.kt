@@ -74,3 +74,13 @@ fun availableDraws(members: List<OrganizerMemberEntity>, member: OrganizerMember
     (1..totalSlots).filter { slot ->
         slot == member.turnNumber || filledTurnUnits(members.filterNot { it.id == member.id }, slot) + member.halfUnits <= 2
     }
+
+/** Only exact multiples of 0.5 shares are allowed: 0.5, 1, 1.5, 2 and so on. */
+fun parseHalfShareUnits(input: String): Int? {
+    val parts = input.trim().split('.')
+    if (parts.size !in 1..2 || parts[0].isEmpty() || parts[0].any { !it.isDigit() }) return null
+    val whole = parts[0].toIntOrNull() ?: return null
+    if (parts.size == 2 && parts[1] !in setOf("0", "5")) return null
+    return runCatching { Math.addExact(Math.multiplyExact(whole, 2), if (parts.size == 2 && parts[1] == "5") 1 else 0) }
+        .getOrNull()?.takeIf { it > 0 }
+}
