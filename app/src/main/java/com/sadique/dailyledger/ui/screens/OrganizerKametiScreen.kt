@@ -117,7 +117,8 @@ fun OrganizerKametiScreen(
                             val received = payouts.filter { it.memberId == member.id }.sumOf { it.amountMinor }
                             val slotUnitCount = filledTurnUnits(roster, member.turnNumber)
                             val pairedWith = roster.filter { it.id != member.id && it.turnNumber == member.turnNumber && member.turnNumber > 0 }
-                            HorizontalDivider()
+                            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                              Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(member.name, translate = false, style = MaterialTheme.typography.titleMedium)
                             Text("${shareLabel(member.halfUnits)} share • Monthly ${rowMoney(shareMonthly)} • Turn ${if(member.turnNumber == 0) "not drawn" else "#${member.turnNumber}"}")
                             if (member.turnNumber > 0 && member.drawnAt > 0L) Text("Turn picked: ${member.drawMethod} • ${java.time.Instant.ofEpochMilli(member.drawnAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()}", style = MaterialTheme.typography.bodySmall)
@@ -150,6 +151,8 @@ fun OrganizerKametiScreen(
                                     modifier = Modifier.weight(1f)) { Text("Pay turn") }
                             }
                             if (collected == 0L && received == 0L) TextButton(onClick = { deleteMember = member }) { Text("Remove member") }
+                              }
+                            }
                         }
                         if (roster.isNotEmpty()) Text("Turn slots: " + (1..circle.totalSlots).joinToString("  ") { n ->
                             val units = filledTurnUnits(roster, n)
