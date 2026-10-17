@@ -205,7 +205,7 @@ class LedgerScreensTest {
                     committees = listOf(kameti), payments = emptyList(), receipts = receipts.value, members = emptyList(),
                     onAdd = { _, _, _, _, _, _, _, _ -> }, onPaid = { _, _, _, _ -> },
                     onReceive = { id, amount, date, note, method -> receipts.value = receipts.value + CommitteeReceiptEntity("r", "test", id, amount, date, note, 1, method) },
-                    onDeleteReceipt = {}, onAddMember = { _, _, _, _, _, _, _, _ -> }, onMemberReceived = { _, _ -> }, onDeleteMember = {}, onDelete = {})
+                    onDeleteReceipt = {}, onAddMembers = { _, _, _ -> }, onMemberReceived = { _, _ -> }, onDeleteMember = {}, onDelete = {})
             }
         }
         compose.onNodeWithText("Receive amount").performScrollTo().performClick()

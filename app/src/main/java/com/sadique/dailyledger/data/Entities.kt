@@ -62,6 +62,7 @@ data class CommitteeEntity(
     @ColumnInfo(defaultValue = "''") val organizerPhone: String = "",
     // Legacy v3 free-text schedule. New records use committee_members.
     @ColumnInfo(defaultValue = "''") val memberSchedule: String = "",
+    @ColumnInfo(defaultValue = "2") val sharesHalfUnits: Int = shares * 2,
 )
 
 @Entity(tableName = "committee_payments", indices = [Index("ownerId"), Index("committeeId")])
@@ -86,6 +87,7 @@ data class CommitteeReceiptEntity(
     val note: String,
     val createdAt: Long,
     @ColumnInfo(defaultValue = "Cash") val method: String = "Cash",
+    @ColumnInfo(defaultValue = "''") val memberId: String = "",
 )
 
 @Entity(
@@ -106,6 +108,7 @@ data class CommitteeMemberEntity(
     val receivedDate: String? = null,
     @ColumnInfo(defaultValue = "''") val note: String = "",
     val createdAt: Long,
+    @ColumnInfo(defaultValue = "2") val shareHalfUnits: Int = 2
 )
 
 @Entity(tableName = "savings", indices = [Index("ownerId"), Index("date")])

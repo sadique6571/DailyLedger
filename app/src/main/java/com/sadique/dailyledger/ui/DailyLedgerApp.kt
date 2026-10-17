@@ -137,6 +137,10 @@ fun DailyLedgerApp(
     val cp by vm.committeePayments.collectAsState()
     val receipts by vm.committeeReceipts.collectAsState()
     val committeeMembers by vm.committeeMembers.collectAsState()
+    val organizerCircles by vm.organizerCircles.collectAsState()
+    val organizerMembers by vm.organizerMembers.collectAsState()
+    val organizerCollections by vm.organizerCollections.collectAsState()
+    val organizerPayouts by vm.organizerPayouts.collectAsState()
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
     val ledgerArchives by vm.ledgerArchives.collectAsState()
@@ -493,12 +497,25 @@ fun DailyLedgerApp(
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
-                    onAdd = { n, a, t, s, p, note, shares, phone -> vm.launch { saveCommittee(n, a, t, s, p, note, shares, phone) } },
+                    organizerCircles = organizerCircles,
+                    organizerMembers = organizerMembers,
+                    organizerCollections = organizerCollections,
+                    organizerPayouts = organizerPayouts,
+                    onAddCircle = { name, amount, turns, month -> vm.launch { organizer.addCircle(name, amount, turns, month) } },
+                    onAddOrganizerMembers = { circle, rows, requestId -> vm.saveChange { organizer.addMembers(circle, rows, requestId) } },
+                    onAssignOrganizerTurn = { member, turn, method -> vm.launch { organizer.assignTurn(member, turn, method) } },
+                    onUpdateOrganizerContact = { id, name, phone, wa -> vm.launch { organizer.updateContact(id, name, phone, wa) } },
+                    onOrganizerCollect = { member, month, amount, date, method -> vm.launch { organizer.collect(member, month, amount, date, method) } },
+                    onOrganizerPayout = { member, amount, date, method -> vm.launch { organizer.payOut(member, amount, date, method) } },
+                    onDeleteOrganizerMember = { id -> vm.launch { organizer.deleteMember(id) } },
+                    onDeleteOrganizerCircle = { id -> vm.launch { organizer.deleteCircle(id) } },
+                    onAdd = { n, a, t, s, p, note, halfUnits, phone -> vm.launch { saveCommittee(n, a, t, s, p, note, (halfUnits + 1) / 2, phone, sharesHalfUnits = halfUnits) } },
                     onPaid = { c, i, m, method -> vm.launch { markCommitteePaid(c, i, m, method) } },
                     onReceive = { id, a, d, n, method -> vm.launch { addCommitteeReceipt(id, a, d, n, method) } },
                     onDeleteReceipt = { r -> vm.launch { deleteCommitteeReceipt(r) } },
-                    onAddMember = { id, name, phone, wa, turn, month, me, note -> vm.launch { saveCommitteeMember(id, name, phone, wa, turn, month, me, note) } },
+                    onAddMembers = { id, rows, requestId -> vm.saveChange { saveCommitteeMembers(id, rows, requestId) } },
                     onMemberReceived = { member, date -> vm.launch { markCommitteeMemberReceived(member, date) } },
+                    onPersonalTurnReceive = { memberId, amount, date, note, method -> vm.launch { addPersonalTurnReceipt(memberId, amount, date, note, method) } },
                     onDeleteMember = { member -> vm.launch { deleteCommitteeMember(member) } },
                     onDelete = { c -> vm.launch { deleteCommittee(c) } },
                     onCalendar = { open(CALENDAR) },

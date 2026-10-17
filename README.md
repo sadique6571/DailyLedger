@@ -1,5 +1,14 @@
 # Daily Ledger
 
+## Reliable automatic backup and Kameti batch saves
+
+Automatic backup keeps account-bound pending changes until a Google Drive upload is verified. It retries temporary connection failures, preserves backup history, and pauses on remote-copy conflicts or after restoring an older backup. Settings shows the actual backup state and last verified time. Keep Drive connected and check that the latest backup has completed before clearing app data or changing phones; changes that never uploaded cannot be recovered from Drive.
+
+Kameti **Save all** commits the reviewed list in one database transaction. A failed row leaves the entire list unsaved; the form stays open for correction or retry. Repeated submission of the same saved request does not duplicate members or overwrite later contact/payment changes. Full/half-share capacity, personal share limits, receiving months and account ownership are checked again when saving.
+
+The installed version remains **2.0.0** (build 23). Google Drive stays the backup provider, the local database remains encrypted with SQLCipher, and Drive backup JSON remains private app-data **without end-to-end encryption**. The advanced Kameti documents describe future work; payment-proof attachments, member identity linking, audited turn swaps and biometric app locking are not claimed as delivered.
+
+
 
 ## Automatic backup reliability update (2.0.0, build 21)
 
