@@ -545,6 +545,64 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             }
             dao.insertCommitteeMembers(members)
         }
+        if (version >= 7) {
+            val circles = root.getJSONArray("organizerCircles").objects().map { o ->
+                OrganizerCircleEntity(ownedId(o.getString("id")), ownerId, o.getString("name"), o.getLong("fullMonthlyMinor"), o.getInt("totalSlots"), o.getString("startMonth"), o.getLong("createdAt"))
+            }
+            require(circles.map { it.id }.distinct().size == circles.size)
+            circles.forEach { require(it.totalSlots in 2..120 && it.fullMonthlyMinor > 0 && it.fullMonthlyMinor % 2 == 0L); YearMonth.parse(it.startMonth) }
+            val roster = root.getJSONArray("organizerMembers").objects().map { o ->
+                OrganizerMemberEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), o.getString("name"), o.optString("phone"), o.optString("whatsapp"), o.getInt("halfUnits"), o.getInt("turnNumber"), o.getLong("createdAt"))
+            }
+            require(roster.map { it.id }.distinct().size == roster.size)
+            roster.forEach { m ->
+                val circle = circles.firstOrNull { it.id == m.circleId } ?: error("Missing Kameti for member.")
+                require(m.name.isNotBlank() && m.halfUnits in 1..2 && m.turnNumber in 0..circle.totalSlots)
+            }
+            circles.forEach { circle ->
+                val subset = roster.filter { it.circleId == circle.id }
+                require(subset.sumOf { it.halfUnits } <= circle.totalSlots * 2)
+                (1..circle.totalSlots).forEach { require(filledTurnUnits(subset, it) <= 2) }
+            }
+            val collections = root.getJSONArray("organizerCollections").objects().map { o ->
+                OrganizerCollectionEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), ownedId(o.getString("memberId")), o.getString("month"), o.getLong("amountMinor"), o.getString("date"), o.optString("method","Cash"), o.getLong("createdAt"))
+            }
+            require(collections.map { it.id }.distinct().size == collections.size)
+            collections.forEach { x ->
+                val m = roster.firstOrNull { it.id == x.memberId && it.circleId == x.circleId } ?: error("Collection has no member.")
+                val circle = circles.first { it.id == x.circleId }
+                require(x.amountMinor > 0)
+                LocalDate.parse(x.date)
+                val month = YearMonth.parse(x.month)
+                val start = YearMonth.parse(circle.startMonth)
+                require(!month.isBefore(start) && month.isBefore(start.plusMonths(circle.totalSlots.toLong())))
+                require(m.halfUnits in 1..2)
+            }
+            collections.groupBy { it.memberId to it.month }.forEach { (key, rows) ->
+                val m = roster.first { it.id == key.first }
+                val circle = circles.first { it.id == m.circleId }
+                require(rows.sumOf { it.amountMinor } <= halfShareMoney(circle.fullMonthlyMinor, m.halfUnits))
+            }
+            val payouts = root.getJSONArray("organizerPayouts").objects().map { o ->
+                OrganizerPayoutEntity(ownedId(o.getString("id")), ownerId, ownedId(o.getString("circleId")), ownedId(o.getString("memberId")), o.getInt("turnNumber"), o.getLong("amountMinor"), o.getString("date"), o.optString("method","Cash"), o.getLong("createdAt"))
+            }
+            require(payouts.map { it.id }.distinct().size == payouts.size)
+            payouts.forEach { x ->
+                val m = roster.firstOrNull { it.id == x.memberId && it.circleId == x.circleId } ?: error("Payout has no member.")
+                require(x.amountMinor > 0 && m.turnNumber == x.turnNumber)
+                LocalDate.parse(x.date)
+            }
+            payouts.groupBy { it.memberId }.forEach { (memberId, rows) ->
+                val m = roster.first { it.id == memberId }
+                val circle = circles.first { it.id == m.circleId }
+                require(rows.sumOf { it.amountMinor } <= Math.multiplyExact(halfShareMoney(circle.fullMonthlyMinor, m.halfUnits), circle.totalSlots.toLong()))
+            }
+            dao.insertOrganizerCircles(circles)
+            dao.insertOrganizerMembers(roster)
+            dao.insertOrganizerCollections(collections)
+            dao.insertOrganizerPayouts(payouts)
+        }
+
 
         savedCommittees.forEach { committee ->
             val balance = committeeBalance(committee, receipts)
