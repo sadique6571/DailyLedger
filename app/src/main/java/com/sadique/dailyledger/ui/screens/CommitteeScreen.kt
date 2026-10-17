@@ -64,6 +64,7 @@ fun CommitteeScreen(
     onDeleteMember: (CommitteeMemberEntity) -> Unit,
     onDelete: (CommitteeEntity) -> Unit,
     onCalendar: () -> Unit = {},
+    onPersonalTurnReceive: (String, Long, String, String, String) -> Unit = { _, _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     var organizerMode by remember { mutableStateOf(false) }
@@ -86,6 +87,7 @@ fun CommitteeScreen(
     var paying by remember { mutableStateOf<Pair<CommitteeEntity, Int>?>(null) }
     var addMemberTo by remember { mutableStateOf<CommitteeEntity?>(null) }
     var markMemberReceived by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
+    var receivePersonalMember by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -221,7 +223,7 @@ fun CommitteeScreen(
                                 ms.forEach { member ->
                                     MemberTurnCard(
                                         member = member,
-                                        onMarkReceived = { markMemberReceived = member },
+                                        onMarkReceived = { if (member.isMe) receivePersonalMember = member else markMemberReceived = member },
                                         onDelete = { onDeleteMember(member) },
                                     )
                                 }
@@ -296,6 +298,26 @@ fun CommitteeScreen(
         }
     }
 
+    receivePersonalMember?.let { member ->
+        val committee = committees.firstOrNull { it.id == member.committeeId }
+        if (committee != null) {
+            val perMonth = committee.monthlyAmountMinor * (member.shareHalfUnits / 2) +
+                (if (member.shareHalfUnits == 1) committee.monthlyAmountMinor / 2 else 0L)
+            val expected = Math.multiplyExact(perMonth, committee.totalInstallments.toLong())
+            val receivedSoFar = receipts.filter { it.memberId == member.id }.sumOf { it.amountMinor }
+            val totalRemaining = committeeBalance(committee, receipts).remaining
+            val allowed = minOf((expected - receivedSoFar).coerceAtLeast(0L), totalRemaining)
+            ReceiveDialog(
+                committee, CommitteeBalance(allowed, 0L),
+                { receivePersonalMember = null },
+                turnLabel = "My turn #${member.turnNumber} • ${if (member.shareHalfUnits == 1) "0.5" else "1"} share",
+            ) { amount, date, note, method ->
+                onPersonalTurnReceive(member.id, amount, date, note, method)
+                receivePersonalMember = null
+            }
+        }
+    }
+
     markMemberReceived?.let { member ->
         var date by remember(member.id) { mutableStateOf(LedgerRepository.today()) }
         AlertDialog(
@@ -355,7 +377,7 @@ private fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () -> 
             if (member.received) {
                 Text("Received${member.receivedDate?.let { " • $it" } ?: ""}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             } else {
-                OutlinedButton(onClick = onMarkReceived) { Text("Mark turn received") }
+                OutlinedButton(onClick = onMarkReceived) { Text(if (member.isMe) "Receive my turn" else "Mark turn received") }
             }
             if (member.note.isNotBlank()) Text(member.note, translate = false, style = MaterialTheme.typography.bodySmall)
         }
@@ -429,7 +451,7 @@ private fun BalanceRow(label: String, amount: Long) {
 }
 
 @Composable
-private fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance, dismiss: () -> Unit, save: (Long, String, String, String) -> Unit) {
+private fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance, dismiss: () -> Unit, turnLabel: String? = null, save: (Long, String, String, String) -> Unit) {
     var amount by remember(committee.id) { mutableStateOf(plainAmount(minOf(balance.remaining, committee.expectedPayout() / committee.shares))) }
     var date by remember { mutableStateOf(LedgerRepository.today()) }
     var note by remember { mutableStateOf("") }
@@ -438,7 +460,7 @@ private fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance,
     val validAmount = parsed != null && parsed > 0 && parsed <= balance.remaining
     AlertDialog(
         onDismissRequest = dismiss,
-        title = { Text("Receive • ${committee.name}") },
+        title = { Text(turnLabel?.let { "Receive • $it" } ?: "Receive • ${committee.name}") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Remaining: ${visibleMoney(balance.remaining)}")
