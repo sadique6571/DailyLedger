@@ -56,7 +56,7 @@ fun InsightsCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricChip("Money score", if (snapshot.count > 0 && snapshot.summary.salary > 0) "${snapshot.healthScore}/100" else "—", Modifier.weight(1f))
                 MetricChip("Saving rate", "${snapshot.savingRatePercent}%", Modifier.weight(1f))
-                MetricChip("Possible save", money(snapshot.potentialSaving), Modifier.weight(1f))
+                MetricChip("Possible save", com.sadique.dailyledger.ui.visibleAmount(snapshot.potentialSaving), Modifier.weight(1f))
             }
 
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)

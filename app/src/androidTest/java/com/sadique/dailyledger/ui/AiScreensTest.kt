@@ -15,6 +15,27 @@ import org.junit.runner.RunWith
 import java.time.LocalDate
 @RunWith(AndroidJUnit4::class) class AiScreensTest {
  @get:Rule val compose=createComposeRule()
+ @Test fun privacyMasksInsightAmountsAndCloudDetails() {
+  val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+  val display = DisplayPreferences(context)
+  display.updatePrivateAmounts(true)
+  val today = LocalDate.now()
+  val snapshot = SpendingInsights.calculate("owner", listOf(TransactionEntity("e", "owner", "EXPENSE", 100000, "Restaurant", "", today.toString(), 1, 1)), today)
+  try {
+   compose.setContent { androidx.compose.runtime.CompositionLocalProvider(LocalDisplayPreferences provides display) {
+    DailyLedgerTheme("AQUA") {
+     androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+      InsightsCard(snapshot, listOf(SpendingTip("Cloud tip", "Private cloud value Rs 99999")), "Ready", true, {})
+     }
+    }
+   } }
+   compose.onAllNodesWithText("Rs 200", substring = true).assertCountEquals(0)
+   compose.onAllNodesWithText("Private cloud value", substring = true).assertCountEquals(0)
+   compose.onNodeWithText("Rs •••••").assertExists()
+   shot("private-insights")
+  } finally { compose.runOnIdle { display.updatePrivateAmounts(false) } }
+ }
+
  @Test fun donutKeepsTotalAndStartsWithThreeRowsThenExpandsAndCollapses() {
   val categories = (1..8).map { "Category $it" to it * 10000L }
   compose.setContent { DailyLedgerTheme("AQUA") {
