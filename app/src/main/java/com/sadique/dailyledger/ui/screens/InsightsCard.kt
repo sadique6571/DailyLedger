@@ -43,7 +43,7 @@ fun InsightsCard(
 ) {
     Card(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -103,7 +103,7 @@ fun InsightsCard(
 
 @Composable
 private fun MetricChip(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall)
             Text(value, style = MaterialTheme.typography.titleSmall)

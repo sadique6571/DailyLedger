@@ -108,7 +108,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().imePadding().testTag("autofill-list"),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 enteringItem(key = "mode") {
-                    Surface(shape = RoundedCornerShape(15.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {
+                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {
                         Row(Modifier.fillMaxWidth().padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             GradientButton("AI Quick Add", {}, Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome)
                             TextButton(onClick = { manualCategory = ""; manual = true }, enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
@@ -153,7 +153,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         Modifier.border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp)) else Modifier)) {
                         if (issues.isNotEmpty()) {
                             Surface(color = if (reviewed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
-                                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().testTag("draft-warning-$i")) {
+                                shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().testTag("draft-warning-$i")) {
                                 Column(Modifier.padding(10.dp)) {
                                     Text(if (reviewed) "Reviewed by you" else "Review needed", fontWeight = FontWeight.SemiBold)
                                     issues.forEach { Text(it, fontSize = 11.sp) }
@@ -291,7 +291,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
 
 @Composable
 private fun DraftChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier, enabled: Boolean, action: () -> Unit) {
-    Surface(modifier.clickable(enabled = enabled, onClick = action), shape = RoundedCornerShape(10.dp), color = color.copy(alpha = .09f)) {
+    Surface(modifier.clickable(enabled = enabled, onClick = action), shape = RoundedCornerShape(20.dp), color = color.copy(alpha = .09f)) {
         Row(Modifier.heightIn(min = 38.dp).padding(horizontal = 7.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(icon, null, Modifier.size(14.dp), tint = color)
             Text(label, Modifier.weight(1f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

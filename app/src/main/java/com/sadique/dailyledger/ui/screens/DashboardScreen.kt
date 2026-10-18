@@ -127,14 +127,14 @@ fun DashboardScreen(
             enteringItem(key = "greeting", index = 0) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 2.dp,
                     border = androidx.compose.foundation.BorderStroke(1.dp, LedgerColors.Teal.copy(alpha = .25f)),
                 ) {
                 BoxWithConstraints(
-                    Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(RoundedCornerShape(22.dp))
-                        .background(Brush.horizontalGradient(listOf(LedgerColors.Teal.copy(alpha = .16f), LedgerColors.Blue.copy(alpha = .06f))), RoundedCornerShape(22.dp))
+                    Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(RoundedCornerShape(20.dp))
+                        .background(Brush.horizontalGradient(listOf(LedgerColors.Teal.copy(alpha = .16f), LedgerColors.Blue.copy(alpha = .06f))), RoundedCornerShape(20.dp))
                         .padding(horizontal = 12.dp)
                 ) {
                     val compact = maxWidth < 370.dp
@@ -156,7 +156,7 @@ fun DashboardScreen(
                 }
             }
             enteringItem(key = "balance", index = 1) {
-                Surface(modifier = Modifier.fillMaxWidth().clickable { balanceDetails = true }.testTag("balance-details"), shape = RoundedCornerShape(24.dp), shadowElevation = 5.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
+                Surface(modifier = Modifier.fillMaxWidth().clickable { balanceDetails = true }.testTag("balance-details"), shape = RoundedCornerShape(20.dp), shadowElevation = 5.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
                     Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(16.dp)) {
                         WalletArtwork(Modifier.align(Alignment.TopEnd).size(90.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -253,7 +253,7 @@ fun DashboardScreen(
                                 Text(if (salaryDay == null && plannedSalaryDate == null) "Estimate from your last salary. Reserve upcoming bills first." else "Based on your selected salary day. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
                             }
                             if (guide.lowBalance) {
-                                Surface(color = Color(0xFFFFE5E8), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("low-balance-notice")) {
+                                Surface(color = Color(0xFFFFE5E8), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("low-balance-notice")) {
                                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Icon(Icons.Rounded.WarningAmber, null, Modifier.size(21.dp), tint = Color(0xFFAA1739))
                                         Text(if (summary.remaining <= 0) "Balance used up. Review essentials before further spending."
@@ -306,15 +306,15 @@ fun DashboardScreen(
                         val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
                         val visual = categoryVisual(label, "EXPENSE")
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).testTag("frequent-item-$index")
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).testTag("frequent-item-$index")
                                 .clickable { selectedFrequentCategory = label },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surface,
                             border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .32f)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp)).background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))), RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))), RoundedCornerShape(20.dp))
                                     .padding(horizontal = 10.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -351,15 +351,15 @@ fun DashboardScreen(
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).testTag("recent-transaction-$index")
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).testTag("recent-transaction-$index")
                                 .clickable { onAllTransactions?.invoke() },
                             color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(15.dp),
+                            shape = RoundedCornerShape(20.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, visual.color.copy(alpha = .30f)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(15.dp)).background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))), RoundedCornerShape(15.dp))
+                                    .clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))), RoundedCornerShape(20.dp))
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -410,7 +410,7 @@ fun DashboardScreen(
                     committeeMembers.filter { it.isMe && !it.received }.mapNotNull { member ->
                         runCatching { YearMonth.parse(member.turnMonth) }.getOrNull()?.let { it to member }
                     }.filter { !it.first.isBefore(month) }.minByOrNull { it.first }?.let { (turn, _) ->
-                        val shape = RoundedCornerShape(16.dp)
+                        val shape = RoundedCornerShape(20.dp)
                         val accent = MaterialTheme.colorScheme.tertiary
                         Surface(
                             modifier = Modifier.fillMaxWidth().testTag("kameti-turn-card")
@@ -667,9 +667,9 @@ private fun TransactionEntity.frequentPurchaseLabel(): String =
 private fun DashboardStat(title: String, amount: Long, detail: String, icon: ImageVector, color: Color, modifier: Modifier, action: () -> Unit) {
     val dark = ledgerIsDark()
     val hidden = LocalDisplayPreferences.current!!.privateAmounts
-    Surface(modifier.clickable(onClick = action), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
+    Surface(modifier.clickable(onClick = action), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (dark) .08f else 1f))) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), MaterialTheme.colorScheme.surface)), RoundedCornerShape(18.dp)).padding(10.dp)) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .16f else .12f), MaterialTheme.colorScheme.surface)), RoundedCornerShape(20.dp)).padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 GlowIcon(icon, color, size = 27.dp)
                 Text(title, fontSize = 11.sp, maxLines = 1)
@@ -735,17 +735,17 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                 (if (expanded) categories else categories.take(3)).forEachIndexed { i, (name, value) ->
                     val tint = colorFor(i)
                     Surface(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        modifier = Modifier.fillMaxWidth()
                             .testTag("chart-category-$name"),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = scheme.surface,
                         border = androidx.compose.foundation.BorderStroke(1.dp, tint.copy(alpha = .29f)),
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
                                 .background(
                                     Brush.horizontalGradient(listOf(tint.copy(alpha = .13f), tint.copy(alpha = .03f))),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(20.dp),
                                 )
                                 .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,

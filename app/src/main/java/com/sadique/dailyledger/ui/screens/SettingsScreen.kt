@@ -529,7 +529,7 @@ fun SettingsScreen(
                     listOf(true to "PDF statement", false to "CSV spreadsheet").forEach { (pdf, title) ->
                         Surface(
                             modifier = Modifier.weight(1f).clickable(enabled = !busy) { exportPdf = pdf },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = if (exportPdf == pdf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f),
                             border = androidx.compose.foundation.BorderStroke(1.dp, if (exportPdf == pdf) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                         ) {
@@ -628,7 +628,7 @@ fun SettingsScreen(
 @Composable
 internal fun SectionCard(title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = {

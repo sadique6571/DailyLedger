@@ -30,7 +30,7 @@ fun LedgerSurface(
         shape = if (circular) CircleShape else RoundedCornerShape(LedgerDesignTokens.CardCorner),
         color = color, contentColor = contentColor, tonalElevation = 0.dp,
         shadowElevation = if (circular) 0.dp else 4.dp,
-        border = if (circular) border else BorderStroke(1.dp, edge), content = content,
+        border = if (circular) border else BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = if (ledgerIsDark()) .14f else .85f), edge, edge))), content = content,
     )
 }
 
