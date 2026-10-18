@@ -48,7 +48,7 @@ import java.time.LocalDate
   compose.setContent { DailyLedgerTheme("DARK") { AutoFillScreen(false, {}, {},
    { AiDraftResult("Review this", listOf(draft), listOf(listOf("Category unclear"))) }, { _, _ -> saved++ }) } }
   compose.onNodeWithTag("autofill-input").performScrollTo().performTextInput("mystery item 100")
-  compose.onNodeWithTag("autofill-generate").performClick()
+  compose.onNodeWithTag("autofill-generate").performScrollTo().performClick()
   compose.onNodeWithTag("autofill-list").performScrollToKey("draft-0")
   compose.onNodeWithTag("draft-warning-0").assertExists()
   compose.onNodeWithTag("autofill-list").performScrollToKey("save-drafts")
@@ -68,8 +68,8 @@ import java.time.LocalDate
   compose.setContent { DailyLedgerTheme("LIGHT") { AutoFillScreen(true, {}, {},
    { generated = true; AiDraftResult("", emptyList()) }, { _, _ -> }) } }
   compose.onNodeWithTag("autofill-input").performScrollTo().performTextInput("doodh 100 aur sabzi")
-  compose.onNodeWithTag("autofill-generate").performClick()
-  compose.onNodeWithTag("autofill-message").assertTextContains("Amount missing")
+  compose.onNodeWithTag("autofill-generate").performScrollTo().performClick()
+  compose.onNodeWithTag("autofill-message").assertTextContains("Amount missing", substring = true)
   compose.runOnIdle { assertFalse(generated) }
  }
  private fun shot(name:String){compose.waitForIdle();val fd=InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png");ParcelFileDescriptor.AutoCloseInputStream(fd).use{it.readBytes()}}

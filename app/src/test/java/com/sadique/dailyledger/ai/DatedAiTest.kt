@@ -36,7 +36,8 @@ class DatedAiTest {
     @Test fun repeatedPurchasesStayRepeatedAndBatchesAreNotTruncated() {
         assertEquals(2, OfflineMiniAi.drafts("1 Oct doodh 150, doodh 150", today)!!.entries.size)
         assertNull(OfflineMiniAi.drafts("1 Oct doodh 150, sabzi", today))
-        assertNull(OfflineMiniAi.drafts((1..11).joinToString(", ") { "doodh 150" }, today))
+        assertEquals(30, OfflineMiniAi.drafts((1..30).joinToString(", ") { "doodh 150" }, today)!!.entries.size)
+        assertNull(OfflineMiniAi.drafts((1..31).joinToString(", ") { "doodh 150" }, today))
     }
     @Test fun creditDatesAmountsAndPaymentDueRemainSeparate() {
         val row = OfflineCreditAi.drafts("1 Oct rashan 5,000 Aslam Store se udhar, due 15 Oct", today = today)!!.entries.single()
