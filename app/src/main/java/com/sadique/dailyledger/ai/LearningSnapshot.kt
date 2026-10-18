@@ -39,6 +39,12 @@ data class LearningSnapshot(
         return copy(rules = rules.filterNot { it.type == type && CategoryLearning.normalize(it.phrase) == normalized },
             suppressed = (suppressed + "$type:$normalized").toList().takeLast(500).toSet()).validated()
     }
+    fun mergeOlder(older: LearningSnapshot): LearningSnapshot {
+        val merged = (rules + older.rules.filterNot { "${it.type}:${CategoryLearning.normalize(it.phrase)}" in suppressed }).distinctBy { it.type to CategoryLearning.normalize(it.phrase) }
+        val activeKeys = merged.map { "${it.type}:${CategoryLearning.normalize(it.phrase)}" }.toSet()
+        return copy(rules = merged, suppressed = (suppressed + older.suppressed) - activeKeys,
+            dismissedTips = dismissedTips + older.dismissedTips).validated()
+    }
     fun dismiss(tip: SpendingTip) = copy(dismissedTips = (dismissedTips + feedbackKey(tip)).toList().takeLast(100).toSet()).validated()
 
     companion object {

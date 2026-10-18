@@ -80,6 +80,23 @@ class AiLearningBackupTest {
         } finally { db.close() }
     }
 
+    @Test fun profileMigrationKeepsCurrentCorrectionsAndCannotResurrectForgottenLegacyRules() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            val old = LedgerRepository(db, "offline-old")
+            val current = LedgerRepository(db, "firebase-owner")
+            old.updateLearning { it.remember("EXPENSE", "chai", "Food").remember("EXPENSE", "bus", "Transport") }
+            current.updateLearning { it.remember("EXPENSE", "chai", "Tea & coffee") }
+            current.migrateOwner("offline-old")
+            assertEquals("Tea & coffee", current.learningSnapshot().rules.single { it.phrase == "chai" }.category)
+            assertEquals(2, current.learningSnapshot().rules.size)
+            current.updateLearning { it.forget("EXPENSE", "bus") }
+            current.migrateOwner("offline-old")
+            assertEquals(1, current.learningSnapshot().rules.size)
+            assertFalse(old.learningSnapshot().hasContent)
+        } finally { db.close() }
+    }
+
     @Test fun versionSevenDatabaseMigratesWithoutResettingLedger() = runBlocking {
         val name = "ai-upgrade-${UUID.randomUUID()}.db"
         val first = Room.databaseBuilder(context, AppDatabase::class.java, name).build()

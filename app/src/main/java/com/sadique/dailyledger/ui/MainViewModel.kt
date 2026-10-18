@@ -27,6 +27,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     fun importOffline(oldOwner: String) = launch {
         require(oldOwner.startsWith("offline-")) { "Only a previous offline profile can be imported here." }
+        LedgerRepository(AppDatabase.get(getApplication<Application>()), oldOwner) { CategoryLearningStore(getApplication<Application>(), oldOwner).snapshot() }.learningSnapshot()
         migrateOwner(oldOwner)
     }
     val transactions=repo.transactions.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())

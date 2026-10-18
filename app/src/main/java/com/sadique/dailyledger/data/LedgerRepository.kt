@@ -338,6 +338,15 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
 
     suspend fun migrateOwner(oldOwner: String) = db.withTransaction {
         if (oldOwner != ownerId) {
+            dao.aiLearningNow(oldOwner)?.let { old ->
+                val source = LearningSnapshot.decode(JSONObject(old.payload))
+                if (source.hasContent) {
+                    val merged = learningSnapshot().mergeOlder(source)
+                    dao.upsertAiLearning(AiLearningEntity(ownerId, merged.json().toString()))
+                    // Keep a migration marker so a future login cannot resurrect the old preference copy.
+                    dao.upsertAiLearning(AiLearningEntity(oldOwner, LearningSnapshot().json().toString()))
+                }
+            }
             dao.migrateTransactions(oldOwner, ownerId)
             dao.migrateLoans(oldOwner, ownerId)
             dao.migrateLoanPayments(oldOwner, ownerId)
