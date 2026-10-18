@@ -490,6 +490,11 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         require(restoredTransactions.map { it.id }.distinct().size == restoredTransactions.size) {
             "Duplicate transaction IDs in backup. Your local data was not changed."
         }
+        restoredTransactions.forEach { row ->
+            require(row.type == "INCOME" || row.type == "EXPENSE") { "Invalid transaction type in backup." }
+            require(row.amountMinor in 1..1_000_000_000_000L) { "Invalid transaction amount in backup." }
+            LocalDate.parse(row.date)
+        }
         dao.insertTransactions(restoredTransactions)
         require(dao.transactionsNow(ownerId).size == restoredTransactions.size) {
             "Not all transactions were restored. Your local data was not changed."
