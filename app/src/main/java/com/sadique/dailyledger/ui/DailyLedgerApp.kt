@@ -226,10 +226,12 @@ fun DailyLedgerApp(
     val aiStatus by vm.aiStatus.collectAsState()
     val aiBusy by vm.aiBusy.collectAsState()
     val snapshotState = remember(user.id) { mutableStateOf(SpendingInsights.calculate(user.id, emptyList(), today)) }
-    LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today, planning) {
+    LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today, planning, vm.salarySchedule.day, vm.salarySchedule.calendar) {
         snapshotState.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp,
-                committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today, planning = planning)
+                committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today, planning = planning,
+                salaryDay = vm.salarySchedule.day, plannedSalaryDate = vm.salarySchedule.calendar.expected,
+                salaryRecordedWhenPlanned = vm.salarySchedule.calendar.lastRecorded)
         }
     }
     val snapshot = snapshotState.value

@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
 class SpendingInsightsTest {
+ @Test fun spendingPaceRespectsAnEarlyOrLateManuallyPlannedSalary() {
+  val rows = listOf(tx("s", "2026-10-01", 1000000, "Salary", type="INCOME"), tx("e", "2026-10-02", 300000, "Pizza"))
+  val today = LocalDate.parse("2026-10-10")
+  val early = SpendingInsights.calculate("me", rows, today, plannedSalaryDate=LocalDate.parse("2026-10-15"), salaryRecordedWhenPlanned=LocalDate.parse("2026-10-01"))
+  val late = SpendingInsights.calculate("me", rows, today, plannedSalaryDate=LocalDate.parse("2026-11-20"), salaryRecordedWhenPlanned=LocalDate.parse("2026-10-01"))
+  assertFalse(early.tips.any { it.title == "Spending pace before salary" })
+  assertTrue(late.tips.any { it.title == "Spending pace before salary" })
+ }
+
  @Test fun plannedBillsAndCategoryLimitsPrioritizeRealWarningsWithoutCreatingEntries() {
   val rows = listOf(tx("s", "2026-10-01", 100000, "Salary", type="INCOME"), tx("p", "2026-10-03", 90000, "Pizza"))
   val planning = com.sadique.dailyledger.planning.PlannerData(listOf(com.sadique.dailyledger.planning.CategoryBudget("Pizza", 100000)),

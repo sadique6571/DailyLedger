@@ -40,6 +40,7 @@ object SpendingInsights {
         ledgerCycle: LedgerCycleEntity? = null,
         creditPayments: List<CreditPaymentEntity> = emptyList(),
         planning: com.sadique.dailyledger.planning.PlannerData = com.sadique.dailyledger.planning.PlannerData(),
+        salaryDay: Int? = null, plannedSalaryDate: LocalDate? = null, salaryRecordedWhenPlanned: LocalDate? = null,
     ): SpendingSnapshot {
         val month = YearMonth.from(today)
         val previous = month.minusMonths(1)
@@ -121,7 +122,7 @@ object SpendingInsights {
             tips += SpendingTip("Bills to reserve for", "${soon.size} reminders due by ${today.plusDays(7)}: ${rs(dueTotal)} planned. " +
                 if (dueTotal > summary.remaining.coerceAtLeast(0)) "This exceeds your remaining balance by ${rs(dueTotal - summary.remaining.coerceAtLeast(0))}. Review due dates and essentials first." else "Keep this amount aside before optional spending. Reminders never deduct automatically.")
         }
-        val guide = DailySpendingGuide.calculate(own, summary, today)
+        val guide = DailySpendingGuide.calculate(own, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned)
         if (guide.actualDailyExpenseMinor != null && guide.dailyAllowanceMinor != null && guide.elapsedSalaryDays!! >= 3 && guide.actualDailyExpenseMinor > guide.dailyAllowanceMinor) {
             tips += SpendingTip("Spending pace before salary", "Since salary, actual expenses average ${rs(guide.actualDailyExpenseMinor)} per day; remaining allowance is ${rs(guide.dailyAllowanceMinor)} per day. Review optional categories before your next salary.")
         }
