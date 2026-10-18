@@ -59,12 +59,12 @@ class PlannerStore(private val context: Context, val ownerId: String, scope: kot
         check(loadFailure == null) { error.orEmpty() }
         kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
             suspend fun commit() {
+                SettingsStore(context).markDrivePending(ownerId)
                 val next = repo.updateProfile { it.copy(planner = transform(it.planner)) }
                 state.value = next.planner
-                SettingsStore(context).markDrivePending(ownerId)
             }
             if (alreadyLocked) commit() else com.sadique.dailyledger.sync.BackupLock.mutex.withLock { commit() }
-            com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId)
+            runCatching { com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId) }
         }
     }
     fun setBudget(category: String, amount: Long) {

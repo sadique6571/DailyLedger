@@ -36,9 +36,10 @@ class SalaryScheduleStore(private val context: Context, private val ownerId: Str
     } } }
     private fun save(change: (ProfileBackupData) -> ProfileBackupData) = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
         val next = com.sadique.dailyledger.sync.BackupLock.mutex.withLock {
-            repo.updateProfile(change).also { SettingsStore(context).markDrivePending(ownerId) }
+            SettingsStore(context).markDrivePending(ownerId)
+            repo.updateProfile(change)
         }
-        com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId)
+        runCatching { com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId) }
         next
     }
     private fun saveCalendar(value: SalaryCalendarPlan) {
