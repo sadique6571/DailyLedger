@@ -5,6 +5,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LedgerDao {
+    @Query("SELECT * FROM profile_backup WHERE ownerId=:owner") fun observeProfileBackup(owner: String): Flow<ProfileBackupEntity?>
+    @Query("SELECT * FROM profile_backup WHERE ownerId=:owner") suspend fun profileBackupNow(owner: String): ProfileBackupEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertProfileBackup(item: ProfileBackupEntity)
+
     @Query("SELECT * FROM ai_learning WHERE ownerId=:owner") fun observeAiLearning(owner: String): Flow<AiLearningEntity?>
     @Query("SELECT * FROM ai_learning WHERE ownerId=:owner") suspend fun aiLearningNow(owner: String): AiLearningEntity?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAiLearning(item: AiLearningEntity)

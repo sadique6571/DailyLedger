@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
@@ -84,15 +86,16 @@ fun DashboardScreen(
     val month = YearMonth.from(today)
     val summary = remember(tx, cp, savings, ledgerCycle, creditPayments, month) { ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
         ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments) }
-    val expenseRows = tx.filter {
+    val expenseRows = remember(tx, ledgerCycle, month) { tx.filter {
         it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }
-    val grouped = expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value }
-    val currentMonthExpenses = tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") }
-    val frequentItems = currentMonthExpenses.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
+    }
+    val grouped = remember(expenseRows) { expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value } }
+    val currentMonthExpenses = remember(tx, month) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") } }
+    val frequentItems = remember(currentMonthExpenses) { currentMonthExpenses.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
         .sortedByDescending { it.second }
-        .take(4)
+        .take(4) }
     val categories = grouped.map { it.key to it.value }
     var balanceDetails by remember { mutableStateOf(false) }
     var showBalance by remember { mutableStateOf(true) }
@@ -290,7 +293,7 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenPlanning) { Text("Review") }
                 }
             }
-            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
+            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory, snapshot?.tips?.firstOrNull { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -678,7 +681,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 }
 
 @Composable
-internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
+internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit, tip: SpendingTip? = null) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     val scheme = MaterialTheme.colorScheme
@@ -703,6 +706,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val compact = maxWidth < 350.dp
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
+            Column(Modifier.width(if (compact) 103.dp else 122.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(if (compact) 103.dp else 122.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val width = 20.dp.toPx()
@@ -720,6 +724,11 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                     Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                     Text("Total spent", fontSize = 11.sp)
                 }
+            }
+            if (tip != null && categories.size >= 3 && !privacyEnabled) {
+                Text(tip.title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(tip.detail, fontSize = 10.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
+            }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)

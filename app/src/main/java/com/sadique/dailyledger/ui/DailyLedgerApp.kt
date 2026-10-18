@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -134,7 +136,9 @@ fun DailyLedgerApp(
         loadError = null
         try {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                com.sadique.dailyledger.data.AppDatabase.get(context.applicationContext).openHelper.writableDatabase
+                val db = com.sadique.dailyledger.data.AppDatabase.get(context.applicationContext)
+                db.openHelper.writableDatabase
+                com.sadique.dailyledger.data.LedgerRepository(db, user.id).profileSnapshot()
             }
             databaseReady = true
         } catch (e: CancellationException) { throw e }
@@ -222,10 +226,10 @@ fun DailyLedgerApp(
     val aiStatus by vm.aiStatus.collectAsState()
     val aiBusy by vm.aiBusy.collectAsState()
     val snapshotState = remember(user.id) { mutableStateOf(SpendingInsights.calculate(user.id, emptyList(), today)) }
-    LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today) {
+    LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today, planning) {
         snapshotState.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp,
-                committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today)
+                committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today, planning = planning)
         }
     }
     val snapshot = snapshotState.value
@@ -339,7 +343,15 @@ fun DailyLedgerApp(
     feedbackError?.let { error -> AlertDialog(onDismissRequest = { feedbackError = null }, title = { Text("AI learning") },
         text = { Text(error) }, confirmButton = { TextButton(onClick = { feedbackError = null }) { Text("Close") } }) }
     val saveError by vm.error.collectAsState()
-    LaunchedEffect(user.id) { SyncScheduler.syncNow(context); BillReminderWorker.schedule(context) }
+    LaunchedEffect(user.id) { SyncScheduler.catchUp(context); BillReminderWorker.schedule(context) }
+    val backupLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(backupLifecycle, user.id) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) scope.launch { SyncScheduler.catchUp(context) }
+        }
+        backupLifecycle.lifecycle.addObserver(observer)
+        onDispose { backupLifecycle.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(saveError) {
         saveError?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -401,7 +413,7 @@ fun DailyLedgerApp(
             onDriveEnabled = { enabled ->
                 scope.launch {
                     settings.setDriveEnabled(user.id, enabled)
-                    if (enabled) SyncScheduler.syncNow(context)
+                    if (enabled) SyncScheduler.catchUp(context)
                     else SyncScheduler.cancelImmediate(context)
                 }
             },

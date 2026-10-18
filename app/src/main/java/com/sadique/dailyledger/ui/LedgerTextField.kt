@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -31,12 +32,12 @@ fun LedgerTextField(
 ) {
     val palette = MaterialTheme.colorScheme
     OutlinedTextField(
-        value = value, onValueChange = onValueChange, modifier = modifier,
+        value = value, onValueChange = onValueChange, modifier = modifier.shadow(4.dp, RoundedCornerShape(LedgerDesignTokens.CardCorner), clip = false),
         enabled = enabled, readOnly = readOnly, label = label, placeholder = placeholder,
         leadingIcon = leadingIcon, trailingIcon = trailingIcon, supportingText = supportingText,
         isError = isError, visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
         singleLine = singleLine, maxLines = maxLines, minLines = minLines,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(LedgerDesignTokens.CardCorner),
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = lerp(palette.surface, palette.primaryContainer, .75f),
             unfocusedContainerColor = lerp(palette.surface, palette.primaryContainer, .45f),

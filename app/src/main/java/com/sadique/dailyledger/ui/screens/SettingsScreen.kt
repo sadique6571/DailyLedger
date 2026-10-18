@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
@@ -260,7 +263,7 @@ fun SettingsScreen(
                     else if (restore)
                         "This replaces the records for ${user.email} on this phone with the backup in the selected Google account. Export any changes you want to keep first."
                     else
-                        "This makes this phone's ledger the latest Google Drive backup. Previous copies are kept in Backup history within the retention limit."
+                        "This makes this phone's ledger the latest Google Drive backup. Only the latest verified backup is kept; older revisions are removed after upload verification."
                 )
             },
             confirmButton = {
@@ -376,8 +379,8 @@ fun SettingsScreen(
                 Text("The backup contains your full ledger as readable data without a separate encryption passphrase. Google account security protects the Drive account; anyone who can access your account or this app's Drive permission may be able to read it.", style = MaterialTheme.typography.bodySmall)
                 Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
                 Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
-                Text("Changes queue a backup when saved. Failed connections retry automatically, with an hourly background check. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
-                Text("History keeps the latest 10 copies plus a copy for each of the last 7 backup days. Unchanged records do not create extra copies. AI learning is included in Drive backups. Budgets and reminder schedules remain on this phone only.", style = MaterialTheme.typography.bodySmall)
+                Text("Changes queue a backup when saved. Failed connections retry automatically, with a background attempt every 3 hours and a catch-up check when the app opens. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
+                Text("One latest verified backup is kept. Budgets, bill reminders, handled occurrences, salary calendar and AI learning are included. Unchanged records are verified without an extra upload.", style = MaterialTheme.typography.bodySmall)
             }
         }
 

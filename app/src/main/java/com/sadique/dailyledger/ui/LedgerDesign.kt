@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -60,7 +62,7 @@ fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, content
     val display = LocalDisplayPreferences.current!!
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
-    val shape = RoundedCornerShape(if (display.compact) 14.dp else 22.dp)
+    val shape = RoundedCornerShape(LedgerDesignTokens.CardCorner)
     Surface(
         modifier, shape = shape,
         color = scheme.surface, shadowElevation = 4.dp,
@@ -136,10 +138,41 @@ fun GradientButton(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 
 data class CategoryVisual(val icon: ImageVector, val color: Color)
 
+private val categoryVisualCache = java.util.concurrent.ConcurrentHashMap<String, CategoryVisual>()
+private val itemGroupIndex by lazy { com.sadique.dailyledger.data.ItemCategories.entries.associate { it.label.lowercase(java.util.Locale.ROOT) to it.group } }
 fun categoryVisual(category: String, type: String = "EXPENSE"): CategoryVisual {
+    val key = "$type:${category.lowercase(java.util.Locale.ROOT)}"
+    categoryVisualCache[key]?.let { return it }
+    return categoryVisualUncached(category, type).also { if (categoryVisualCache.size < 1024) categoryVisualCache.putIfAbsent(key, it) }
+}
+private fun categoryVisualUncached(category: String, type: String): CategoryVisual {
     val name = category.lowercase(java.util.Locale.ROOT).replace("&", "and")
-    val itemGroup = com.sadique.dailyledger.data.ItemCategories.entries.firstOrNull { it.label.equals(category, true) }?.group
+    val special = when (name) {
+        "pizza" -> Icons.Rounded.LocalPizza
+        "biryani", "pulao", "rice" -> Icons.Rounded.RiceBowl
+        "burger", "shawarma", "fries" -> Icons.Rounded.LunchDining
+        "noodles & pasta", "haleem", "nihari" -> Icons.Rounded.RamenDining
+        "barbecue & kebab", "karahi", "meat", "chicken", "fish" -> Icons.Rounded.KebabDining
+        "ice cream" -> Icons.Rounded.Icecream
+        "cake & sweets" -> Icons.Rounded.Cake
+        "juice & shakes" -> Icons.Rounded.LocalDrink
+        "tea & coffee" -> Icons.Rounded.LocalCafe
+        "milk" -> Icons.Rounded.LocalDrink
+        "eggs" -> Icons.Rounded.Egg
+        "bread", "samosa & pakora" -> Icons.Rounded.BakeryDining
+        "electricity" -> Icons.Rounded.Bolt
+        "internet" -> Icons.Rounded.Wifi
+        "mobile balance", "mobile packages", "phone bill" -> Icons.Rounded.PhoneAndroid
+        "rent" -> Icons.Rounded.Home
+        "medicine", "medicines" -> Icons.Rounded.Medication
+        "doctor", "hospital" -> Icons.Rounded.LocalHospital
+        "lab tests" -> Icons.Rounded.Science
+        else -> null
+    }
+    if (special != null) return CategoryVisual(special, LedgerColors.Amber)
+    val itemGroup = itemGroupIndex[name]
     when (itemGroup) {
+        "Prepared food" -> return CategoryVisual(Icons.Rounded.RestaurantMenu, LedgerColors.Amber)
         "Lentils & grains" -> return CategoryVisual(Icons.Rounded.Grain, LedgerColors.Amber)
         "Vegetables", "Fruit" -> return CategoryVisual(Icons.Rounded.Spa, LedgerColors.Green)
         "Meat & fish", "Breakfast & dairy" -> return CategoryVisual(Icons.Rounded.Restaurant, LedgerColors.Amber)

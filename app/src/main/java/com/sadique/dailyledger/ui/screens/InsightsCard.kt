@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -23,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
 import com.sadique.dailyledger.ui.money
+import com.sadique.dailyledger.ui.LedgerCard
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 
 @Composable
 fun InsightsCard(
@@ -57,9 +62,9 @@ fun InsightsCard(
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
 
             snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
-                    Text(tip.detail)
+                    Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
                     TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                 }
             }
@@ -85,9 +90,11 @@ fun InsightsCard(
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
                 cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
-                    Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                    Text(tip.detail)
-                    TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
+                    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
+                        Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
+                        TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
+                    }
                 }
             }
         }

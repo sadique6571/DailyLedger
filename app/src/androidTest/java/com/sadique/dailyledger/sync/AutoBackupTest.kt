@@ -165,7 +165,7 @@ class AutoBackupTest {
         assertEquals("pending", state().driveState)
         sync.upload("token")
         assertEquals("verified", state().driveState)
-        assertEquals(8, JSONObject(String(remote.bytes)).getInt("version"))
+        assertEquals(9, JSONObject(String(remote.bytes)).getInt("version"))
         assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
     } }
     @Test fun tokenFailuresRetryBeyondOldCutoffAndPermissionDenialNeedsAction() = runBlocking {

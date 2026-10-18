@@ -39,6 +39,7 @@ object SpendingInsights {
         committeePayments: List<CommitteePaymentEntity> = emptyList(),
         ledgerCycle: LedgerCycleEntity? = null,
         creditPayments: List<CreditPaymentEntity> = emptyList(),
+        planning: com.sadique.dailyledger.planning.PlannerData = com.sadique.dailyledger.planning.PlannerData(),
     ): SpendingSnapshot {
         val month = YearMonth.from(today)
         val previous = month.minusMonths(1)
@@ -76,14 +77,15 @@ object SpendingInsights {
         val old = comparable(previous)
         val savedThisMonth = currentSavings.sumOf { it.amountMinor }
         val savingRate = if (summary.salary > 0L) ((savedThisMonth.toDouble() / summary.salary) * 100.0).roundToInt().coerceIn(0, 100) else 0
+        val loanPaidById = loanPayments.filter { it.ownerId == owner }.groupBy { it.loanId }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
         val borrowedOutstanding = loans.filter { it.ownerId == owner && it.direction == "BORROWED" }.sumOf { loan ->
-            (loan.principalMinor - loanPayments.filter { it.ownerId == owner && it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0L)
+            (loan.principalMinor - (loanPaidById[loan.id] ?: 0L)).coerceAtLeast(0L)
         }
         val lentOutstanding = loans.filter { it.ownerId == owner && it.direction == "LENT" }.sumOf { loan ->
-            (loan.principalMinor - loanPayments.filter { it.ownerId == owner && it.loanId == loan.id }.sumOf { it.amountMinor }).coerceAtLeast(0L)
+            (loan.principalMinor - (loanPaidById[loan.id] ?: 0L)).coerceAtLeast(0L)
         }
 
-        val flexibleCategories = setOf("restaurant", "takeaway", "tea & coffee", "snacks", "subscriptions", "cinema & outings", "games & hobbies")
+        val flexibleCategories = setOf("restaurant", "takeaway", "tea & coffee", "snacks", "subscriptions", "cinema & outings", "games & hobbies", "pizza", "burger", "biryani", "shawarma", "barbecue & kebab", "ice cream", "cake & sweets", "fries", "juice & shakes")
         val optionalSpend = categories.filter { it.first.lowercase(Locale.ROOT) in flexibleCategories }.sumOf { it.second }
         val potentialSaving = optionalSpend / 5 // conservative 20% reduction scenario
 
@@ -108,6 +110,21 @@ object SpendingInsights {
         score = score.coerceIn(0, 100)
 
         val tips = mutableListOf<SpendingTip>()
+        val budgetRows = com.sadique.dailyledger.planning.PlannerMath.budgets(owner, planning.budgets, own, month)
+        budgetRows.filter { it.nearLimit }.sortedByDescending { it.spent.toDouble() / it.limit }.take(2).forEach {
+            tips += SpendingTip(if (it.exceeded) "Budget limit reached" else "Near budget limit",
+                "${it.category}: ${rs(it.spent)} of ${rs(it.limit)} recorded. ${rs((it.limit - it.spent).coerceAtLeast(0))} remains in this monthly category budget.")
+        }
+        val soon = planning.bills.filter { it.enabled && it.type == "EXPENSE" && it.nextDue() <= today.plusDays(7) }
+        if (soon.isNotEmpty()) {
+            val dueTotal = soon.sumOf { it.amountMinor }
+            tips += SpendingTip("Bills to reserve for", "${soon.size} reminders due by ${today.plusDays(7)}: ${rs(dueTotal)} planned. " +
+                if (dueTotal > summary.remaining.coerceAtLeast(0)) "This exceeds your remaining balance by ${rs(dueTotal - summary.remaining.coerceAtLeast(0))}. Review due dates and essentials first." else "Keep this amount aside before optional spending. Reminders never deduct automatically.")
+        }
+        val guide = DailySpendingGuide.calculate(own, summary, today)
+        if (guide.actualDailyExpenseMinor != null && guide.dailyAllowanceMinor != null && guide.elapsedSalaryDays!! >= 3 && guide.actualDailyExpenseMinor > guide.dailyAllowanceMinor) {
+            tips += SpendingTip("Spending pace before salary", "Since salary, actual expenses average ${rs(guide.actualDailyExpenseMinor)} per day; remaining allowance is ${rs(guide.dailyAllowanceMinor)} per day. Review optional categories before your next salary.")
+        }
         if (categories.isEmpty()) {
             tips += SpendingTip("Start your monthly picture", "Kharchay record karein; Mini AI unhi records se offline bachat ke mashwaray banayega.")
         } else {
@@ -172,7 +189,7 @@ object SpendingInsights {
             comparisonDays = days,
             previousComparable = old,
             currentComparable = now,
-            tips = tips.take(8),
+            tips = tips.take(10),
             savedThisMonth = savedThisMonth,
             potentialSaving = potentialSaving,
             savingRatePercent = savingRate,

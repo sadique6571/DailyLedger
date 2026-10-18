@@ -26,23 +26,27 @@ import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.planning.*
 import com.sadique.dailyledger.ui.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
 @Composable
 fun PlanningNotice() {
-    Text("Budgets, reminder schedules and AI learning are encrypted on this device. Saved transactions use your existing Drive backup.", style = MaterialTheme.typography.bodySmall)
+    Text("Budgets, reminder schedules, salary calendar and AI learning are encrypted on this phone and included in your Google Drive backup.", style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
 fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<TransactionEntity>) {
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
     val data by store.data.collectAsState()
     var edit by remember { mutableStateOf<CategoryBudget?>(null) }
     var adding by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<CategoryBudget?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
-    val progress = PlannerMath.budgets(owner, data.budgets, transactions, YearMonth.now())
+    val progress = remember(owner, data.budgets, transactions, YearMonth.now()) { PlannerMath.budgets(owner, data.budgets, transactions, YearMonth.now()) }
     LazyColumn(Modifier.fillMaxSize().testTag("budgets-list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         enteringItem { Text("Category budgets", style = MaterialTheme.typography.headlineMedium); Text(YearMonth.now().toString()); PlanningNotice() }
         enteringItem { Button(onClick = { edit = null; adding = true }) { Text("Add budget") }; (message ?: store.error)?.let { Text(it) } }
@@ -88,16 +92,20 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }, confirmButton = { TextButton(onClick = {
-            runCatching { store.setBudget(category, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }) }.onSuccess { adding = false; message = "Budget saved" }.onFailure { error = it.message }
-        }) { Text("Save") } }, dismissButton = { TextButton(onClick = { adding = false }) { Text("Cancel") } })
+            scope.launch { saving = true
+                try { withContext(Dispatchers.IO) { store.setBudget(category, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }) }; adding = false; message = "Budget saved" }
+                catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message } finally { saving = false }
+            }
+        }, enabled = !saving) { Text(if (saving) "Saving…" else "Save") } }, dismissButton = { TextButton(onClick = { adding = false }) { Text("Cancel") } })
     }
     pendingDelete?.let { row -> ConfirmRemoval("Remove budget?", { pendingDelete = null }) {
-        runCatching { store.removeBudget(row.category) }.onFailure { message = it.message }; pendingDelete = null
+        scope.launch { runCatching { withContext(Dispatchers.IO) { store.removeBudget(row.category) } }.onSuccess { pendingDelete = null }.onFailure { message = it.message } }
     } }
 }
 
 @Composable
 fun BillsScreen(vm: MainViewModel) {
+    val scope = rememberCoroutineScope()
     val data by vm.planner.data.collectAsState()
     var edit by remember { mutableStateOf<RecurringBill?>(null) }
     var adding by remember { mutableStateOf(false) }
@@ -127,12 +135,14 @@ fun BillsScreen(vm: MainViewModel) {
         vm.planner.saveBill(bill); com.sadique.dailyledger.planning.BillReminderWorker.schedule(vm.getApplication<android.app.Application>()); adding = false
     }
     review?.let { bill -> BillReview(bill, { review = null }, vm::saveRecurring) }
-    remove?.let { bill -> ConfirmRemoval("Remove reminder?", { remove = null }) { runCatching { vm.planner.removeBill(bill.id) }.onFailure { error = it.message }; remove = null } }
-    skip?.let { bill -> ConfirmRemoval("Skip this occurrence without saving an entry?", { skip = null }) { runCatching { vm.planner.markHandled(bill.id, bill.nextDue()) }.onFailure { error = it.message }; skip = null } }
+    remove?.let { bill -> ConfirmRemoval("Remove reminder?", { remove = null }) { scope.launch { runCatching { withContext(Dispatchers.IO) { vm.planner.removeBill(bill.id) } }.onSuccess { remove = null }.onFailure { error = it.message } } } }
+    skip?.let { bill -> ConfirmRemoval("Skip this occurrence without saving an entry?", { skip = null }) { scope.launch { runCatching { withContext(Dispatchers.IO) { vm.planner.markHandled(bill.id, bill.nextDue()) } }.onSuccess { skip = null }.onFailure { error = it.message } } } }
 }
 
 @Composable
-private fun BillEditor(existing: RecurringBill?, dismiss: () -> Unit, save: (RecurringBill) -> Unit) {
+private fun BillEditor(existing: RecurringBill?, dismiss: () -> Unit, save: suspend (RecurringBill) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var type by remember { mutableStateOf(existing?.type ?: "EXPENSE") }
     var category by remember { mutableStateOf(existing?.category ?: "") }
@@ -151,9 +161,9 @@ private fun BillEditor(existing: RecurringBill?, dismiss: () -> Unit, save: (Rec
             Text("Short months use their last day. Overdue months stay pending until reviewed or skipped.", style = MaterialTheme.typography.bodySmall)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
-    }, confirmButton = { TextButton(onClick = { runCatching {
-        save(RecurringBill(existing?.id ?: UUID.randomUUID().toString(), title.trim(), type, category, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }, day.toIntOrNull() ?: 0, start, existing?.handledThrough ?: ""))
-    }.onFailure { error = it.message } }) { Text("Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+    }, confirmButton = { TextButton(enabled = !saving, onClick = { scope.launch { saving = true; try {
+        withContext(Dispatchers.IO) { save(RecurringBill(existing?.id ?: UUID.randomUUID().toString(), title.trim(), type, category, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }, day.toIntOrNull() ?: 0, start, existing?.handledThrough ?: "")) }
+    } catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message } finally { saving = false } } }) { Text(if (saving) "Saving…" else "Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }
 
 @Composable
@@ -178,7 +188,7 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
         scope.launch { busy = true; try {
             save(bill, TransactionDraft(bill.type, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }, category, note, date).validated()); dismiss()
         } catch (e: kotlin.coroutines.cancellation.CancellationException) { throw e }
-        catch (e: Exception) { error = e.message } finally { busy = false } }
+        catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message } finally { busy = false } }
     }) { Text(if (busy) "Saving…" else "Confirm & save") } }, dismissButton = { TextButton(onClick = dismiss, enabled = !busy) { Text("Cancel") } })
 }
 

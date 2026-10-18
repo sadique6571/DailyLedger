@@ -57,6 +57,7 @@ class DriveSync internal constructor(
                     driveContentHash(String(api.download(existing).data, Charsets.UTF_8)) else null
                 if (unchanged || remoteHash == hash) {
                     verified(existing, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
+                    cleanHistory(api, existing)
                     return@withContext
                 }
                 if (attempt.contentHash.isNotBlank() && remoteHash == attempt.contentHash &&
@@ -77,13 +78,13 @@ class DriveSync internal constructor(
             settings.beginDriveUpload(ownerId, hash, existing?.fileId.orEmpty())
             val updated = api.upload(json.toByteArray(Charsets.UTF_8), existing)
             verified(updated, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
-            try { api.trimHistory(updated) }
-            catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
-                // Retention failure must never delete the successful checkpoint or discard old copies.
-                settings.setDriveStatus(ownerId, "Backup verified. Older copies were kept because history cleanup could not finish.", "verified")
-            }
+            cleanHistory(api, updated)
         }
+    }
+    private suspend fun cleanHistory(api: DriveStorage, info: DriveBackupInfo) {
+        try { api.trimHistory(info) }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { settings.setDriveStatus(ownerId, "Backup verified. Older copies were kept because history cleanup could not finish; cleanup will retry on the next check.", "verified") }
     }
     suspend fun restore(token: String, revision: DriveRevision? = null) = BackupLock.mutex.withLock {
         withContext(Dispatchers.IO) {

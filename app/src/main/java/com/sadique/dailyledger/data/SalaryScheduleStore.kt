@@ -4,37 +4,49 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import java.security.MessageDigest
 import java.time.LocalDate
 
 data class SalaryCalendarPlan(val reference: LocalDate?, val expected: LocalDate?, val lastRecorded: LocalDate?)
 
 /** Account-scoped local planning preference; selecting a day never creates a salary entry. */
-class SalaryScheduleStore(context: Context, ownerId: String) {
+class SalaryScheduleStore(private val context: Context, private val ownerId: String, scope: kotlinx.coroutines.CoroutineScope? = null) {
+    private val repo = LedgerRepository(AppDatabase.get(context), ownerId)
+    private val initial = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { runCatching { repo.profileSnapshot() }.getOrDefault(ProfileBackupData()) }
     private val key = MessageDigest.getInstance("SHA-256").digest(ownerId.toByteArray())
         .joinToString("") { "%02x".format(it) }
     private val prefs = context.applicationContext.getSharedPreferences("salary_schedule_$key", Context.MODE_PRIVATE)
-    var day: Int? by mutableStateOf(prefs.getInt("day", 0).takeIf { it in 1..31 })
+    var day: Int? by mutableStateOf(initial.salaryDay)
         private set
 
     private fun readDate(key: String) = prefs.getString(key, null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    var calendar by mutableStateOf(SalaryCalendarPlan(readDate("reference"), readDate("expected"), readDate("lastRecorded")))
+    var calendar by mutableStateOf(SalaryCalendarPlan(initial.reference?.let(LocalDate::parse), initial.expected?.let(LocalDate::parse), initial.lastRecorded?.let(LocalDate::parse)))
         private set
 
     fun selectReference(date: LocalDate, lastRecorded: LocalDate?) = saveCalendar(SalaryCalendarPlan(date, date.plusMonths(1), lastRecorded))
     fun selectExpected(date: LocalDate, lastRecorded: LocalDate?) = saveCalendar(calendar.copy(expected = date, lastRecorded = lastRecorded))
     fun clearCalendar() = saveCalendar(SalaryCalendarPlan(null, null, null))
 
-    private fun saveCalendar(value: SalaryCalendarPlan) {
-        prefs.edit().putString("reference", value.reference?.toString()).putString("expected", value.expected?.toString())
-            .putString("lastRecorded", value.lastRecorded?.toString()).remove("day").apply()
-        day = null
-        calendar = value
+    init { scope?.launch(kotlinx.coroutines.Dispatchers.IO) { repo.profileBackup.collect { data ->
+        day = data.salaryDay
+        calendar = SalaryCalendarPlan(data.reference?.let(LocalDate::parse), data.expected?.let(LocalDate::parse), data.lastRecorded?.let(LocalDate::parse))
+    } } }
+    private fun save(change: (ProfileBackupData) -> ProfileBackupData) = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+        val next = com.sadique.dailyledger.sync.BackupLock.mutex.withLock {
+            repo.updateProfile(change).also { SettingsStore(context).markDrivePending(ownerId) }
+        }
+        com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId)
+        next
     }
-
+    private fun saveCalendar(value: SalaryCalendarPlan) {
+        save { it.copy(salaryDay = null, reference = value.reference?.toString(), expected = value.expected?.toString(), lastRecorded = value.lastRecorded?.toString()) }
+        day = null; calendar = value
+    }
     fun updateDay(value: Int?) {
         require(value == null || value in 1..31)
-        prefs.edit().putInt("day", value ?: 0).apply()
-        day = value
+        save { it.copy(salaryDay = value) }; day = value
     }
 }
