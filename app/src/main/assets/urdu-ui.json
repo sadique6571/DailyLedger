@@ -1068,5 +1068,12 @@
   "Salary calendar": "تنخواہ کا کیلنڈر",
   "Salary date": "تنخواہ کی تاریخ",
   "Next expected salary": "اگلی متوقع تنخواہ",
-  "Choose date": "تاریخ منتخب کریں"
+  "Choose date": "تاریخ منتخب کریں",
+  "Daily allowance": "روزانہ خرچ کی گنجائش",
+  "Actual daily average": "اصل روزانہ اوسط خرچ",
+  "Record salary to see average": "اوسط کے لیے تنخواہ درج کریں",
+  "{0} / day": "{0} روزانہ",
+  "Over {0} days since salary": "تنخواہ سے اب تک {0} دنوں کی اوسط",
+  "Show fewer categories": "کم زمرے دکھائیں",
+  "Show all categories": "تمام زمرے دکھائیں"
 }

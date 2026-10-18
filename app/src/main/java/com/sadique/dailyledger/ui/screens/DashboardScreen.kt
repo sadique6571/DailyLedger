@@ -220,12 +220,24 @@ fun DashboardScreen(
                                 Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = Color(0xFFB4FFF1))
                                 Text("Daily spending guide · Offline AI", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f)) {
+                            Text("Daily allowance", color = Color(0xFFCAF6FF), fontSize = 11.sp)
                             Text(
                                 guide.dailyAllowanceMinor?.let { "Around ${visibleMoney(it)} / day until salary" }
                                     ?: if (guide.lastSalaryDate == null) "Record your salary date to see a daily estimate."
                                     else "Confirm your next salary before planning more spending.",
                                 color = Color.White, fontSize = 13.sp, modifier = Modifier.testTag("daily-spending-guide"),
                             )
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text("Actual daily average", color = Color(0xFFCAF6FF), fontSize = 11.sp)
+                                Text(guide.actualDailyExpenseMinor?.let { "${visibleMoney(it)} / day" }
+                                    ?: "Record salary to see average", color = Color.White, fontSize = 13.sp,
+                                    modifier = Modifier.testTag("actual-daily-average"))
+                                guide.elapsedSalaryDays?.let { Text("Over $it days since salary", color = Color(0xFFCAF6FF), fontSize = 10.sp) }
+                            }
+                            }
                             guide.expectedSalaryDate?.let { expected ->
                                 val days = guide.daysUntilSalary!!
                                 val countdown = when {
@@ -666,7 +678,8 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 }
 
 @Composable
-private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
+internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     val scheme = MaterialTheme.colorScheme
     // Keep neighboring slices distinguishable; a four-color theme palette caused repeated hues.
@@ -698,7 +711,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                     var start = -90f
                     categories.forEachIndexed { index, (_, value) ->
                         val sweep = if (total > 0) 360f * value / total else 0f
-                        drawArc(colorFor(index), start, (sweep - 1.2f).coerceAtLeast(0f), false,
+                        drawArc(colorFor(index), start, (sweep - minOf(1.2f, sweep * .15f)).coerceAtLeast(0f), false,
                             Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                         start += sweep
                     }
@@ -710,7 +723,7 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
-                categories.forEachIndexed { i, (name, value) ->
+                (if (expanded) categories else categories.take(3)).forEachIndexed { i, (name, value) ->
                     val tint = colorFor(i)
                     Surface(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -741,6 +754,13 @@ private fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long,
                 }
             }
             }
+        }
+        if (categories.size > 3) TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth().testTag("chart-toggle-categories"),
+        ) {
+            Text(if (expanded) "Show fewer categories" else "Show all categories")
+            Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
         }
         TextButton(onClick = onHistory) { Text("View expense history") }
     }

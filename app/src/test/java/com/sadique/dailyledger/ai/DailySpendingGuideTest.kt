@@ -6,6 +6,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DailySpendingGuideTest {
+    @Test fun actualAverageIncludesSalaryDayAndZeroSpendDaysButNotOldOrFutureExpenses() {
+        fun expense(date: String, amount: Long) = salary(date).copy(type = "EXPENSE", amountMinor = amount, category = "Food")
+        val rows = listOf(salary("2026-09-30"), salary("2026-10-05"),
+            expense("2026-10-04", 990000), expense("2026-10-05", 10000),
+            expense("2026-10-07", 20000), expense("2026-10-08", 800000), expense("invalid", 100))
+        val result = guide(rows, "2026-10-07")
+        assertEquals(3L, result.elapsedSalaryDays)
+        assertEquals(10000L, result.actualDailyExpenseMinor)
+        assertEquals(10000L, guide(rows, "2026-10-05").actualDailyExpenseMinor)
+        assertNull(guide(emptyList(), "2026-10-07").actualDailyExpenseMinor)
+        assertEquals(0L, guide(listOf(salary("2026-10-05")), "2026-10-07").actualDailyExpenseMinor)
+    }
     private fun salary(date: String, category: String = "Salary") = TransactionEntity("t", "owner", "INCOME", 100000, category, "", date, 0, 0)
     private fun guide(rows: List<TransactionEntity>, date: String, summary: SalarySummary = SalarySummary(100000, 70000, 0)) =
         DailySpendingGuide.calculate(rows, summary, LocalDate.parse(date))

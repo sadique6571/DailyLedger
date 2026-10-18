@@ -113,3 +113,5 @@ The 2.0.0 candidate uses version code **21** with the same application ID and si
 Build locally with `./gradlew testDebugUnitTest assembleRelease` (Windows: `gradlew.bat`). Install over the existing app; do not uninstall or clear data to update. The release uses the existing shared development signing identity for compatibility. Earlier release artifacts remain historical releases.
 
 The Urdu font is [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq), distributed under the SIL Open Font License 1.1. Its license is bundled at `app/src/main/assets/OFL-NotoNastaliqUrdu.txt`.
+
+Dashboard spending guide compares the remaining daily allowance with actual expenses per calendar day since the latest recorded salary (salary day and today included, including no-spend days). Savings and kameti are excluded from this expense average. The category donut always draws every category; its legend starts with three rows and can be expanded or collapsed.
