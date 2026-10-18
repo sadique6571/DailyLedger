@@ -292,7 +292,7 @@ fun LandscapeArtwork(modifier: Modifier = Modifier) {
 
 @Composable
 fun EncryptionBanner(modifier: Modifier = Modifier) {
-    LedgerSurface(modifier.fillMaxWidth()) {
+    Surface(modifier.fillMaxWidth()) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF057BB2), Color(0xFF009693), Color(0xFF68C4B6)))).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.VerifiedUser, null, Modifier.size(39.dp), tint = Color(0xFFDCFFF8))
         Spacer(Modifier.width(12.dp))
