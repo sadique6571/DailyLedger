@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -28,7 +29,7 @@ fun LedgerSurface(
     androidx.compose.material3.Surface(
         modifier = modifier,
         shape = if (circular) CircleShape else RoundedCornerShape(LedgerDesignTokens.CardCorner),
-        color = color, contentColor = contentColor, tonalElevation = 0.dp,
+        color = color.compositeOver(MaterialTheme.colorScheme.surface), contentColor = contentColor, tonalElevation = 0.dp,
         shadowElevation = if (circular) 0.dp else 4.dp,
         border = if (circular) border else BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = if (ledgerIsDark()) .14f else .85f), edge, edge))), content = content,
     )
