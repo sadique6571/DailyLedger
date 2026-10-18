@@ -32,11 +32,13 @@ class BalanceGuideScreenTest {
         } }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("balance")
         compose.onNodeWithTag("daily-spending-guide", useUnmergedTree = true).assertTextContains("/ day until salary", substring = true)
+        compose.onNodeWithTag("actual-daily-average", useUnmergedTree = true).assertTextContains("/ day", substring = true)
         compose.onNodeWithTag("salary-countdown", useUnmergedTree = true).assertTextContains("to expected salary", substring = true)
         compose.onNodeWithTag("low-balance-notice", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         shot("balance-guide")
         compose.onNodeWithContentDescription("Hide balance").performScrollTo().performClick()
         compose.onNodeWithTag("daily-spending-guide", useUnmergedTree = true).assertTextContains("Rs •••••", substring = true)
+        compose.onNodeWithTag("actual-daily-average", useUnmergedTree = true).assertTextContains("Rs •••••", substring = true)
         compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
         compose.onNodeWithTag("chart-category-Groceries").performScrollTo()
             .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
@@ -58,6 +60,8 @@ class BalanceGuideScreenTest {
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {})
         } }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")
+        compose.onNodeWithTag("chart-category-Groceries").assertDoesNotExist()
+        compose.onNodeWithTag("chart-toggle-categories").performScrollTo().performClick()
         categories.forEach { category ->
             compose.onNodeWithTag("chart-category-$category").assertExists()
                 .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
