@@ -292,7 +292,8 @@ fun LandscapeArtwork(modifier: Modifier = Modifier) {
 
 @Composable
 fun EncryptionBanner(modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF057BB2), Color(0xFF009693), Color(0xFF68C4B6)))).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+    LedgerSurface(modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF057BB2), Color(0xFF009693), Color(0xFF68C4B6)))).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.VerifiedUser, null, Modifier.size(39.dp), tint = Color(0xFFDCFFF8))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -306,5 +307,6 @@ fun EncryptionBanner(modifier: Modifier = Modifier) {
                 Text("256-bit", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF005A61))
             }
         }
+    }
     }
 }

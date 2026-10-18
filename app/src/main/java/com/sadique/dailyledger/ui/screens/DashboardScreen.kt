@@ -726,8 +726,12 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                 }
             }
             if (tip != null && categories.size >= 3 && !privacyEnabled) {
-                Text(tip.title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(tip.detail, fontSize = 10.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
+                Surface(Modifier.fillMaxWidth().heightIn(max = 76.dp).testTag("donut-context-tip"), color = scheme.surfaceContainerLow) {
+                    Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(tip.title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(tip.detail, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
+                    }
+                }
             }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {

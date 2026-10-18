@@ -40,10 +40,11 @@ import java.time.LocalDate
   val categories = (1..8).map { "Category $it" to it * 10000L }
   compose.setContent { DailyLedgerTheme("AQUA") {
    androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-    SpendingDonutCard(categories, categories.sumOf { it.second }, {})
+    SpendingDonutCard(categories, categories.sumOf { it.second }, {}, SpendingTip("Daily spending", "Review optional food purchases before your next salary."))
    }
   } }
   compose.onNodeWithTag("chart-total").assertExists()
+  compose.onNodeWithTag("donut-context-tip").assertExists()
   compose.onNodeWithTag("chart-category-Category 3").assertExists()
   compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()
   compose.onNodeWithTag("chart-toggle-categories").performScrollTo().performClick()
