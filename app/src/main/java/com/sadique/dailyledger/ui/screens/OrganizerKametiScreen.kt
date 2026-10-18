@@ -76,7 +76,7 @@ fun OrganizerKametiScreen(
         FloatingActionButton(onClick = { addCircle = true }) { Text("+ New collection") }
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).testTag("organizer-kameti-list"),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 TextButton(onClick = onBack) { Text("← My Kametis") }

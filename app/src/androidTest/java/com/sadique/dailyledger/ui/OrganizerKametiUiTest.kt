@@ -38,7 +38,14 @@ class OrganizerKametiUiTest {
         compose.onNodeWithText("0.5 share").assertExists()
         compose.onNodeWithText("1 full share").assertExists()
         compose.onNodeWithText("Cancel").performClick()
-        compose.onNodeWithText("Pick number").performScrollTo().performClick()
+        compose.onNodeWithText("Pick number").performScrollTo().assertIsDisplayed().performClick()
+        try {
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Random pick").fetchSemanticsNodes().isNotEmpty() }
+        } finally {
+            val fd = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+                .executeShellCommand("screencap -p /data/local/tmp/dailyledger-organizer-draw.png")
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        }
         compose.onNodeWithText("Random pick").assertExists()
         compose.onNodeWithText("Or manually choose:").assertExists()
     }
