@@ -8,6 +8,9 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,7 +44,7 @@ import kotlin.coroutines.cancellation.CancellationException
 fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                    generate: suspend (String) -> AiDraftResult, save: suspend (List<TransactionDraft>, String) -> Unit,
                    onSaved: () -> Unit = {},
-                   onLearnCategory: (String, String, String) -> String? = { _, _, _ -> null }) {
+                   onLearnCategory: suspend (String, String, String) -> String? = { _, _, _ -> null }) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -54,8 +57,22 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     var manual by remember { mutableStateOf(false) }
     var manualCategory by remember { mutableStateOf("") }
     var allCategories by remember { mutableStateOf(false) }
+    var reviewIssues by remember { mutableStateOf(emptyList<List<String>>()) }
+    var checked by remember { mutableStateOf(emptySet<String>()) }
+    var confirmSave by remember { mutableStateOf(false) }
+    fun learn(type: String, note: String, category: String) {
+        busy = true
+        scope.launch {
+            try { message = onLearnCategory(type, note, category) ?: "Category correction learned and queued for backup." }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { message = e.message ?: "Could not save AI learning. Please retry." }
+            finally { busy = false }
+        }
+    }
+    fun warnings(index: Int, draft: TransactionDraft) = reviewIssues.getOrNull(index) ?: DraftReviewPolicy.issues(input, draft)
 
-    LaunchedEffect(entries.isNotEmpty()) { if (entries.isNotEmpty()) listState.animateScrollToItem(1) }
+
+    LaunchedEffect(entries.isNotEmpty()) { if (entries.isNotEmpty()) listState.animateScrollToItem(2) }
     BackHandler { if (!busy) onBack() }
 
     fun prepare() {
@@ -63,8 +80,9 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
         focus.clearFocus(); busy = true; message = ""
         scope.launch {
             try {
+                DraftReviewPolicy.checkMissingDetails(input)
                 val result = generate(input)
-                entries = result.entries; message = result.message; batch = UUID.randomUUID().toString()
+                entries = result.entries; reviewIssues = result.reviewIssues.ifEmpty { result.entries.map { DraftReviewPolicy.issues(input, it) } }; checked = emptySet(); message = result.message; batch = UUID.randomUUID().toString()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 message = when (e) {
@@ -91,7 +109,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     Surface(shape = RoundedCornerShape(15.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {
                         Row(Modifier.fillMaxWidth().padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             GradientButton("AI Quick Add", {}, Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome)
-                            TextButton(onClick = { manualCategory = ""; manual = true }, enabled = !busy && entries.size < 10, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
+                            TextButton(onClick = { manualCategory = ""; manual = true }, enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
                                 Icon(Icons.Rounded.Description, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Manual Entry", fontSize = 12.sp)
                             }
                         }
@@ -103,7 +121,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                             modifier = Modifier.fillMaxWidth().testTag("autofill-input"),
                             placeholder = { Text("Daal 500, petrol 2000, salary 35000", fontSize = 13.sp) },
                             label = { Text("Expenses or income", fontSize = 12.sp) },
-                            minLines = 2, maxLines = 5, shape = RoundedCornerShape(14.dp),
+                            minLines = 2, maxLines = 5,
                             enabled = !busy && entries.isEmpty(),
                             supportingText = { Text("${input.length}/${AiProtocol.MAX_INPUT} • Roman Urdu, Urdu or English", fontSize = 10.sp) })
                         Spacer(Modifier.height(7.dp))
@@ -112,7 +130,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                             GlowIcon(Icons.Rounded.SmartToy, LedgerColors.Purple, size = 32.dp)
-                            Text("Kal = yesterday; parson = 2 days ago. Mini AI learns your category corrections and repeated saved items on this phone. Review every date and amount before saving.", fontSize = 11.sp,
+                            Text("Kal = yesterday; parson = 2 days ago. Mini AI learns your category corrections and repeated saved items with your account backup. Review every date and amount before saving.", fontSize = 11.sp,
                                 lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 10.dp))
@@ -127,7 +145,21 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                 }
                 itemsIndexed(entries, key = { i, _ -> "draft-$i" }) { i, entry ->
                     val visual = categoryVisual(entry.category, entry.type)
-                    LedgerCard(Modifier.fillMaxWidth()) {
+                    val issues = warnings(i, entry)
+                    val reviewed = DraftReviewPolicy.signature(entry) in checked
+                    LedgerCard(Modifier.fillMaxWidth().then(if (issues.isNotEmpty() && !reviewed)
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp)) else Modifier)) {
+                        if (issues.isNotEmpty()) {
+                            Surface(color = if (reviewed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().testTag("draft-warning-$i")) {
+                                Column(Modifier.padding(10.dp)) {
+                                    Text(if (reviewed) "Reviewed by you" else "Review needed", fontWeight = FontWeight.SemiBold)
+                                    issues.forEach { Text(it, fontSize = 11.sp) }
+                                    if (!reviewed) TextButton(enabled = !busy, onClick = { checked = checked + DraftReviewPolicy.signature(entry) },
+                                        modifier = Modifier.testTag("draft-checked-$i")) { Text("I checked this entry") }
+                                }
+                            }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                             GlowIcon(visual.icon, visual.color, size = 43.dp)
                             Column(Modifier.weight(1f)) {
@@ -136,7 +168,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                                         Text(if (entry.note.isBlank()) com.sadique.dailyledger.i18n.LocalStrings.current.text(entry.category) else entry.note, translate = false, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(displayMoney(entry.amountMinor), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     }
-                                    IconButton(onClick = { entries = entries.filterIndexed { j, _ -> j != i } }, enabled = !busy, modifier = Modifier.size(36.dp)) {
+                                    IconButton(onClick = { entries = entries.filterIndexed { j, _ -> j != i }; reviewIssues = reviewIssues.filterIndexed { j, _ -> j != i } }, enabled = !busy, modifier = Modifier.size(36.dp)) {
                                         Icon(Icons.Rounded.DeleteOutline, "Remove entry ${i + 1}", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
@@ -152,8 +184,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                                 }
                                 CategoryDropdown(entry.type, entry.category, onSelect = { category ->
                                     if (category != entry.category) {
-                                        val learningError = onLearnCategory(entry.type, entry.note, category)
-                                        message = learningError ?: "Learned: $category for this item."
+                                        learn(entry.type, entry.note, category)
                                     }
                                     entries = entries.mapIndexed { j, old -> if (j == i) old.copy(category = category) else old }
                                 }, enabled = !busy)
@@ -165,43 +196,32 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     }
                 }
                 enteringItem(key = "manual-draft") {
-                    LedgerCard(Modifier.fillMaxWidth().clickable(enabled = !busy && entries.size < 10) { manualCategory = ""; manual = true }) {
+                    LedgerCard(Modifier.fillMaxWidth().clickable(enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS) { manualCategory = ""; manual = true }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             GlowIcon(Icons.Rounded.AddCircle, LedgerColors.Teal, size = 35.dp)
                             Column {
                                 Text("Add another transaction", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                Text(if (entries.size < 10) "Create a draft manually" else "Review this batch of 10 first", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (entries.size < AiProtocol.MAX_DRAFTS) "Create a draft manually" else "Review this batch of ${AiProtocol.MAX_DRAFTS} first", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
                 if (entries.isNotEmpty()) enteringItem(key = "save-drafts") {
-                    GradientButton("Review & Save (${entries.size})", onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                val count = entries.size
-                                save(entries, batch)
-                                entries = emptyList(); input = ""; message = "$count entries saved to your ledger."
-                                batch = UUID.randomUUID().toString()
-                                onSaved()
-                                listState.animateScrollToItem(1)
-                            } catch (e: CancellationException) { throw e }
-                            catch (e: Exception) { message = if (e is IllegalArgumentException || e is IllegalStateException) e.message ?: "Could not save entries." else "Could not save entries. Try again." }
-                            finally { busy = false }
-                        }
-                    }, modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
+                    Text("Expenses total: ${displayMoney(DraftReviewPolicy.total(entries, "EXPENSE"))}", fontWeight = FontWeight.SemiBold)
+                    Text("Income total: ${displayMoney(DraftReviewPolicy.total(entries, "INCOME"))}", fontWeight = FontWeight.SemiBold)
+                    GradientButton("Review & Save (${entries.size})", onClick = { confirmSave = true },
+                        modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
                     TextButton(onClick = { entries = emptyList(); message = "Drafts discarded."; batch = UUID.randomUUID().toString() }, enabled = !busy) { Text("Discard drafts") }
                 }
                 enteringItem(key = "categories") {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Popular categories", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { allCategories = true }, enabled = !busy && entries.size < 10) { Text("View all", fontSize = 11.sp) }
+                        TextButton(onClick = { allCategories = true }, enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS) { Text("View all", fontSize = 11.sp) }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         listOf("Food", "Transport", "Shopping", "Bills", "Health").forEach { category ->
                             val visual = categoryVisual(category)
-                            Column(Modifier.clickable(enabled = !busy && entries.size < 10) { manualCategory = category; manual = true }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(Modifier.clickable(enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS) { manualCategory = category; manual = true }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 GlowIcon(visual.icon, visual.color, size = 43.dp)
                                 Text(category, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
                             }
@@ -219,17 +239,51 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     editing?.let { i -> entries.getOrNull(i)?.let { draft ->
         TransactionDialog(TransactionEntity("draft", "", draft.type, draft.amountMinor, draft.category, draft.note, draft.date, 0, 0),
             dismiss = { editing = null }, save = { type, amount, category, note, date ->
-                if (category != draft.category) {
-                    val learningError = onLearnCategory(type, note, category)
-                    message = learningError ?: "Learned: I'll use $category for \"$note\" next time."
-                }
+                if (category != draft.category) learn(type, note, category)
+                val updated = TransactionDraft(type, amount, category, note, date)
+                checked = checked + DraftReviewPolicy.signature(updated)
                 entries = entries.mapIndexed { j, old -> if (i == j) TransactionDraft(type, amount, category, note, date) else old }; editing = null
             })
     } }
     if (manual) TransactionDialog(null, dismiss = { manual = false }, initialCategory = manualCategory, save = { type, amount, category, note, date ->
-        if (entries.size < 10) entries = entries + TransactionDraft(type, amount, category, note, date)
+        if (entries.size < AiProtocol.MAX_DRAFTS) {
+            val draft = TransactionDraft(type, amount, category, note, date)
+            entries = entries + draft; reviewIssues = reviewIssues + listOf(emptyList())
+            checked = checked + DraftReviewPolicy.signature(draft)
+        }
         manual = false
     })
+    if (confirmSave) {
+        val unchecked = entries.indices.any { warnings(it, entries[it]).isNotEmpty() && DraftReviewPolicy.signature(entries[it]) !in checked }
+        AlertDialog(onDismissRequest = { if (!busy) confirmSave = false }, title = { Text("Confirm reviewed entries") },
+            text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                entries.forEachIndexed { i, entry ->
+                    Text("${i + 1}. ${entry.date} • ${entry.category}", fontWeight = FontWeight.SemiBold)
+                    Text("${if (entry.type == "INCOME") "Income" else "Expense"}: ${displayMoney(entry.amountMinor)}")
+                    if (entry.note.isNotBlank()) Text(entry.note, translate = false, fontSize = 11.sp)
+                    HorizontalDivider()
+                }
+                Text("Expenses total: ${displayMoney(DraftReviewPolicy.total(entries, "EXPENSE"))}")
+                Text("Income total: ${displayMoney(DraftReviewPolicy.total(entries, "INCOME"))}")
+                if (unchecked) Text("Check the highlighted entries before saving.", color = MaterialTheme.colorScheme.error)
+            } },
+            confirmButton = { Button(enabled = !busy && !unchecked && entries.isNotEmpty(), modifier = Modifier.testTag("autofill-confirm"), onClick = {
+                busy = true
+                val snapshot = entries.toList()
+                scope.launch {
+                    try {
+                        save(snapshot, batch)
+                        entries = emptyList(); reviewIssues = emptyList(); checked = emptySet(); input = ""
+                        confirmSave = false; message = "${snapshot.size} entries saved to your ledger."
+                        batch = UUID.randomUUID().toString(); onSaved()
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { message = e.message ?: "Could not save entries. Your drafts are still here."; confirmSave = false }
+                    finally { busy = false }
+                }
+            }) { Text(if (busy) "Saving…" else "Confirm & Save") } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { confirmSave = false }) { Text("Back to review") } },
+        )
+    }
     if (allCategories) CategoryPicker("EXPENSE", onSelect = { manualCategory = it; manual = true; allCategories = false }, onDismiss = { allCategories = false })
 }
 

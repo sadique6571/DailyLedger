@@ -377,7 +377,7 @@ fun SettingsScreen(
                 Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
                 Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
                 Text("Changes queue a backup when saved. Failed connections retry automatically, with an hourly background check. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
-                Text("History keeps the latest 10 copies plus a copy for each of the last 7 backup days. Unchanged records do not create extra copies. Budgets, reminder schedules and AI learning remain on this phone only.", style = MaterialTheme.typography.bodySmall)
+                Text("History keeps the latest 10 copies plus a copy for each of the last 7 backup days. Unchanged records do not create extra copies. AI learning is included in Drive backups. Budgets and reminder schedules remain on this phone only.", style = MaterialTheme.typography.bodySmall)
             }
         }
 

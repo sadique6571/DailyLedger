@@ -49,7 +49,7 @@ class LedgerUpgradeTest {
         DatabaseEncryption.migrate(file, password)
         assertFalse(DatabaseEncryption.isPlaintext(file))
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .openHelperFactory(EncryptedOpenHelperFactory(password)).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7).build()
+            .openHelperFactory(EncryptedOpenHelperFactory(password)).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8).build()
         try {
             val dao = db.ledgerDao()
             val committees = dao.committeesNow("owner") // Opening validates all migrated tables against Room's schema.
@@ -95,7 +95,7 @@ class LedgerUpgradeTest {
             repo.addCommitteeReceipt(c.id, 6000000, "2026-11-06", "Second kameti")
             assertTrue(repo.committees.first().single().received)
             val json = repo.exportJson()
-            assertEquals(7, JSONObject(json).getInt("version"))
+            assertEquals(8, JSONObject(json).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(json)
             val restoredCommittee = restored.committees.first().single()
@@ -142,7 +142,7 @@ class LedgerUpgradeTest {
 
             val restored = LedgerRepository(db, "restored")
             val backupJson = original.exportJson()
-            assertEquals(7, JSONObject(backupJson).getInt("version"))
+            assertEquals(8, JSONObject(backupJson).getInt("version"))
             restored.importJson(backupJson)
 
             val transactions = restored.transactions.first().sortedBy { it.date }

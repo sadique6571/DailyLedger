@@ -34,6 +34,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.testTag
+import com.sadique.dailyledger.ui.screens.CategoryOptions
+import com.sadique.dailyledger.ui.screens.LocalCategoryOptions
+import androidx.compose.ui.Alignment
 import com.sadique.dailyledger.ui.screens.LocalCategoryHistory
 import com.sadique.dailyledger.ui.screens.SavingDialog
 import com.sadique.dailyledger.ui.screens.CreditAiDialog
@@ -124,10 +127,35 @@ fun DailyLedgerApp(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
+    var databaseReady by remember(user.id) { mutableStateOf(false) }
+    var loadError by remember(user.id) { mutableStateOf<String?>(null) }
+    var loadAttempt by remember(user.id) { mutableIntStateOf(0) }
+    LaunchedEffect(user.id, loadAttempt) {
+        loadError = null
+        try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.sadique.dailyledger.data.AppDatabase.get(context.applicationContext).openHelper.writableDatabase
+            }
+            databaseReady = true
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { loadError = e.message ?: "Saved data could not be opened. Your data was kept." }
+    }
+    if (!databaseReady) {
+        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            if (loadError == null) { CircularProgressIndicator(); Text("Loading your saved records…", Modifier.padding(top = 16.dp)) }
+            else { Text(loadError!!); Button(onClick = { loadAttempt++ }) { Text("Retry") }; TextButton(onClick = onLogout) { Text("Sign out") } }
+        }
+        return
+    }
     val vm: MainViewModel = viewModel(
         key = user.id,
         factory = MainViewModel.Factory(context.applicationContext as Application, user.id),
     )
+    var navigation by rememberSaveable(user.id, stateSaver = listSaver(
+        save = { it.entries }, restore = { NavigationHistory(it) }
+    )) { mutableStateOf(NavigationHistory()) }
+    val tab = navigation.current
     val tx by vm.transactions.collectAsState()
     val loans by vm.loans.collectAsState()
     val credits by vm.creditPurchases.collectAsState()
@@ -137,10 +165,10 @@ fun DailyLedgerApp(
     val cp by vm.committeePayments.collectAsState()
     val receipts by vm.committeeReceipts.collectAsState()
     val committeeMembers by vm.committeeMembers.collectAsState()
-    val organizerCircles by vm.organizerCircles.collectAsState()
-    val organizerMembers by vm.organizerMembers.collectAsState()
-    val organizerCollections by vm.organizerCollections.collectAsState()
-    val organizerPayouts by vm.organizerPayouts.collectAsState()
+    val organizerCircles = if (tab == KAMETI) vm.organizerCircles.collectAsState().value else emptyList()
+    val organizerMembers = if (tab == KAMETI) vm.organizerMembers.collectAsState().value else emptyList()
+    val organizerCollections = if (tab == KAMETI) vm.organizerCollections.collectAsState().value else emptyList()
+    val organizerPayouts = if (tab == KAMETI) vm.organizerPayouts.collectAsState().value else emptyList()
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
     val ledgerArchives by vm.ledgerArchives.collectAsState()
@@ -153,11 +181,14 @@ fun DailyLedgerApp(
             .filter { it.nearLimit }.map { "${it.category}: ${if (it.exceeded) "Budget limit reached" else "Near budget limit"}" } +
             PlannerMath.due(planning.bills, today).takeIf { it.isNotEmpty() }?.let { listOf("${it.size} bills ready for review") }.orEmpty()
     }
-    CompositionLocalProvider(LocalCategoryHistory provides tx) {
-    var navigation by rememberSaveable(user.id, stateSaver = listSaver(
-        save = { it.entries }, restore = { NavigationHistory(it) }
-    )) { mutableStateOf(NavigationHistory()) }
-    val tab = navigation.current
+    val categoryOptions = remember(user.id) { mutableStateOf<Map<String, CategoryOptions>?>(null) }
+    val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
+    LaunchedEffect(user.id, tx, categoryStrings) {
+        categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx, categoryStrings::text)
+        }
+    }
+    CompositionLocalProvider(LocalCategoryHistory provides tx, LocalCategoryOptions provides categoryOptions.value) {
     val settingsOpen = tab == SETTINGS
     val settingsReturn = navigation.parent == SETTINGS
     val settingsState = rememberSaveableStateHolder()
@@ -182,11 +213,22 @@ fun DailyLedgerApp(
     var aiConsent by remember(user.id) { mutableStateOf(false) }
     val aiEnabled by vm.aiEnabled.collectAsState()
     val aiTips by vm.aiTips.collectAsState()
+    val dismissedTips by vm.dismissedInsights.collectAsState()
+    val feedbackScope = rememberCoroutineScope()
+    var feedbackError by remember(user.id) { mutableStateOf<String?>(null) }
+    fun dismissTip(tip: com.sadique.dailyledger.ai.SpendingTip) {
+        feedbackScope.launch { feedbackError = vm.dismissInsight(tip) }
+    }
     val aiStatus by vm.aiStatus.collectAsState()
     val aiBusy by vm.aiBusy.collectAsState()
-    val snapshot = remember(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today) {
-        SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp, committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today)
+    val snapshotState = remember(user.id) { mutableStateOf(SpendingInsights.calculate(user.id, emptyList(), today)) }
+    LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today) {
+        snapshotState.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp,
+                committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today)
+        }
     }
+    val snapshot = snapshotState.value
     var restoreInfo by remember(user.id) { mutableStateOf<DriveBackupInfo?>(null) }
     var restoreBusy by remember(user.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -294,6 +336,8 @@ fun DailyLedgerApp(
         dismiss = { addSaving = false },
         onHistory = { addSaving = false; open(4) },
     ) { k, a, d, n -> vm.launch { saveSaving(k, a, d, n) }; addSaving = false }
+    feedbackError?.let { error -> AlertDialog(onDismissRequest = { feedbackError = null }, title = { Text("AI learning") },
+        text = { Text(error) }, confirmButton = { TextButton(onClick = { feedbackError = null }) { Text("Close") } }) }
     val saveError by vm.error.collectAsState()
     LaunchedEffect(user.id) { SyncScheduler.syncNow(context); BillReminderWorker.schedule(context) }
     LaunchedEffect(saveError) {
@@ -467,6 +511,7 @@ fun DailyLedgerApp(
                     aiEnabled = aiEnabled,
                     aiBusy = aiBusy,
                     onRefreshAi = { vm.refreshInsights(snapshot) },
+                    onDismissTip = ::dismissTip, dismissedTipKeys = dismissedTips,
                     onEnableAi = { aiConsent = true },
                     planningNotices = planningNotices,
                     onOpenPlanning = { open(if (PlannerMath.due(planning.bills, today).isNotEmpty()) BILLS else BUDGETS) },
@@ -480,7 +525,7 @@ fun DailyLedgerApp(
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
                         }) {
                             if (e != null && e.type == t && e.category != c && n.isNotBlank()) {
-                                vm.rememberCategory(t, n, c)?.let { error(it) }
+                                updateLearning { it.remember(t, n, c) }
                             }
                             saveTransaction(t, a, c, n, d, e)
                         }
@@ -532,7 +577,7 @@ fun DailyLedgerApp(
                         Text("Your monthly insights", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         OutlinedButton(onClick = { open(COMPARISON) }) { Text("Monthly comparison") }
                         InsightsCard(snapshot, aiTips, aiStatus, aiEnabled, onEnable = { aiConsent = true },
-                            busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) })
+                            busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) }, onDismissTip = ::dismissTip, dismissedTipKeys = dismissedTips)
                     }
                 }
                 7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,

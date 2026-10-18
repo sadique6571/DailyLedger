@@ -92,6 +92,7 @@ class RefreshScreensTest {
                 DailyLedgerApp(com.sadique.dailyledger.auth.UserProfile(owner, "preview@example.com", "Preview"),
                     com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, "", "", "", 0L, false, {})
             } }
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("More").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("More").performClick()
             compose.onNodeWithText("Settings & backup").performClick()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-savings")

@@ -5,6 +5,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LedgerDao {
+    @Query("SELECT * FROM ai_learning WHERE ownerId=:owner") fun observeAiLearning(owner: String): Flow<AiLearningEntity?>
+    @Query("SELECT * FROM ai_learning WHERE ownerId=:owner") suspend fun aiLearningNow(owner: String): AiLearningEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertAiLearning(item: AiLearningEntity)
+
     @Query("SELECT ownerId FROM transactions WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM loans WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM loan_payments WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM committees WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM committee_payments WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM committee_receipts WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM committee_members WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM savings WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM credit_purchases WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM credit_payments WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM ledger_cycles WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM ledger_archives WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM organizer_circles WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM organizer_members WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM organizer_collections WHERE ownerId LIKE 'offline-%' UNION SELECT ownerId FROM organizer_payouts WHERE ownerId LIKE 'offline-%'")
     fun observeOfflineOwners(): Flow<List<String>>
 

@@ -5,14 +5,15 @@ import org.json.JSONObject
 import java.math.BigDecimal
 
 class AiException(message:String):Exception(message)
-data class AiDraftResult(val message:String,val entries:List<TransactionDraft>)
+data class AiDraftResult(val message:String,val entries:List<TransactionDraft>, val reviewIssues: List<List<String>> = emptyList())
 object AiProtocol {
-    const val MAX_INPUT=1500
+    const val MAX_INPUT=3000
+    const val MAX_DRAFTS=30
     private fun JSONObject.only(expected:Set<String>){require(keys().asSequence().toSet()==expected)}
     private fun JSONObject.text(key:String):String=(get(key) as? String)?:error("Expected text")
     fun decodeDrafts(content:String):AiDraftResult=try {
         val root=JSONObject(content);root.only(setOf("message","transactions"));val message=root.text("message").also{require(it.length<=1000)}
-        val rows=root.getJSONArray("transactions");require(rows.length()<=10)
+        val rows=root.getJSONArray("transactions");require(rows.length()<=MAX_DRAFTS)
         val entries=(0 until rows.length()).map { i ->
             val row=rows.getJSONObject(i);row.only(setOf("type","amount_pkr","category","note","date"))
             val amount=row.text("amount_pkr");require(Regex("[0-9]{1,11}(\\.[0-9]{1,2})?").matches(amount))

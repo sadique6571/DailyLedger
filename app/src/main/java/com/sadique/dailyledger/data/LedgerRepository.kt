@@ -7,8 +7,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
+import com.sadique.dailyledger.ai.LearningSnapshot
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
+class LedgerRepository(private val db: AppDatabase, val ownerId: String,
+    private val legacyLearning: (() -> LearningSnapshot)? = null) {
     private val dao = db.ledgerDao()
     val organizer = OrganizerKametiRepository(db, ownerId)
     val transactions = dao.observeTransactions(ownerId)
@@ -23,6 +27,22 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     val savings = dao.observeSavings(ownerId)
     val ledgerCycle = dao.observeLedgerCycle(ownerId)
     val ledgerArchives = dao.observeLedgerArchives(ownerId)
+
+    val aiLearning = dao.observeAiLearning(ownerId).distinctUntilChanged().map {
+        it?.let { row -> LearningSnapshot.decode(JSONObject(row.payload)) } ?: LearningSnapshot()
+    }
+    suspend fun learningSnapshot(): LearningSnapshot = db.withTransaction {
+        val row = dao.aiLearningNow(ownerId)
+        if (row != null) LearningSnapshot.decode(JSONObject(row.payload)) else {
+            val migrated = (legacyLearning?.invoke() ?: LearningSnapshot()).validated()
+            dao.upsertAiLearning(AiLearningEntity(ownerId, migrated.json().toString()))
+            migrated
+        }
+    }
+    suspend fun updateLearning(change: (LearningSnapshot) -> LearningSnapshot) = db.withTransaction {
+        val next = change(learningSnapshot()).validated()
+        dao.upsertAiLearning(AiLearningEntity(ownerId, next.json().toString()))
+    }
 
     suspend fun ensureLedgerCycle(now: Long = System.currentTimeMillis()) = db.withTransaction {
         val transactions = dao.transactionsNow(ownerId)
@@ -99,7 +119,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     }
 
     suspend fun saveDraftBatch(drafts: List<TransactionDraft>, batchId: String) = db.withTransaction {
-        require(drafts.size in 1..10)
+        require(drafts.size in 1..com.sadique.dailyledger.ai.AiProtocol.MAX_DRAFTS)
         UUID.fromString(batchId)
         val checked = drafts.map { it.validated() }
         val now = System.currentTimeMillis()
@@ -313,18 +333,8 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     private fun newId() = "$ownerId:${UUID.randomUUID()}"
     private fun ownedId(id: String) = "$ownerId:${id.substringAfterLast(':')}"
 
-    suspend fun hasRecords(): Boolean = dao.transactionsNow(ownerId).isNotEmpty() ||
-        dao.loansNow(ownerId).isNotEmpty() || dao.loanPaymentsNow(ownerId).isNotEmpty() ||
-        dao.committeesNow(ownerId).isNotEmpty() || dao.committeePaymentsNow(ownerId).isNotEmpty() ||
-        dao.committeeReceiptsNow(ownerId).isNotEmpty() || dao.committeeMembersNow(ownerId).isNotEmpty() || dao.organizerCirclesNow(ownerId).isNotEmpty() ||
-        dao.creditPurchasesNow(ownerId).isNotEmpty() || dao.creditPaymentsNow(ownerId).isNotEmpty() ||
-        dao.savingsNow(ownerId).isNotEmpty() ||
-        dao.ledgerArchivesNow(ownerId).any {
-            it.salaryMinor != 0L || it.otherIncomeMinor != 0L || it.expensesMinor != 0L ||
-                it.committeeMinor != 0L || it.savingsMinor != 0L || it.openingBalanceMinor != 0L ||
-                it.closingBalanceMinor != 0L
-        } ||
-        (dao.ledgerCycleNow(ownerId)?.openingBalanceMinor ?: 0L) != 0L
+    suspend fun hasRecords(): Boolean = dao.recordCount(ownerId) > 0 ||
+        (dao.ledgerCycleNow(ownerId)?.openingBalanceMinor ?: 0L) != 0L || learningSnapshot().hasContent
 
     suspend fun migrateOwner(oldOwner: String) = db.withTransaction {
         if (oldOwner != ownerId) {
@@ -354,7 +364,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
             YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
             0L,
         ).also { dao.insertLedgerCycle(it) }
-        val root = JSONObject().put("version", 7).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        val root = JSONObject().put("version", 8).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
         root.put("transactions", JSONArray().apply { dao.transactionsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("type",x.type).put("amountMinor",x.amountMinor).put("category",x.category).put("note",x.note).put("date",x.date).put("createdAt",x.createdAt).put("updatedAt",x.updatedAt)) } })
         root.put("loans", JSONArray().apply { dao.loansNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("direction",x.direction).put("person",x.person).put("principalMinor",x.principalMinor).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
         root.put("loanPayments", JSONArray().apply { dao.loanPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("loanId",ownedId(x.loanId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
@@ -380,10 +390,12 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                     .put("archivedAt", x.archivedAt))
             }
         })
+        root.put("aiLearning", learningSnapshot().json())
         root.toString()
     }
 
     suspend fun clearAllForOwner() = db.withTransaction {
+        dao.upsertAiLearning(AiLearningEntity(ownerId, LearningSnapshot().json().toString()))
         dao.clearTransactions(ownerId)
         dao.clearLoans(ownerId)
         dao.clearLoanPayments(ownerId)
@@ -412,7 +424,12 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
     suspend fun importJson(json: String) = db.withTransaction {
         val root = JSONObject(json)
         val version = root.optInt("version")
-        require(version in 1..7) { "Unsupported backup version. Update the app to restore it." }
+        require(version in 1..8) { "Unsupported backup version. Update the app to restore it." }
+        // Validate learning before any delete/write; Room commits both ledger and learning together.
+        val restoredLearning = if (version >= 8) {
+            require(root.optJSONObject("aiLearning") != null) { "Backup is missing AI learning. Your records were not changed." }
+            LearningSnapshot.decode(root.getJSONObject("aiLearning"))
+        } else null
         require(version == 1 || root.optJSONArray("committeeReceipts") != null) { "Backup is missing kameti receipts; your local data was not changed." }
         if (version >= 3) require(root.optJSONArray("committeeMembers") != null) { "Backup is missing kameti members; your local data was not changed." }
         if (version >= 4) {
@@ -567,7 +584,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String) {
                 m.receivedDate?.let { LocalDate.parse(it) }
             }
             require(members.groupBy { it.committeeId to it.turnNumber }.values.all { rows -> rows.sumOf { it.shareHalfUnits } <= 2 }) { "Kameti turns exceed one full share." }
-            savedCommittees.forEach { committee ->
+            if (restoredLearning != null) dao.upsertAiLearning(AiLearningEntity(ownerId, restoredLearning.json().toString()))
+        // Backups v1–v7 did not contain learning. Keep the current account's learning intact.
+
+        savedCommittees.forEach { committee ->
                 require(committee.sharesHalfUnits > 0 && members.filter { it.committeeId == committee.id && it.isMe }.sumOf { it.shareHalfUnits } <= committee.sharesHalfUnits) { "Too many personal kameti shares in backup." }
             }
             dao.insertCommitteeMembers(members)

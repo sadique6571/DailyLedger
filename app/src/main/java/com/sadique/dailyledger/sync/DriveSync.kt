@@ -18,7 +18,7 @@ class DriveSync internal constructor(
     private val signedInOwner: () -> String?,
 ) {
     constructor(context: Context, ownerId: String) : this(context, ownerId,
-        LedgerRepository(AppDatabase.get(context), ownerId), SettingsStore(context),
+        LedgerRepository(AppDatabase.get(context), ownerId) { com.sadique.dailyledger.ai.CategoryLearningStore(context, ownerId).snapshot() }, SettingsStore(context),
         { DriveApi(it, ownerId) }, { FirebaseRuntime.auth(context).currentUser?.uid })
 
     private fun checkAccount() {
@@ -100,7 +100,13 @@ class DriveSync internal constructor(
             settings.pauseDriveBackup(ownerId, "Restore in progress. Automatic backup is paused.")
             repo.importJson(json) // Room transaction validates and rolls back an invalid restore.
             if (revision == null || revision.id == info.headRevision) {
-                verified(info, driveContentHash(repo.exportJson()), "Google Drive backup restored to this phone.", true)
+                val remoteHash = driveContentHash(json)
+                val localHash = driveContentHash(repo.exportJson())
+                verified(info, remoteHash, "Google Drive backup restored to this phone.", true)
+                if (localHash != remoteHash) {
+                    settings.markDrivePending(ownerId)
+                    runCatching { SyncScheduler.syncNow(context, ownerId) }
+                }
             } else {
                 settings.setDriveStatus(ownerId, "Older backup restored. Automatic backup is paused. Review your records, then use Back up now to make this the latest copy.", "paused")
             }

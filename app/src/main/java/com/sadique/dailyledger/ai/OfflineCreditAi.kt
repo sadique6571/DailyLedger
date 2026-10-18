@@ -28,7 +28,7 @@ object OfflineCreditAi {
         val shops = merchants.flatMap { it.findAll(clean).toList() }.distinctBy { it.range.first }.sortedBy { it.range.first }
         var masked = EntryDateParser.mask(clean, dates.map { it.range } + shops.map { it.range })
         masked = filler.replace(masked) { " ".repeat(it.value.length) }
-        val parts = EntryText.parts(masked) ?: return null
+        val parts = EntryText.parts(masked)?.takeIf { it.size <= 10 } ?: return null
         val rows = parts.map { part ->
             val shop = shops.firstOrNull { it.range.first in part.range }
                 ?: shops.singleOrNull() ?: shops.lastOrNull { it.range.last < part.range.first }

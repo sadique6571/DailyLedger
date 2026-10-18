@@ -11,11 +11,15 @@ import java.util.Locale
 data class LearnedCategoryRule(val type: String, val phrase: String, val category: String)
 
 object CategoryLearning {
+    private val stopWords = Regex("\\b(?:aaj|aj|kal|parson|parso|today|yesterday|tomorrow|subah|raat|آج|کل|پرسوں|خریدا|خریدی|لیا|لیے|bought|buy|liya|lia|liye|kharida|kharidi|kharcha|spent|paid|diya|ka|ki|ke|ko|se|hai|mila|mili|rs|pkr|rupees|rupay|rupaye)\\b")
+    private val punctuation = Regex("[^\\p{L}\\p{N}]+")
+    private val numbers = Regex("\\b\\d+\\b")
+    private val spaces = Regex("\\s+")
     fun normalize(text: String): String = OfflineVocabulary.normalize(EntryText.withoutQuantities(text))
-        .replace(Regex("\\b(?:aaj|aj|kal|parson|parso|today|yesterday|tomorrow|subah|raat|آج|کل|پرسوں|خریدا|خریدی|لیا|لیے|bought|buy|liya|lia|liye|kharida|kharidi|kharcha|spent|paid|diya|ka|ki|ke|ko|se|hai|mila|mili|rs|pkr|rupees|rupay|rupaye)\\b"), " ")
-        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
-        .replace(Regex("\\b\\d+\\b"), " ")
-        .replace(Regex("\\s+"), " ")
+        .replace(stopWords, " ")
+        .replace(punctuation, " ")
+        .replace(numbers, " ")
+        .replace(spaces, " ")
         .trim()
 
     fun match(type: String, text: String, rules: List<LearnedCategoryRule>): String? {
@@ -72,6 +76,8 @@ class CategoryLearningStore(context: Context, ownerId: String) {
             bytes.fill(0)
         }
     }
+
+    fun snapshot() = LearningSnapshot(rules(), suppressed()).validated()
 
     fun remember(type: String, phrase: String, category: String) {
         require(type == "INCOME" || type == "EXPENSE") { "Choose income or expense before teaching a category." }
