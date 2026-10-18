@@ -141,7 +141,7 @@ data class CategoryVisual(val icon: ImageVector, val color: Color)
 private val categoryVisualCache = java.util.concurrent.ConcurrentHashMap<String, CategoryVisual>()
 private val itemGroupIndex by lazy { com.sadique.dailyledger.data.ItemCategories.entries.associate { it.label.lowercase(java.util.Locale.ROOT) to it.group } }
 fun categoryVisual(category: String, type: String = "EXPENSE"): CategoryVisual {
-    val key = "$type:${category.lowercase(java.util.Locale.ROOT)}"
+    val key = "$type:${com.sadique.dailyledger.data.CategoryCatalog.visualGroup(category)}:${category.lowercase(java.util.Locale.ROOT)}"
     categoryVisualCache[key]?.let { return it }
     return categoryVisualUncached(category, type).also { if (categoryVisualCache.size < 1024) categoryVisualCache.putIfAbsent(key, it) }
 }
@@ -170,7 +170,7 @@ private fun categoryVisualUncached(category: String, type: String): CategoryVisu
         else -> null
     }
     if (special != null) return CategoryVisual(special, LedgerColors.Amber)
-    val itemGroup = itemGroupIndex[name]
+    val itemGroup = itemGroupIndex[name] ?: com.sadique.dailyledger.data.CategoryCatalog.visualGroup(category)
     when (itemGroup) {
         "Prepared food" -> return CategoryVisual(Icons.Rounded.RestaurantMenu, LedgerColors.Amber)
         "Lentils & grains" -> return CategoryVisual(Icons.Rounded.Grain, LedgerColors.Amber)
@@ -216,7 +216,23 @@ private fun categoryVisualUncached(category: String, type: String): CategoryVisu
             CategoryVisual(Icons.Rounded.Work, LedgerColors.Blue)
         listOf("emergency", "insurance").any { it in name } ->
             CategoryVisual(Icons.Rounded.Warning, LedgerColors.Red)
-        else -> CategoryVisual(Icons.Rounded.LocalOffer, Color(0xFF7C92AE))
+        else -> when (itemGroup) {
+            "Groceries", "Fresh food" -> CategoryVisual(Icons.Rounded.ShoppingCart, LedgerColors.Green)
+            "Eating out" -> CategoryVisual(Icons.Rounded.Restaurant, LedgerColors.Amber)
+            "Home" -> CategoryVisual(Icons.Rounded.Home, LedgerColors.Teal)
+            "Utilities" -> CategoryVisual(Icons.Rounded.ElectricalServices, LedgerColors.Blue)
+            "Transport", "Travel" -> CategoryVisual(Icons.Rounded.DirectionsCar, LedgerColors.Blue)
+            "Health" -> CategoryVisual(Icons.Rounded.MedicalServices, LedgerColors.Red)
+            "Education" -> CategoryVisual(Icons.Rounded.School, LedgerColors.Purple)
+            "Children & family" -> CategoryVisual(Icons.Rounded.FamilyRestroom, LedgerColors.Purple)
+            "Personal care" -> CategoryVisual(Icons.Rounded.Face, LedgerColors.Purple)
+            "Leisure" -> CategoryVisual(Icons.Rounded.SportsEsports, LedgerColors.Amber)
+            "Gifts & charity", "Giving & community" -> CategoryVisual(Icons.Rounded.VolunteerActivism, LedgerColors.Green)
+            "Work & other" -> CategoryVisual(Icons.Rounded.Work, LedgerColors.Blue)
+            "Electronics" -> CategoryVisual(Icons.Rounded.Devices, LedgerColors.Blue)
+            "Income" -> CategoryVisual(Icons.Rounded.Payments, LedgerColors.Green)
+            else -> CategoryVisual(Icons.Rounded.LocalOffer, Color(0xFF7C92AE))
+        }
     }
 }
 

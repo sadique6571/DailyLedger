@@ -189,7 +189,11 @@ object SpendingInsights {
             comparisonDays = days,
             previousComparable = old,
             currentComparable = now,
-            tips = tips.take(10),
+            tips = tips.sortedBy { when (it.title) {
+                "Budget limit reached", "Near budget limit", "Bills to reserve for" -> 0
+                "Available balance se zyada outflow", "Budget pressure", "Spending pace before salary", "Loan balance" -> 1
+                else -> 2
+            } }.take(10),
             savedThisMonth = savedThisMonth,
             potentialSaving = potentialSaving,
             savingRatePercent = savingRate,
