@@ -1,5 +1,7 @@
 # Daily Ledger
 
+Salary dates are configured in **Settings → Salary calendar**. Select this month's salary date to suggest the same date next month (month-end dates clamp safely). Edit **Next expected salary** in the calendar at any time for irregular 20/40-day gaps. Home shows only the countdown; new recorded salary suggests its date next month. Scheduling dates never posts income or starts/archives a cycle. Preferences are account-scoped and local, outside Drive ledger backup. Category selection now uses the same rounded colored input as other fields: type directly in it to search canonical categories, Urdu/Roman Urdu aliases, history and custom categories. There is no separate search field inside the dropdown.
+
 ## Reliable automatic backup and Kameti batch saves
 
 Automatic backup keeps account-bound pending changes until a Google Drive upload is verified. It retries temporary connection failures, preserves backup history, and pauses on remote-copy conflicts or after restoring an older backup. Settings shows the actual backup state and last verified time. Keep Drive connected and check that the latest backup has completed before clearing app data or changing phones; changes that never uploaded cannot be recovered from Drive.

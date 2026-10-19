@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
+
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.clickable
