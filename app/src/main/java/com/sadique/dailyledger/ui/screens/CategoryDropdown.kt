@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -68,7 +69,7 @@ fun CategoryDropdown(
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
 
-    var query by remember(type, value) { mutableStateOf("") }
+    var query by remember(type) { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
     val filtered = remember(options, query) {
@@ -80,11 +81,21 @@ fun CategoryDropdown(
         modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
-            onValueChange = { query = it.take(80); editing = true; expanded = true },
+            onValueChange = {
+                query = it.take(80); editing = true; expanded = true
+                if(value.isNotBlank()) onSelect("")
+            },
             enabled = enabled, singleLine = true,
             label = { Text("Category") }, placeholder = { Text("Search categories") },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            trailingIcon = {
+                Row {
+                    if(value.isNotBlank() || query.isNotBlank()) IconButton(enabled=enabled,onClick={
+                        query="";editing=true;expanded=true;onSelect("")
+                    },modifier=Modifier.testTag("category-clear")) { Icon(Icons.Rounded.Close,"Clear category") }
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                }
+            },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, enabled)
                 .onFocusChanged { if (!it.isFocused && !expanded) editing = false }
                 .testTag("category-dropdown"),

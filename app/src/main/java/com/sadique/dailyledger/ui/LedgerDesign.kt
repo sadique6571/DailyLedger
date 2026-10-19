@@ -200,7 +200,11 @@ private fun categoryVisualUncached(category: String, type: String): CategoryVisu
         "cake & sweets" -> Icons.Rounded.Cake
         "juice & shakes" -> Icons.Rounded.LocalDrink
         "tea & coffee" -> Icons.Rounded.LocalCafe
-        "milk" -> Icons.Rounded.LocalDrink
+        "milk", "packaged milk" -> Icons.Rounded.LocalDrink
+        "salan", "chana breakfast" -> Icons.Rounded.RamenDining
+        "chocolate", "toffee and candy" -> Icons.Rounded.Cake
+        "papar", "chips and nimko" -> Icons.Rounded.Fastfood
+        "biscuits", "paratha", "halwa puri" -> Icons.Rounded.BakeryDining
         "eggs" -> Icons.Rounded.Egg
         "bread", "samosa & pakora" -> Icons.Rounded.BakeryDining
         "electricity" -> Icons.Rounded.Bolt

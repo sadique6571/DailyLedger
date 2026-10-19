@@ -6,6 +6,17 @@ object ItemCategories {
         LedgerCategory(group, label, "EXPENSE", words.toList())
 
     val entries = listOf(
+        item("Prepared food", "Salan", "salan", "saalan", "salaan", "curry", "cooked curry", "سالن"),
+        item("Breakfast & dairy", "Packaged milk", "milk pak", "milkpak", "milk pack", "milkpack", "packaged milk", "tetra pack milk", "olpers", "olper", "ملک پیک", "پیکٹ دودھ", "ڈبے کا دودھ"),
+        item("Snacks & treats", "Chocolate", "chocolate", "chocolates", "choclate", "choklet", "چاکلیٹ"),
+        item("Snacks & treats", "Toffee & candy", "toffee", "toffees", "tofi", "toffy", "candy", "candies", "ٹافی", "ٹافیاں"),
+        item("Snacks & treats", "Papar", "papar", "paparr", "papad", "papadum", "پاپڑ"),
+        item("Snacks & treats", "Biscuits", "biscuit", "biscuits", "biskut", "بسکٹ"),
+        item("Snacks & treats", "Chips & nimko", "chips", "crisps", "nimko", "نمکو", "چپس"),
+        item("Prepared food", "Chana breakfast", "chanay nashta", "channay nashta", "nashtay ke channay", "chanay salan", "cholay", "chole", "چھولے", "ناشتے کے چنے"),
+        item("Prepared food", "Paratha", "paratha", "parathay", "pratha", "پراٹھا", "پراٹھے"),
+        item("Prepared food", "Halwa puri", "halwa puri", "halwa poori", "halwa poori nashta", "حلوہ پوری"),
+
         item("Prepared food", "Biryani", "biryani", "بریانی"),
         item("Prepared food", "Pizza", "pizza", "پیزا"),
         item("Prepared food", "Burger", "burger", "برگر"),

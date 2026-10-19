@@ -1,3 +1,7 @@
+## Smaller update — 2.0.0 build 33
+
+Release code/resources are optimized with R8. All existing CPU architectures remain supported. Receipt attachment actions are removed; old stored proof data stays compatible with schema/backup v11. Receipt OCR for reviewed AI entries remains. Category editing clears the old selection instead of restoring “Other”; only chosen categories are learned. New everyday food categories and Roman Urdu/Urdu aliases work with offline and cloud AI. See [build 33](docs/BUILD_33.md).
+
 ## Combined update — 2.0.0 build 32
 
 Build 31's complete Money tools and full searchable category list remain. Selected `DailyLedger-2.1.0.zip` changes add shared design tokens, gradient/tonal cards, screen components, photos/PDF payment proofs and a 15-minute edit-backup queue. The existing signing certificate, Firebase sign-in/online AI and Google Drive account restore remain unchanged. See [combined update details](docs/COMBINED_BUILD_32.md).

@@ -237,6 +237,10 @@ object CategoryRules {
         val canonical = if (isIncome) incomeCategories else expenseCategories
         val proposedClean = proposed.trim()
 
+        // Specific familiar food terms take precedence over a model's broad bucket.
+        val specificFood = setOf("Salan", "Packaged milk", "Chocolate", "Toffee & candy", "Papar", "Biscuits", "Chips & nimko", "Chana breakfast", "Paratha", "Halwa puri")
+        val inferredFood = infer(type, sourceText)
+        if (!isIncome && inferredFood in specificFood && normalizeText(proposedClean) in setOf("other", "milk", "doodh", "snacks", "food", "food dining", "food & dining", "restaurant", "groceries", "grocery")) return inferredFood
         // Fix legacy/model-made labels first.
         val legacy = when (normalizeText(proposedClean)) {
             "other groceries", "other grocery", "grocery", "groceries", "rashan", "ration" -> "Groceries"
