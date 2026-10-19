@@ -11,6 +11,13 @@ for attempt in $(seq 1 10); do
   if adb shell cat /data/local/tmp/release-ui.xml | grep -q 'Sign in with Google'; then break; fi
   sleep 1
 done
+adb pull /data/local/tmp/release-ui.xml /tmp/dailyledger-release-ui.xml >/dev/null
+python3 - <<'CHECK_GOOGLE'
+import xml.etree.ElementTree as E
+root=E.parse('/tmp/dailyledger-release-ui.xml').getroot()
+buttons=[n for n in root.iter('node') if n.get('text')=='Sign in with Google']
+assert buttons and any(n.get('enabled')=='true' for n in buttons), 'Google sign-in configuration was lost in the optimized release'
+CHECK_GOOGLE
 adb shell pidof com.sadique.dailyledger
 adb shell cat /data/local/tmp/release-ui.xml | grep -q 'Sign in with Google'
 if adb logcat -d -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'; then

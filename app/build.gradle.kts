@@ -64,6 +64,8 @@ android {
 
 
     packaging {
+        // Compress native libraries in the download; Android extracts only the device ABI on install.
+        jniLibs.useLegacyPackaging = true
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 }
