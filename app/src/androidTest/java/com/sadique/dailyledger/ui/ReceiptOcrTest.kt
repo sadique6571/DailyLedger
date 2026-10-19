@@ -9,6 +9,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.sadique.dailyledger.data.FinanceIntake
+import com.sadique.dailyledger.data.recognizedReceiptText
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
@@ -25,7 +26,7 @@ class ReceiptOcrTest {
         val done=CountDownLatch(1);var text="";var failure:Exception?=null
         val client=TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
-            client.process(InputImage.fromBitmap(bitmap,0)).addOnSuccessListener{text=it.text;done.countDown()}.addOnFailureListener{failure=it;done.countDown()}
+            client.process(InputImage.fromBitmap(bitmap,0)).addOnSuccessListener{text=recognizedReceiptText(it);done.countDown()}.addOnFailureListener{failure=it;done.countDown()}
             assertTrue("Bundled OCR timed out",done.await(45,TimeUnit.SECONDS))
             assertNull(failure)
             val rows=FinanceIntake.receipt(text,"2026-10-19")

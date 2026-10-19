@@ -45,7 +45,7 @@ import java.util.UUID
             try {
                 val image=InputImage.fromFilePath(context,uri)
                 recognizer.process(image).addOnSuccessListener{result->
-                    if(alive){if(result.text.length<=20000){input=result.text;source="Receipt"}else error="Receipt is too long. Use smaller sections."}
+                    if(alive){val extracted=recognizedReceiptText(result);if(extracted.length<=20000){input=extracted;source="Receipt"}else error="Receipt is too long. Use smaller sections."}
                 }.addOnFailureListener{if(alive)error="Could not read this image. Try a clearer Latin-script receipt or type the items."}
                     .addOnCompleteListener{recognizer.close();if(alive)busy=false}
             } catch(e:Exception){recognizer.close();error=e.message;busy=false}

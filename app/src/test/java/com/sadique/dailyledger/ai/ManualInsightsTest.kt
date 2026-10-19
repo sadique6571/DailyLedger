@@ -48,4 +48,13 @@ class ManualInsightsTest {
         assertEquals(tips, c.tips.value); assertTrue(c.status.value.contains("Daily limit reached")); assertFalse(c.busy.value)
         c.updateContext("one", true); yield(); assertEquals(1, calls)
     }
+    @Test fun oldContextTipsAreClearedWhenPrivacyChangesTheContext() = kotlinx.coroutines.runBlocking {
+        var calls=0
+        val c=ManualInsights(this,true,{null},{_,_->})
+        c.refresh("public-before-private",true){calls++;tips};kotlinx.coroutines.yield()
+        assertEquals(tips,c.tips.value)
+        c.updateContext("private-record-excluded",true)
+        assertTrue(c.tips.value.isEmpty());assertEquals(1,calls)
+    }
+
 }

@@ -102,4 +102,46 @@ class FinanceRepositoryTest {
         val rows=FinanceIntake.receipt("Milk 150.00\nBread 100.00\nSubtotal 250.00\nGrand Total 250.00","2026-10-19")
         assertEquals(2,rows.size);assertEquals(25000L,rows.sumOf{it.amountMinor})
     }
+    @Test fun claimsGoalsAndInstallmentsRestoreAcrossOwnersWithEveryLinkIntact()=runBlocking {
+        val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
+        try {
+            val source=LedgerRepository(db,"source")
+            source.finance.createReimbursement("Office",10000,"Other","2026-10-01","Cash")
+            val claim=source.profileSnapshot().workspace.items.single();source.finance.settleReimbursement(claim.id,3000,"2026-10-02","Bank")
+            val goal=FinanceItem(kind=FinanceKind.GOAL,title="Laptop",amount=100000,date=LocalDate.now().plusMonths(3).toString(),settled=10000,opening=10000)
+            source.finance.saveItem(goal);source.finance.contributeGoal(goal.id,5000,"2026-10-03","Bank")
+            source.finance.createInstallments("Phone",100000,20000,4,LocalDate.parse("2026-11-01"),"Cash","Other")
+            val part=source.profileSnapshot().workspace.items.first{it.kind==FinanceKind.INSTALLMENT}
+            source.finance.payItems(setOf(part.id),"2026-10-19")
+            val backup=source.exportJson();val target=LedgerRepository(db,"target");target.importJson(backup)
+            val w=target.profileSnapshot().workspace
+            assertEquals(3000L,w.items.first{it.kind==FinanceKind.REIMBURSEMENT}.settled)
+            assertEquals(15000L,w.items.first{it.kind==FinanceKind.GOAL}.settled)
+            assertEquals(40000L,w.items.first{it.kind==FinanceKind.INSTALLMENT_PURCHASE}.settled)
+            assertEquals(1,db.ledgerDao().savingsNow("target").size)
+            val tx=db.ledgerDao().transactionsNow("target");assertTrue(w.items.first{it.kind==FinanceKind.REIMBURSEMENT}.reference in tx.map{it.id})
+            assertTrue(w.revisions.all{it.transactionId.startsWith("target:")})
+            val broken=JSONObject(backup);val items=broken.getJSONObject("profileSettings").getJSONObject("workspace").getJSONArray("items")
+            for(n in 0 until items.length())if(items.getJSONObject(n).getString("kind")=="REIMBURSEMENT")items.getJSONObject(n).put("settled",4000)
+            assertTrue(runCatching{target.importJson(broken.toString())}.isFailure)
+            assertEquals(3000L,target.profileSnapshot().workspace.items.first{it.kind==FinanceKind.REIMBURSEMENT}.settled)
+        }finally{db.close()}
+    }
+    @Test fun deletingAndReRecordingAdvanceReconcilesPurchaseAndUnpaidPlansCanBeCancelled()=runBlocking {
+        val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
+        try {
+            val repo=LedgerRepository(db,"o")
+            repo.finance.createInstallments("Phone",100000,20000,4,LocalDate.parse("2026-11-01"),"Cash","Other")
+            val root=repo.profileSnapshot().workspace.items.first{it.kind==FinanceKind.INSTALLMENT_PURCHASE}
+            repo.deleteTransaction(db.ledgerDao().transactionsNow("o").single())
+            assertEquals(0L,repo.profileSnapshot().workspace.items.first{it.id==root.id}.settled)
+            repo.finance.payAdvance(root.id,"2026-10-19","Bank")
+            assertEquals(20000L,repo.profileSnapshot().workspace.items.first{it.id==root.id}.settled)
+            assertTrue(runCatching{repo.finance.payAdvance(root.id,"2026-10-19","Bank")}.isFailure)
+            repo.deleteTransaction(db.ledgerDao().transactionsNow("o").single())
+            repo.finance.cancelInstallments(root.id)
+            assertTrue(repo.profileSnapshot().workspace.items.isEmpty())
+        }finally{db.close()}
+    }
+
 }
