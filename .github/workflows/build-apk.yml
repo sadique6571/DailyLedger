@@ -79,6 +79,10 @@ jobs:
           arch: x86_64
           disable-animations: true
           profile: pixel_2
+          # Legacy proof-backup regression encodes full-size payloads. Avoid
+          # AVD defaults occasionally giving the test app only a 16 MB heap.
+          ram-size: 2048M
+          heap-size: 256M
           script: bash tests/run-device-tests.sh
 
       - name: Upload test reports
