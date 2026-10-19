@@ -6,6 +6,23 @@ object ItemCategories {
         LedgerCategory(group, label, "EXPENSE", words.toList())
 
     val entries = listOf(
+        item("Prepared food", "Biryani", "biryani", "بریانی"),
+        item("Prepared food", "Pizza", "pizza", "پیزا"),
+        item("Prepared food", "Burger", "burger", "برگر"),
+        item("Prepared food", "Shawarma", "shawarma", "شوارما"),
+        item("Prepared food", "Pulao", "pulao", "pilau", "پلاؤ"),
+        item("Prepared food", "Nihari", "nihari", "نہاری"),
+        item("Prepared food", "Haleem", "haleem", "حلیم"),
+        item("Prepared food", "Karahi", "karahi", "کڑاہی"),
+        item("Prepared food", "Barbecue & kebab", "bbq", "barbecue", "kabab", "kebab", "کباب"),
+        item("Prepared food", "Samosa & pakora", "samosa", "pakora", "سموسہ", "پکوڑے"),
+        item("Prepared food", "Chaat & gol gappay", "chaat", "gol gappay", "چَٹ", "چاٹ", "گول گپے"),
+        item("Prepared food", "Fries", "fries", "فرائز"),
+        item("Prepared food", "Noodles & pasta", "noodles", "pasta", "نوڈلز", "پاستا"),
+        item("Prepared food", "Ice cream", "ice cream", "icecream", "آئس کریم"),
+        item("Prepared food", "Cake & sweets", "cake", "mithai", "sweets", "کیک", "مٹھائی"),
+        item("Prepared food", "Juice & shakes", "juice", "shake", "جوس", "شیک"),
+
         item("Lentils & grains", "Moong dal", "moong", "moong dal", "دال مونگ"),
         item("Lentils & grains", "Masoor dal", "masoor", "masoor dal", "دال مسور"),
         item("Lentils & grains", "Chana dal", "chana dal", "dal chana", "دال چنا"),

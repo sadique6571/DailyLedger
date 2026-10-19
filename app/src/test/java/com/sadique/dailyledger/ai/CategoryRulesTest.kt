@@ -4,6 +4,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class CategoryRulesTest {
+    @Test fun recognizesPreparedFoodWithoutInventingBroadCategories() {
+        assertEquals("Biryani", CategoryRules.infer("EXPENSE", "biryani 300"))
+        assertEquals("Pizza", CategoryRules.infer("EXPENSE", "pizza 1500"))
+        assertEquals("Burger", CategoryRules.infer("EXPENSE", "برگر 500"))
+        assertEquals("Shawarma", CategoryRules.infer("EXPENSE", "shawarma 250"))
+    }
+
     @Test fun recognizesSpecificSpicesAndLaundryItems() {
         assertEquals("Garam masala", CategoryRules.infer("EXPENSE", "garam masala 80"))
         assertEquals("Ground coriander", CategoryRules.infer("EXPENSE", "sukha dhaniya 50"))

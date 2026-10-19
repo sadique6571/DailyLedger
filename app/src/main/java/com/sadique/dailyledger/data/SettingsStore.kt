@@ -50,6 +50,8 @@ class SettingsStore(private val context: Context) {
         val transactionSounds = booleanPreferencesKey("transaction_sounds")
     }
     private fun drive(owner: String) = booleanPreferencesKey("drive:$owner")
+    private fun driveCheckTime(owner: String) = longPreferencesKey("drive_check_time:$owner")
+    suspend fun lastDriveCheck(owner: String): Long = context.dataStore.data.first()[driveCheckTime(owner)] ?: 0L
     private fun driveTime(owner: String) = longPreferencesKey("drive_time:$owner")
     private fun driveStatus(owner: String) = stringPreferencesKey("drive_status:$owner")
     private fun driveVersionKey(owner: String) = stringPreferencesKey("drive_version:$owner")
@@ -135,6 +137,7 @@ class SettingsStore(private val context: Context) {
             it[driveHashKey(owner)] = checkpoint.contentHash
             it[driveChecksumKey(owner)] = checkpoint.checksum
             it[driveTime(owner)] = time
+            it[driveCheckTime(owner)] = System.currentTimeMillis()
             it[driveStatus(owner)] = status
             it[driveStateKey(owner)] = state
             it.remove(driveAttemptHashKey(owner)); it.remove(driveAttemptFileKey(owner))

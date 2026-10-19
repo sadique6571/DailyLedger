@@ -77,8 +77,8 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
-    val salarySchedule = SalaryScheduleStore(app, ownerId)
-    val planner = com.sadique.dailyledger.planning.PlannerStore(app, ownerId)
+    val salarySchedule = SalaryScheduleStore(app, ownerId, viewModelScope)
+    val planner = com.sadique.dailyledger.planning.PlannerStore(app, ownerId, viewModelScope)
     private val _learningError = MutableStateFlow<String?>(null)
     val learningError = _learningError.asStateFlow()
     private val learning = repo.aiLearning.catch { e ->
@@ -116,7 +116,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             check(planner.data.value.bills.any { it.id == bill.id && it.nextDue() == due }) { "This reminder has already been handled. Refresh the list." }
             SettingsStore(getApplication<Application>()).markDrivePending(ownerId)
             repo.saveDraftBatch(listOf(draft), bill.batchId())
-            planner.markHandled(bill.id, due)
+            planner.markHandled(bill.id, due, alreadyLocked = true)
         }
         runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
     }

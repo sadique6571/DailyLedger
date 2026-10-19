@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -23,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
 import com.sadique.dailyledger.ui.money
+import com.sadique.dailyledger.ui.LedgerCard
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 
 @Composable
 fun InsightsCard(
@@ -38,7 +43,7 @@ fun InsightsCard(
 ) {
     Card(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -51,15 +56,15 @@ fun InsightsCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricChip("Money score", if (snapshot.count > 0 && snapshot.summary.salary > 0) "${snapshot.healthScore}/100" else "—", Modifier.weight(1f))
                 MetricChip("Saving rate", "${snapshot.savingRatePercent}%", Modifier.weight(1f))
-                MetricChip("Possible save", money(snapshot.potentialSaving), Modifier.weight(1f))
+                MetricChip("Possible save", com.sadique.dailyledger.ui.visibleAmount(snapshot.potentialSaving), Modifier.weight(1f))
             }
 
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
 
             snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
-                    Text(tip.detail)
+                    Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
                     TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                 }
             }
@@ -85,9 +90,11 @@ fun InsightsCard(
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
                 cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
-                    Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                    Text(tip.detail)
-                    TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
+                    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
+                        Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
+                        TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
+                    }
                 }
             }
         }
@@ -96,7 +103,7 @@ fun InsightsCard(
 
 @Composable
 private fun MetricChip(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall)
             Text(value, style = MaterialTheme.typography.titleSmall)

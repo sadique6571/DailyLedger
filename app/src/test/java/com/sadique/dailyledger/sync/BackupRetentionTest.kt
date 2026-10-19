@@ -5,20 +5,21 @@ import org.junit.Test
 import java.time.LocalDate
 
 class BackupRetentionTest {
-    @Test fun rapidEditsKeepTenRecentCopiesAndSevenDailyRecoveryPoints() {
-        val days = (1..12).map { n -> DriveRevision("d$n", "${LocalDate.of(2026, 10, n)}T23:00:00Z", "hash", true) }
-        val rapid = (0..20).map { n -> DriveRevision("rapid$n", "2026-10-13T12:${n.toString().padStart(2, '0')}:00Z", "hash", true) }
-        val deleted = revisionsToRemove(days + rapid, "rapid20").map { it.id }.toSet()
-        (11..20).forEach { assertFalse(deleted.contains("rapid$it")) }
-        (7..12).forEach { assertFalse(deleted.contains("d$it")) }
-        assertTrue(deleted.contains("d1"))
-        assertTrue(deleted.contains("rapid0"))
+    @Test fun onlyTheLatestHeadIsKeptAndMissingHeadNeverDeletesAnything() {
+        val revisions = (1..30).map { DriveRevision("$it", "2026-10-01T00:00:00Z", "hash", it != 2) }
+        val deleted = revisionsToRemove(revisions, "30").map { it.id }.toSet()
+        assertEquals(29, deleted.size)
+        assertFalse("30" in deleted)
+        assertTrue("2" in deleted)
+        assertTrue(revisionsToRemove(revisions, "").isEmpty())
     }
-    @Test fun headAndUnmanagedUnpinnedCopiesAreNeverDeleted() {
-        val revisions = (1..30).map { DriveRevision("$it", "2026-10-${it.toString().padStart(2, '0')}T00:00:00Z", "hash", it != 2) }
-        val deleted = revisionsToRemove(revisions, "1").map { it.id }
-        assertFalse("1" in deleted)
-        assertFalse("2" in deleted)
+    @Test fun threeHourGateIncludesBoundaryAndClockRecovery() {
+        val now = 12_000_000L
+        assertFalse(backupAttemptDue(now - 10_799_999L, now))
+        assertTrue(backupAttemptDue(now - 10_800_000L, now))
+        assertTrue(backupAttemptDue(0, now))
+        assertTrue(backupAttemptDue(now + 1, now))
+        assertEquals(3L, SyncScheduler.INTERVAL_HOURS)
     }
     @Test fun queuedAccountCannotTurnIntoAnotherAccountsBackup() {
         assertTrue(backupOwnerMatches("alice", "alice", "alice"))

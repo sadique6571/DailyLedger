@@ -183,3 +183,6 @@ The shared APK uses Play Integrity App Check, not a shared debug token. Configur
 After owner configuration, test Google/email login, optional Gemini inference, weather/contact handlers on a real phone, and same-account encrypted backup/restore on two devices. Verify Restore/Skip, offline edits, changed remote revisions, legacy backup upgrade to envelope V3 and deleted backups. Do not erase the only local copy to test recovery.
 
 No billing upgrade, Functions/KMS deployment or live two-device cloud restore has been performed in this review. Offline Mini AI and the local ledger do not require that optional cloud setup.
+
+## Build 28 verification
+Required: schema 8→9 and old encrypted upgrades, planning/ledger atomic rollback and owner isolation, v8 restore preserving plans, one-copy revision retention, three-hour boundary and account-safe scheduling, prepared-food inference, budget/bill/pace insights and shared-surface UI regressions. Local backup core: 19 checks passed. Full CI and signed APK verification pending; physical device scheduling/real Drive are not claimed tested.

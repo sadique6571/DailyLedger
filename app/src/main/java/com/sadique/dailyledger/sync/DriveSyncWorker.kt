@@ -11,6 +11,8 @@ import kotlin.coroutines.cancellation.CancellationException
 internal fun backupOwnerMatches(requested: String?, settingsOwner: String, signedInOwner: String?) =
     settingsOwner == signedInOwner && (requested == null || requested == settingsOwner)
 
+internal fun backupAttemptDue(lastSync: Long, now: Long) = lastSync <= 0L || now < lastSync || now - lastSync >= java.util.concurrent.TimeUnit.HOURS.toMillis(SyncScheduler.INTERVAL_HOURS)
+
 class DriveSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val store = SettingsStore(applicationContext)
@@ -19,6 +21,7 @@ class DriveSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
         if (!state.driveEnabled || !FirebaseRuntime.configured(applicationContext)) return Result.success()
         if (!backupOwnerMatches(inputData.getString(SyncScheduler.OWNER), user.id,
                 FirebaseRuntime.auth(applicationContext).currentUser?.uid)) return Result.success()
+        if (!backupAttemptDue(store.lastDriveCheck(user.id), System.currentTimeMillis())) return Result.success()
         val email = user.googleEmail ?: user.email
         if (email.isBlank()) {
             store.setDriveStatus(user.id, "Connect your Google account in Settings to enable backup.", "auth")

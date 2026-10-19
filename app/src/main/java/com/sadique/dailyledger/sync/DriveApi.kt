@@ -56,15 +56,9 @@ internal fun driveContentHash(json: String): String {
     return driveDigest(canonical(root).toByteArray(Charsets.UTF_8), "SHA-256")
 }
 
-/** Keep the latest 10 copies plus the newest copy on each of the last 7 recorded backup days. */
-internal fun revisionsToRemove(revisions: List<DriveRevision>, head: String): List<DriveRevision> {
-    val sorted = revisions.sortedByDescending { it.modifiedTime }
-    val keep = sorted.take(10).map { it.id }.toMutableSet()
-    sorted.groupBy { runCatching { Instant.parse(it.modifiedTime).atZone(ZoneOffset.UTC).toLocalDate().toString() }.getOrDefault(it.id) }
-        .values.take(7).forEach { keep += it.first().id }
-    keep += head
-    return sorted.filter { it.kept && it.id !in keep }
-}
+/** Keep only the current verified head. Cleanup is called only after a successful upload. */
+internal fun revisionsToRemove(revisions: List<DriveRevision>, head: String): List<DriveRevision> =
+    if (head.isBlank()) emptyList() else revisions.filter { it.id != head }
 
 internal interface DriveStorage {
     fun findBackup(): DriveBackupInfo?
@@ -121,8 +115,6 @@ internal class DriveApi(
         if (existing != null) {
             val latest = metadata(existing.fileId)
             if (latest.version != existing.version) throw DriveBackupConflictException()
-            // Preserve the old head before replacing it, including backups made by older APKs.
-            if (latest.headRevision.isNotBlank()) pin(latest.fileId, latest.headRevision)
             current = metadata(existing.fileId)
             if (current.headRevision != latest.headRevision || current.checksum != latest.checksum) throw DriveBackupConflictException()
         }
@@ -131,11 +123,11 @@ internal class DriveApi(
         if (current == null) {
             // Create metadata + content atomically; a failed first upload must not leave an empty backup.
             val boundary = "ledger-${UUID.randomUUID()}"
-            connection = conn("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&keepRevisionForever=true&fields=$fields", "POST", "multipart/related; boundary=$boundary")
+            connection = conn("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&keepRevisionForever=false&fields=$fields", "POST", "multipart/related; boundary=$boundary")
             val meta = JSONObject().put("name", name).put("mimeType", "application/json").put("parents", JSONArray().put("appDataFolder"))
             payload = ("--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: application/json\r\n\r\n").toByteArray() + data + "\r\n--$boundary--\r\n".toByteArray()
         } else {
-            connection = conn("https://www.googleapis.com/upload/drive/v3/files/${escape(current.fileId)}?uploadType=media&keepRevisionForever=true&fields=$fields", "POST", "application/json; charset=UTF-8")
+            connection = conn("https://www.googleapis.com/upload/drive/v3/files/${escape(current.fileId)}?uploadType=media&keepRevisionForever=false&fields=$fields", "POST", "application/json; charset=UTF-8")
             connection.setRequestProperty("X-HTTP-Method-Override", "PATCH")
             if (current.etag.isNotBlank()) connection.setRequestProperty("If-Match", current.etag)
             payload = data
@@ -184,6 +176,7 @@ internal class DriveApi(
     }
     override fun trimHistory(info: DriveBackupInfo) {
         revisionsToRemove(revisions(info), info.headRevision).forEach {
+            if (!it.kept) pin(info.fileId, it.id)
             body(conn("https://www.googleapis.com/drive/v3/files/${escape(info.fileId)}/revisions/${escape(it.id)}", "DELETE"))
         }
     }

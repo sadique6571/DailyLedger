@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -43,7 +45,7 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
             Switch(enabled, onCheckedChange = onToggle, enabled = !busy, colors = SwitchDefaults.colors(checkedTrackColor = LedgerColors.Green, checkedThumbColor = Color.White))
         }
         Spacer(Modifier.height(12.dp))
-        Surface(shape = RoundedCornerShape(18.dp), color = if (ledgerIsDark()) Color(0xFF153449) else Color(0xFFEDF9FF)) {
+        Surface(shape = RoundedCornerShape(20.dp), color = if (ledgerIsDark()) Color(0xFF153449) else Color(0xFFEDF9FF)) {
             Column(Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     GlowIcon(if (verified) Icons.Rounded.CheckCircle else Icons.Rounded.CloudSync,

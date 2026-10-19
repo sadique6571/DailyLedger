@@ -2,6 +2,9 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
@@ -132,7 +135,7 @@ fun CommitteeScreen(
 
                 Card(
                     Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
@@ -159,7 +162,7 @@ fun CommitteeScreen(
                             modifier = Modifier.fillMaxWidth().height(12.dp).testTag("kameti-installment-progress"),
                         )
                         nextMonth?.let { month ->
-                            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                     Text("Next installment #$next • $month", style = MaterialTheme.typography.labelLarge)
                                     Text(monthCountdown(month), style = MaterialTheme.typography.bodySmall)
@@ -175,7 +178,7 @@ fun CommitteeScreen(
                             progress = { if (balance.expected > 0) (balance.received.toFloat() / balance.expected).coerceIn(0f, 1f) else 0f },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(12.dp)) {
+                        Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(20.dp)) {
                             Text(balance.status, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, style = MaterialTheme.typography.labelLarge)
                         }
 
@@ -375,7 +378,7 @@ fun CommitteeScreen(
 
 @Composable
 private fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () -> Unit, onDelete: () -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

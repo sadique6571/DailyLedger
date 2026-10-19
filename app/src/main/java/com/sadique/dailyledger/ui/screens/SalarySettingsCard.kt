@@ -14,6 +14,9 @@ import com.sadique.dailyledger.ai.DailySpendingGuide
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.LedgerTextField
 import com.sadique.dailyledger.i18n.LocalizedText as Text
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -21,6 +24,9 @@ import java.time.ZoneOffset
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SalarySettingsCard(store: SalaryScheduleStore, transactions: List<TransactionEntity>) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     val today = LocalDate.now()
     val plan = store.calendar
     val guide = DailySpendingGuide.calculate(transactions, SalarySummary(0, 0, 0), today,
@@ -30,8 +36,9 @@ internal fun SalarySettingsCard(store: SalaryScheduleStore, transactions: List<T
         Text("Select the salary date for this month. The same date next month is suggested automatically. Change the next expected date anytime for a 20-day or 40-day gap.", style = MaterialTheme.typography.bodySmall)
         SalaryCalendarField("Salary date", plan.reference ?: guide.lastSalaryDate, "salary-reference-date") { choosing = "REFERENCE" }
         SalaryCalendarField("Next expected salary", guide.expectedSalaryDate, "salary-expected-date") { choosing = "EXPECTED" }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Text("Dates are estimates only. Record received salary separately. Shorter months use their last available day.", style = MaterialTheme.typography.bodySmall)
-        if (plan.expected != null || store.day != null) TextButton(onClick = store::clearCalendar,
+        if (plan.expected != null || store.day != null) TextButton(onClick = { scope.launch { withContext(Dispatchers.IO) { store.clearCalendar() } } },
             modifier = Modifier.testTag("salary-calendar-auto")) { Text("Estimate from last salary") }
     }
     choosing?.let { kind ->
@@ -39,14 +46,18 @@ internal fun SalarySettingsCard(store: SalaryScheduleStore, transactions: List<T
             else guide.expectedSalaryDate ?: today.plusMonths(1)
         val picker = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
         DatePickerDialog(onDismissRequest = { choosing = null },
-            confirmButton = { TextButton(enabled = picker.selectedDateMillis != null, onClick = {
+            confirmButton = { TextButton(enabled = !busy && picker.selectedDateMillis != null, onClick = {
+                scope.launch { busy = true; try {
                 picker.selectedDateMillis?.let { millis ->
                     val date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                    if (kind == "REFERENCE") store.selectReference(date, guide.lastSalaryDate)
-                    else store.selectExpected(date, guide.lastSalaryDate)
+                    withContext(Dispatchers.IO) {
+                        if (kind == "REFERENCE") store.selectReference(date, guide.lastSalaryDate)
+                        else store.selectExpected(date, guide.lastSalaryDate)
+                    }
                 }
                 choosing = null
-            }) { Text("Save") } },
+                } catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message } finally { busy = false } }
+            }) { Text(if (busy) "Saving…" else "Save") } },
             dismissButton = { TextButton(onClick = { choosing = null }) { Text("Cancel") } },
         ) { DatePicker(picker, modifier = Modifier.testTag("salary-calendar")) }
     }

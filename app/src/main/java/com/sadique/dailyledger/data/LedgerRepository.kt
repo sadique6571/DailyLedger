@@ -28,6 +28,15 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     val ledgerCycle = dao.observeLedgerCycle(ownerId)
     val ledgerArchives = dao.observeLedgerArchives(ownerId)
 
+    val profileBackup = dao.observeProfileBackup(ownerId).distinctUntilChanged().map { it?.let { row -> ProfileBackupData.decode(JSONObject(row.payload)) } ?: ProfileBackupData() }
+    suspend fun profileSnapshot(): ProfileBackupData = db.withTransaction {
+        dao.profileBackupNow(ownerId)?.let { ProfileBackupData.decode(JSONObject(it.payload)) } ?: ProfileBackupData.legacy(db.backupContext, ownerId).also {
+            dao.upsertProfileBackup(ProfileBackupEntity(ownerId, it.json().toString()))
+        }
+    }
+    suspend fun updateProfile(change: (ProfileBackupData) -> ProfileBackupData): ProfileBackupData = db.withTransaction {
+        change(profileSnapshot()).validated().also { dao.upsertProfileBackup(ProfileBackupEntity(ownerId, it.json().toString())) }
+    }
     val aiLearning = dao.observeAiLearning(ownerId).distinctUntilChanged().map {
         it?.let { row -> LearningSnapshot.decode(JSONObject(row.payload)) } ?: LearningSnapshot()
     }
@@ -334,10 +343,21 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     private fun ownedId(id: String) = "$ownerId:${id.substringAfterLast(':')}"
 
     suspend fun hasRecords(): Boolean = dao.recordCount(ownerId) > 0 ||
-        (dao.ledgerCycleNow(ownerId)?.openingBalanceMinor ?: 0L) != 0L || learningSnapshot().hasContent
+        (dao.ledgerCycleNow(ownerId)?.openingBalanceMinor ?: 0L) != 0L || learningSnapshot().hasContent || profileSnapshot().hasContent
 
     suspend fun migrateOwner(oldOwner: String) = db.withTransaction {
         if (oldOwner != ownerId) {
+            val olderProfile = LedgerRepository(db, oldOwner).profileSnapshot()
+            if (olderProfile.hasContent) {
+                val current = profileSnapshot()
+                val mergedPlans = current.planner.copy(
+                    budgets = (current.planner.budgets + olderProfile.planner.budgets).distinctBy { it.category },
+                    bills = (current.planner.bills + olderProfile.planner.bills).distinctBy { it.id },
+                )
+                val merged = (if (current.expected != null || current.salaryDay != null) current else olderProfile).copy(planner = mergedPlans).validated()
+                dao.upsertProfileBackup(ProfileBackupEntity(ownerId, merged.json().toString()))
+                dao.upsertProfileBackup(ProfileBackupEntity(oldOwner, ProfileBackupData().json().toString()))
+            }
             dao.aiLearningNow(oldOwner)?.let { old ->
                 val source = LearningSnapshot.decode(JSONObject(old.payload))
                 if (source.hasContent) {
@@ -373,7 +393,8 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
             0L,
         ).also { dao.insertLedgerCycle(it) }
-        val root = JSONObject().put("version", 8).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        val root = JSONObject().put("version", 9).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        root.put("profileSettings", profileSnapshot().json())
         root.put("transactions", JSONArray().apply { dao.transactionsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("type",x.type).put("amountMinor",x.amountMinor).put("category",x.category).put("note",x.note).put("date",x.date).put("createdAt",x.createdAt).put("updatedAt",x.updatedAt)) } })
         root.put("loans", JSONArray().apply { dao.loansNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("direction",x.direction).put("person",x.person).put("principalMinor",x.principalMinor).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
         root.put("loanPayments", JSONArray().apply { dao.loanPaymentsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("loanId",ownedId(x.loanId)).put("amountMinor",x.amountMinor).put("date",x.date).put("note",x.note).put("createdAt",x.createdAt).put("method",x.method)) } })
@@ -404,6 +425,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     }
 
     suspend fun clearAllForOwner() = db.withTransaction {
+        dao.upsertProfileBackup(ProfileBackupEntity(ownerId, ProfileBackupData().json().toString()))
         dao.upsertAiLearning(AiLearningEntity(ownerId, LearningSnapshot().json().toString()))
         dao.clearTransactions(ownerId)
         dao.clearLoans(ownerId)
@@ -433,8 +455,9 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     suspend fun importJson(json: String) = db.withTransaction {
         val root = JSONObject(json)
         val version = root.optInt("version")
-        require(version in 1..8) { "Unsupported backup version. Update the app to restore it." }
+        require(version in 1..9) { "Unsupported backup version. Update the app to restore it." }
         // Validate learning before any delete/write; Room commits both ledger and learning together.
+        val restoredProfile = if (version >= 9) ProfileBackupData.decode(root.getJSONObject("profileSettings")) else null
         val restoredLearning = if (version >= 8) {
             require(root.optJSONObject("aiLearning") != null) { "Backup is missing AI learning. Your records were not changed." }
             LearningSnapshot.decode(root.getJSONObject("aiLearning"))
@@ -598,6 +621,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
                 m.receivedDate?.let { LocalDate.parse(it) }
             }
             require(members.groupBy { it.committeeId to it.turnNumber }.values.all { rows -> rows.sumOf { it.shareHalfUnits } <= 2 }) { "Kameti turns exceed one full share." }
+            if (restoredProfile != null) dao.upsertProfileBackup(ProfileBackupEntity(ownerId, restoredProfile.json().toString()))
             if (restoredLearning != null) dao.upsertAiLearning(AiLearningEntity(ownerId, restoredLearning.json().toString()))
         // Backups v1–v7 did not contain learning. Keep the current account's learning intact.
 

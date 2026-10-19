@@ -52,7 +52,7 @@ class DriveTransportTest {
         assertEquals(2, server.requests.size)
         val request = server.requests.first()
         assertTrue(request.url.query.contains("uploadType=multipart"))
-        assertTrue(request.url.query.contains("keepRevisionForever=true"))
+        assertTrue(request.url.query.contains("keepRevisionForever=false"))
         assertTrue(request.sent.toString().contains("appDataFolder"))
         assertTrue(request.sent.toString().contains(String(bytes)))
         assertEquals("Bearer token", request.getRequestProperty("Authorization"))
@@ -72,16 +72,14 @@ class DriveTransportTest {
         val server = Server(Response("good"), Response(metadata(bytes, "2", "r2")))
         assertThrows(DriveBackupConflictException::class.java) { server.api.download(DriveBackupInfo("", "1", "file", driveDigest(bytes))) }
     }
-    @Test fun oldHeadIsPinnedBeforeConditionalReplacement() {
+    @Test fun conditionalReplacementUsesEtagWithoutPinningOldCopies() {
         val old = "old".toByteArray(); val next = "next".toByteArray()
-        val server = Server(Response(metadata(old)), Response("{}"), Response(metadata(old)),
+        val server = Server(Response(metadata(old)), Response(metadata(old)),
             Response(metadata(next, "2", "r2")), Response(metadata(next, "2", "r2")))
         server.api.upload(next, DriveBackupInfo("", "1", "file", driveDigest(old), "r1"))
-        assertTrue(server.requests[1].url.path.endsWith("/revisions/r1"))
-        assertEquals("{\"keepForever\":true}", server.requests[1].sent.toString())
-        assertEquals("PATCH", server.requests[3].getRequestProperty("X-HTTP-Method-Override"))
-        assertEquals("tag", server.requests[3].getRequestProperty("If-Match"))
-        assertEquals("next", server.requests[3].sent.toString())
+        assertEquals("PATCH", server.requests[2].getRequestProperty("X-HTTP-Method-Override"))
+        assertEquals("tag", server.requests[2].getRequestProperty("If-Match"))
+        assertEquals("next", server.requests[2].sent.toString())
     }
     @Test fun staleDeviceCannotWriteAndDuplicateBackupsAreNotArbitrarilyChosen() {
         val server = Server(Response(metadata("old".toByteArray(), "2")))

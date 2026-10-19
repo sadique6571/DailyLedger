@@ -4,6 +4,27 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
 class SpendingInsightsTest {
+ @Test fun spendingPaceRespectsAnEarlyOrLateManuallyPlannedSalary() {
+  val rows = listOf(tx("s", "2026-10-01", 1000000, "Salary", type="INCOME"), tx("e", "2026-10-02", 300000, "Pizza"))
+  val today = LocalDate.parse("2026-10-10")
+  val early = SpendingInsights.calculate("me", rows, today, plannedSalaryDate=LocalDate.parse("2026-10-15"), salaryRecordedWhenPlanned=LocalDate.parse("2026-10-01"))
+  val late = SpendingInsights.calculate("me", rows, today, plannedSalaryDate=LocalDate.parse("2026-11-20"), salaryRecordedWhenPlanned=LocalDate.parse("2026-10-01"))
+  assertFalse(early.tips.any { it.title == "Spending pace before salary" })
+  assertTrue(late.tips.any { it.title == "Spending pace before salary" })
+ }
+
+ @Test fun plannedBillsAndCategoryLimitsPrioritizeRealWarningsWithoutCreatingEntries() {
+  val rows = listOf(tx("s", "2026-10-01", 100000, "Salary", type="INCOME"), tx("p", "2026-10-03", 90000, "Pizza"))
+  val planning = com.sadique.dailyledger.planning.PlannerData(listOf(com.sadique.dailyledger.planning.CategoryBudget("Pizza", 100000)),
+   listOf(com.sadique.dailyledger.planning.RecurringBill("rent", "Rent", "EXPENSE", "Rent", 50000, 7, "2026-10")))
+  val s = SpendingInsights.calculate("me", rows, LocalDate.parse("2026-10-06"), planning=planning)
+  assertEquals("Near budget limit", s.tips.first().title)
+  assertTrue(s.tips.any { it.title == "Bills to reserve for" && it.detail.contains("exceeds") })
+  assertTrue(s.tips.any { it.title == "Spending pace before salary" })
+  assertEquals(10000L, s.summary.remaining)
+  assertEquals(2, rows.size)
+ }
+
  private fun tx(id:String,date:String,amount:Long,cat:String="Fuel",owner:String="me",type:String="EXPENSE")=TransactionEntity(id,owner,type,amount,cat,"private",date,1,1)
  @Test fun otherIncomeHasItsOwnTotalAndAddsToAvailableBalance(){val s=SpendingInsights.calculate("me",listOf(tx("a","2026-10-01",6000000,"Salary",type="INCOME"),tx("b","2026-10-02",200000),tx("c","2026-10-03",100000,"Bonus",type="INCOME")),LocalDate.parse("2026-10-06"));assertEquals(5900000L,s.summary.remaining);assertEquals(100000L,s.summary.otherIncome)}
  @Test fun carriedBalanceIsIncludedInDashboardAndAiSummary() {

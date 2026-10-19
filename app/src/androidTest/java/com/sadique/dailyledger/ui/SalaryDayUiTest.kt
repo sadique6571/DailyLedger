@@ -28,6 +28,7 @@ class SalaryDayUiTest {
         compose.onNodeWithTag("salary-calendar").assertExists()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("salary-calendar-auto").performClick()
+        compose.waitUntil(5_000) { store.calendar.expected == null }
         compose.runOnIdle {
             assertNull(store.calendar.expected)
             assertNull(SalaryScheduleStore(context, owner).calendar.expected)

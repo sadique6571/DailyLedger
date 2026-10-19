@@ -3,6 +3,10 @@ package com.sadique.dailyledger.planning
 import android.content.Context
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.security.SecureSecretStore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
@@ -37,36 +41,31 @@ object PlannerMath {
     fun due(bills: List<RecurringBill>, today: LocalDate) = bills.filter { it.enabled && it.nextDue() <= today }.sortedBy { it.nextDue() }
 }
 
-/** Account-scoped encrypted planning preferences. Ledger schema and Drive format stay compatible. */
-class PlannerStore(context: Context, val ownerId: String) {
+/** Account-scoped plans stored transactionally in the encrypted database and Drive snapshot. */
+class PlannerStore(private val context: Context, val ownerId: String, scope: kotlinx.coroutines.CoroutineScope? = null) {
+    private val repo = LedgerRepository(AppDatabase.get(context), ownerId)
+
     private val secret = SecureSecretStore(context.applicationContext, "planner-v1:$ownerId")
     private var loadFailure: Throwable? = null
     private val state = MutableStateFlow(runCatching { read() }.getOrElse { loadFailure = it; PlannerData() })
     val data = state.asStateFlow()
     val error get() = loadFailure?.let { "Planning preferences could not be read. Existing files were kept." }
-    private fun read(): PlannerData {
-        val bytes = secret.loadBytes() ?: return PlannerData()
-        try {
-            val root = JSONObject(String(bytes, Charsets.UTF_8)); require(root.getInt("version") == 1)
-            val budgets = root.getJSONArray("budgets").let { a -> (0 until a.length()).map { i -> a.getJSONObject(i).let { CategoryBudget(it.getString("category"), it.getLong("limit")) } } }
-            val bills = root.getJSONArray("bills").let { a -> (0 until a.length()).map { i -> a.getJSONObject(i).let {
-                RecurringBill(it.getString("id"), it.getString("title"), it.getString("type"), it.getString("category"), it.getLong("amount"), it.getInt("day"), it.getString("start"), it.optString("handled"), it.optBoolean("enabled", true))
-            } } }
-            require(budgets.all { it.category.isNotBlank() && it.limitMinor in 1..1_000_000_000_000L })
-            require(bills.all { it.day in 1..31 && it.type in listOf("INCOME", "EXPENSE") && it.amountMinor in 1..1_000_000_000_000L && it.category.isNotBlank() && runCatching { it.nextDue() }.isSuccess })
-            return PlannerData(budgets, bills)
-        } finally { bytes.fill(0) }
+    private fun read(): PlannerData = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { repo.profileSnapshot().planner }
+    init { scope?.launchPlanningObserver() }
+    private fun kotlinx.coroutines.CoroutineScope.launchPlanningObserver() = launch(kotlinx.coroutines.Dispatchers.IO) {
+        repo.profileBackup.catch { loadFailure = it }.collect { state.value = it.planner }
     }
-    @Synchronized private fun update(transform: (PlannerData) -> PlannerData) {
+    @Synchronized private fun update(alreadyLocked: Boolean = false, transform: (PlannerData) -> PlannerData) {
         check(loadFailure == null) { error.orEmpty() }
-        val next = transform(state.value)
-        val root = JSONObject().put("version", 1).put("budgets", JSONArray().apply {
-            next.budgets.forEach { put(JSONObject().put("category", it.category).put("limit", it.limitMinor)) }
-        }).put("bills", JSONArray().apply {
-            next.bills.forEach { put(JSONObject().put("id", it.id).put("title", it.title).put("type", it.type).put("category", it.category).put("amount", it.amountMinor).put("day", it.day).put("start", it.startMonth).put("handled", it.handledThrough).put("enabled", it.enabled)) }
-        })
-        val bytes = root.toString().toByteArray(Charsets.UTF_8)
-        try { secret.saveBytes(bytes); state.value = next } finally { bytes.fill(0) }
+        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+            suspend fun commit() {
+                SettingsStore(context).markDrivePending(ownerId)
+                val next = repo.updateProfile { it.copy(planner = transform(it.planner)) }
+                state.value = next.planner
+            }
+            if (alreadyLocked) commit() else com.sadique.dailyledger.sync.BackupLock.mutex.withLock { commit() }
+            runCatching { com.sadique.dailyledger.sync.SyncScheduler.syncNow(context, ownerId) }
+        }
     }
     fun setBudget(category: String, amount: Long) {
         require(category.isNotBlank() && category.length <= 60 && amount in 1..1_000_000_000_000L) { "Enter a valid category and positive limit." }
@@ -79,7 +78,7 @@ class PlannerStore(context: Context, val ownerId: String) {
         update { require(it.bills.size < 100 || it.bills.any { old -> old.id == bill.id }) { "Up to 100 reminders are supported." }; it.copy(bills = it.bills.filterNot { b -> b.id == bill.id } + bill) }
     }
     fun removeBill(id: String) = update { it.copy(bills = it.bills.filterNot { b -> b.id == id }) }
-    fun markHandled(id: String, due: LocalDate) = update { current ->
+    fun markHandled(id: String, due: LocalDate, alreadyLocked: Boolean = false) = update(alreadyLocked) { current ->
         current.copy(bills = current.bills.map { if (it.id == id && it.nextDue() == due) it.copy(handledThrough = YearMonth.from(due).toString()) else it })
     }
 }

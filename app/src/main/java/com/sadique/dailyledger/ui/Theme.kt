@@ -196,7 +196,7 @@ fun DailyLedgerTheme(
         com.sadique.dailyledger.i18n.LocalStrings provides strings,
         androidx.compose.ui.platform.LocalLayoutDirection provides if (strings.urdu) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr) {
     MaterialTheme(colorScheme = readable,
-        shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)),
+        shapes = Shapes(small = RoundedCornerShape(20.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(20.dp)),
         typography = Typography(
             headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
             headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),

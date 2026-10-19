@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui
 
+import com.sadique.dailyledger.ui.LedgerSurface as Surface
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,8 +12,8 @@ import androidx.compose.ui.unit.dp
 
 /** One consistent visual language for history, money records and compact member rows. */
 object LedgerDesignTokens {
-    val CardCorner = 18.dp
-    val InnerCorner = 14.dp
+    val CardCorner = 20.dp
+    val InnerCorner = 20.dp
     val RowGap = 10.dp
     val InnerPadding = 12.dp
 }
