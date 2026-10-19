@@ -113,7 +113,7 @@ fun CategoryDropdown(
             val sections = linkedMapOf<String, List<LedgerCategory>>()
             if (recent.isNotEmpty()) sections["Frequently used"] = recent
             sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
-            LazyColumn(Modifier.exposedDropdownSize(matchTextFieldWidth=true).heightIn(max=300.dp).testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
+            LazyColumn(Modifier.exposedDropdownSize(true).heightIn(max=300.dp).testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
                 sections.forEach { (group, rows) ->
                     item(key = "heading-$group") {
                         Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
