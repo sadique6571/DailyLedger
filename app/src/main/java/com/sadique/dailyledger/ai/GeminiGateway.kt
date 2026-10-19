@@ -17,7 +17,7 @@ internal object GeminiGateway {
                 "category" to Schema.string(),
                 "note" to Schema.string(),
                 "date" to Schema.string(),
-            )), maxItems = 10,
+            )), maxItems = AiProtocol.MAX_DRAFTS,
         ),
     ))
     private val insightSchema = Schema.obj(mapOf(
@@ -34,7 +34,7 @@ internal object GeminiGateway {
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
                 responseSchema = if (request.task == AiTask.AUTOFILL) draftSchema else insightSchema
-                maxOutputTokens = 3_000
+                maxOutputTokens = if (request.task == AiTask.AUTOFILL) 6_000 else 3_000
             },
         )
         val response = model.generateContent(request.input)

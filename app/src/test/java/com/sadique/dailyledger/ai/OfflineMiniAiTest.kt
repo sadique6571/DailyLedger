@@ -53,7 +53,7 @@ class OfflineMiniAiTest {
     @Test fun neverDropsPartsOfAnAmbiguousBatch() {
         assertNull(OfflineMiniAi.drafts("doodh 150 aur sabzi"))
         assertNull(OfflineMiniAi.drafts("doodh 150 aur loan 5000"))
-        assertNull(OfflineMiniAi.drafts((1..11).joinToString(", ") { "petrol 100" }))
+        assertNull(OfflineMiniAi.drafts((1..31).joinToString(", ") { "petrol 100" }))
         assertNull(OfflineMiniAi.drafts("doodh -150"))
         assertNull(OfflineMiniAi.drafts("doodh 1,50"))
         assertNull(OfflineMiniAi.drafts("doodh 150 sabzi 100 total 250"))

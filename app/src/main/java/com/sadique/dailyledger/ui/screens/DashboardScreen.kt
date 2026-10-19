@@ -76,13 +76,14 @@ fun DashboardScreen(
     salaryDay: Int? = null, plannedSalaryDate: LocalDate? = null, salaryRecordedWhenPlanned: LocalDate? = null,
     planningNotices: List<String> = emptyList(),
     onOpenPlanning: () -> Unit = {},
+    onDismissTip: (SpendingTip) -> Unit = {}, dismissedTipKeys: Set<String> = emptySet(),
 ) {
     val today by produceState(initialValue = LocalDate.now()) {
         while (true) { value = LocalDate.now(); delay(30_000) }
     }
     val month = YearMonth.from(today)
-    val summary = ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
-        ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments)
+    val summary = remember(tx, cp, savings, ledgerCycle, creditPayments, month) { ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
+        ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments) }
     val expenseRows = tx.filter {
         it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }
@@ -112,7 +113,7 @@ fun DashboardScreen(
     val availableForCycle = summary.salary + summary.otherIncome + summary.openingBalanceMinor
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
-    val guide = DailySpendingGuide.calculate(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned)
+    val guide = remember(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) { DailySpendingGuide.calculate(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) }
     val display = LocalDisplayPreferences.current!!
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
@@ -451,7 +452,7 @@ fun DashboardScreen(
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.takeIf { true }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi) } }
+            snapshot?.takeIf { true }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi, onDismissTip, dismissedTipKeys) } }
             }
             sections.render(this, DisplayPreferences.DEFAULT_ORDER)
         }

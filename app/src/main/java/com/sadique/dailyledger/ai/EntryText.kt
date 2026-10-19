@@ -11,10 +11,15 @@ internal object EntryText {
     private val quantity = Regex("(?<![\\p{L}\\d.])(\\d+(?:\\.\\d+)?)\\s*(?:kilograms?|kilos?|kgs?|grams?|g|litres?|liters?|ltr|l|ml|dozens?|darjan|packets?|packs?|pcs|pieces?|bottles?|کلو|گرام|لیٹر|درجن|پیکٹ)(?![\\p{L}\\d])", RegexOption.IGNORE_CASE)
     fun withoutQuantities(text: String): String = quantity.replace(text) { " ".repeat(it.value.length) }
     data class Part(val range: IntRange, val label: String, val amountMinor: Long)
-    fun has(text: String, word: String) = Regex("(?<![\\p{L}\\p{N}])${Regex.escape(word)}(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE).containsMatchIn(text)
+    private val wordPatterns = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+    fun has(text: String, word: String) = (wordPatterns[word] ?: Regex("(?<![\\p{L}\\p{N}])${Regex.escape(word)}(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE).also { if (wordPatterns.size < 512) wordPatterns.putIfAbsent(word, it) }).containsMatchIn(text)
     fun normalize(input: String): String {
         val digits = input.trim().map { c -> Character.digit(c, 10).takeIf { it >= 0 }?.let { ('0'.code + it).toChar() } ?: c }.joinToString("")
         return grouped.replace(digits) { it.value.replace(",", "") }
+    }
+    fun missingAmountSegments(masked: String): List<String> = separators.split(masked).mapNotNull { part ->
+        val words = part.replace(Regex("\\b(?:on|ko|date)\\b", RegexOption.IGNORE_CASE), "").trim()
+        if (words.any(Char::isLetter) && amount.find(withoutQuantities(words)) == null) words.take(80) else null
     }
     fun parts(masked: String): List<Part>? {
         if (Regex("\\d,\\d|[-−]\\s*\\d").containsMatchIn(masked)) return null
@@ -50,6 +55,6 @@ internal object EntryText {
                 offset = m.range.last + 1
             }
         }
-        return out.takeIf { it.size in 1..10 }
+        return out.takeIf { it.size in 1..AiProtocol.MAX_DRAFTS }
     }
 }

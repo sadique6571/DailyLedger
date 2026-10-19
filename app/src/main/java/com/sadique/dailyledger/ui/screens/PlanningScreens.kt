@@ -184,29 +184,38 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
 
 @Composable
 fun LearningScreen(vm: MainViewModel) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
     val rules by vm.learnedCategories.collectAsState()
     val loadError by vm.learningError.collectAsState()
+    val dismissedTips by vm.dismissedInsights.collectAsState()
     var edit by remember { mutableStateOf<LearnedCategoryRule?>(null) }
     var remove by remember { mutableStateOf<LearnedCategoryRule?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     LazyColumn(Modifier.fillMaxSize().testTag("learning-list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         enteringItem { Text("AI learning", style = MaterialTheme.typography.headlineMedium); Text("Review category mappings learned from your corrections and repeated saved items. Removing a rule also stops the same history mapping from reappearing."); PlanningNotice() }
+        if (dismissedTips.isNotEmpty()) enteringItem {
+            Text("${dismissedTips.size} suggestions marked not useful.")
+            TextButton(enabled = !busy, onClick = {
+                busy = true; scope.launch { try { message = vm.resetInsightFeedback() } finally { busy = false } }
+            }) { Text("Reset suggestion feedback") }
+        }
         if (rules.isEmpty()) enteringItem { Text("No learned categories yet. Correct a category while reviewing AI entries to teach it.") }
         message?.let { enteringItem { Text(it) } }
         loadError?.let { enteringItem { Text(it, color = MaterialTheme.colorScheme.error) } }
         enteringItems(rules, key = { "${it.type}:${it.phrase}" }) { rule ->
             LedgerCard(Modifier.fillMaxWidth()) {
                 Text(rule.phrase, translate = false, style = MaterialTheme.typography.titleMedium); Text(rule.type); Text(rule.category)
-                Row { TextButton(onClick = { edit = rule }) { Text("Correct category") }; TextButton(onClick = { remove = rule }) { Text("Forget") } }
+                Row { TextButton(enabled = !busy, onClick = { edit = rule }) { Text("Correct category") }; TextButton(enabled = !busy, onClick = { remove = rule }) { Text("Forget") } }
             }
         }
     }
     edit?.let { rule ->
         var category by remember(rule) { mutableStateOf(rule.category) }
         AlertDialog(onDismissRequest = { edit = null }, title = { Text("Correct category") }, text = { Column { Text(rule.phrase, translate = false); CategoryDropdown(rule.type, category, { category = it }) } },
-            confirmButton = { TextButton(onClick = { message = vm.rememberCategory(rule.type, rule.phrase, category); if (message == null) edit = null }) { Text("Save") } }, dismissButton = { TextButton(onClick = { edit = null }) { Text("Cancel") } })
+            confirmButton = { TextButton(enabled = !busy, onClick = { busy = true; scope.launch { try { message = vm.rememberCategory(rule.type, rule.phrase, category); if (message == null) edit = null } finally { busy = false } } }) { Text("Save") } }, dismissButton = { TextButton(onClick = { edit = null }) { Text("Cancel") } })
     }
-    remove?.let { rule -> ConfirmRemoval("Forget this category mapping?", { remove = null }) { message = vm.forgetCategory(rule); remove = null } }
+    remove?.let { rule -> ConfirmRemoval("Forget this category mapping?", { remove = null }) { busy = true; scope.launch { try { message = vm.forgetCategory(rule); if (message == null) remove = null } finally { busy = false } } } }
 }
 
 @Composable

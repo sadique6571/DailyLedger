@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions", indices = [Index("ownerId"), Index("date")])
+@Entity(tableName = "transactions", indices = [Index("ownerId"), Index("date"), Index(value = ["ownerId", "date", "createdAt"], orders = [Index.Order.ASC, Index.Order.DESC, Index.Order.DESC], name = "index_transactions_owner_date_created")])
 data class TransactionEntity(
     @PrimaryKey val id: String,
     val ownerId: String,

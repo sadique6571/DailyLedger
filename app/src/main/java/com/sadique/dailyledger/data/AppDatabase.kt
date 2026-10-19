@@ -11,6 +11,7 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
 
 @Database(
     entities = [
+        AiLearningEntity::class,
         TransactionEntity::class,
         LoanEntity::class,
         LoanPaymentEntity::class,
@@ -28,7 +29,7 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
         LedgerCycleEntity::class,
         LedgerArchiveEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -162,6 +163,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS ai_learning (ownerId TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(ownerId))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_owner_date_created ON transactions(ownerId, date DESC, createdAt DESC)")
+            }
+        }
+
         @Volatile private var INSTANCE: AppDatabase? = null
 
         fun get(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {
@@ -171,7 +179,7 @@ abstract class AppDatabase : RoomDatabase() {
                 DatabaseEncryption.migrate(file, password)
                 Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "daily-ledger.db")
                     .openHelperFactory(EncryptedOpenHelperFactory(password))
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build().also { INSTANCE = it }
             }
         }

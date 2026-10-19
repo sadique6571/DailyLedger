@@ -153,6 +153,21 @@ class AutoBackupTest {
         sync.upload("token")
         assertEquals(1, remote.writes)
     } }
+    @Test fun learningChangesUploadAndOldBackupsDoNotFalselyVerifyMissingLearning() = runBlocking { fixture {
+        add()
+        repo.updateLearning { it.remember("EXPENSE", "dodh", "Milk") }
+        sync.upload("token")
+        assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
+        val old = JSONObject(String(remote.bytes)).put("version", 7).apply { remove("aiLearning") }
+        remote.set(old.toString())
+        sync.restore("token")
+        assertEquals(1, repo.learningSnapshot().rules.size)
+        assertEquals("pending", state().driveState)
+        sync.upload("token")
+        assertEquals("verified", state().driveState)
+        assertEquals(8, JSONObject(String(remote.bytes)).getInt("version"))
+        assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
+    } }
     @Test fun tokenFailuresRetryBeyondOldCutoffAndPermissionDenialNeedsAction() = runBlocking {
         repeat(8) {
             val failure = runBackupAttempt(token = { throw IOException("offline token service") }, upload = { fail("No token") })

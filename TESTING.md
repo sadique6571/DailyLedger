@@ -1,3 +1,11 @@
+# AI learning and loading candidate — 2026-10-18
+
+Version 2.0.0, build 26, based on the Settings-calendar/category-search PR #15. Room migration 7→8 adds account-scoped AI learning and an owner/date/createdAt transaction index. Backup JSON v8 adds validated explicit rules, ignored mappings and suggestion feedback. Old v1–v7 backups preserve current learning. Legacy encrypted preferences migrate once and remain available as an untouched recovery source.
+
+Regressions cover real encrypted v1→8 upgrade, v7→8 table/index validation, atomic restore rollback, old-backup preservation, learning-only conflict protection, legacy migration/non-resurrection, account isolation, fake-Drive learning uploads and correct re-upload after legacy restore. UI cases verify final confirmation, ambiguous-draft review gating, missing-amount refusal before Cloud, same-field category search, and existing navigation. Pure tests cover 20/40-day calendar continuity, spelling aliases, incomplete/relative dates and 30-entry limits. Query-plan checks verify the new ordered index.
+
+Local backup-core checks pass (19). Exact Android CI and artifact verification results are recorded on the PR Checks tab and PR description. Performance work removes repeated calculations and main-thread database opening; no physical-device speed percentage is claimed. Live Drive upload on the user's account and second-phone restoration remain device smoke checks; tests use isolated databases/fake Drive storage.
+
 # GitHub integration checks — 2026-10-17
 
 Candidate: version **2.0.0**, build **23**, existing package and signing identity.

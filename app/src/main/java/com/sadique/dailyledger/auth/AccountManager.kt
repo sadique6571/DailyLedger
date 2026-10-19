@@ -67,7 +67,8 @@ class AccountManager(private val context: Context) {
             val google = user.providerData.firstOrNull { it.providerId == GoogleAuthProvider.PROVIDER_ID }
             // A verified Google identity can claim its own records from the older app.
             google?.uid?.takeIf { it != user.uid }?.let { oldOwner ->
-                LedgerRepository(AppDatabase.get(context), user.uid).migrateOwner(oldOwner)
+                LedgerRepository(AppDatabase.get(context), oldOwner) { com.sadique.dailyledger.ai.CategoryLearningStore(context, oldOwner).snapshot() }.learningSnapshot()
+                LedgerRepository(AppDatabase.get(context), user.uid) { com.sadique.dailyledger.ai.CategoryLearningStore(context, user.uid).snapshot() }.migrateOwner(oldOwner)
                 SettingsStore(context).migrateDriveAccount(oldOwner, user.uid)
             }
             val settings = SettingsStore(context)

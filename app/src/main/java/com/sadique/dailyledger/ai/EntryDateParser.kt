@@ -15,8 +15,9 @@ internal object EntryDateParser {
     private val monthFirst = Regex("(?<![\\p{L}])($month)\\s+(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)(?:[ ,]+((?:19|20)\\d{2})(?!\\d))?", RegexOption.IGNORE_CASE)
     private val relative = Regex("""(?<![\p{L}\d])(day before yesterday|day after tomorrow|aane wala kal|anay wala kal|ane wala kal|aane wala parson|آنے والا کل|آنے والا پرسوں|kal raat|last night|گزشتہ رات|aaj subah|aj subah|this morning|آج صبح|today|aaj|aj|آج|yesterday|tomorrow|kal|کل|parson|parso|پرسوں)(?![\p{L}\d])""", RegexOption.IGNORE_CASE)
 
-    private val weekdays = listOf("monday|mon|peer|pir|پیر", "tuesday|tue|mangal|منگل", "wednesday|wed|budh|بدھ", "thursday|thu|jumerat|jumeraat|جمعرات", "friday|fri|jumma|juma|جمعہ", "saturday|sat|hafta|ہفتہ", "sunday|sun|itwar|اتوار")
-    private val namedDay = Regex("(?<![\\p{L}])(?:last|previous|pichlay|pichle|pichli|guzishta|next|aglay|agle|agli)\\s+(" + weekdays.joinToString("|") + ")(?![\\p{L}])", RegexOption.IGNORE_CASE)
+    private val bareDay = Regex("(?<![\\p{L}\\d])(\\d{1,2})\\s*(?:tareekh|tarikh|تاریخ)(?![\\p{L}\\d])", RegexOption.IGNORE_CASE)
+    private val weekdays = listOf("monday|mon|peer|pir|پیر", "tuesday|tue|mangal|منگل", "wednesday|wed|budh|بدھ", "thursday|thu|jumerat|jumeraat|جمعرات", "friday|fri|jumma|juma|jumay|jummay|jume|jummey|جمعہ|جمعے", "saturday|sat|hafta|ہفتہ", "sunday|sun|itwar|اتوار")
+    private val namedDay = Regex("(?<![\\p{L}])(?:last|previous|pichlay|pichle|pichli|guzishta|پچھلے|پچھلی|گزشتہ|next|aglay|agle|agli|اگلے|اگلی)\\s+(" + weekdays.joinToString("|") + ")(?![\\p{L}])", RegexOption.IGNORE_CASE)
     private val daysAgo = Regex("(?<![\\p{L}\\d])(\\d{1,3}|aik|ek|one|do|two|teen|three|char|four|panch|five|saat|seven|ایک|دو|تین)\\s+(din|days?|haftay|hafte|weeks?|دن|ہفتے)\\s+(pehle|pahle|ago|baad|later|پہلے|قبل|بعد)(?![\\p{L}])", RegexOption.IGNORE_CASE)
     private val clearYesterday = Regex("(?<![\\p{L}])(beeta kal|guzra kal|pichla din|guzishta din)(?![\\p{L}])", RegexOption.IGNORE_CASE)
 
@@ -39,9 +40,12 @@ internal object EntryDateParser {
         monthFirst.findAll(text).forEach { m -> add(m, m.groupValues[3].isBlank()) {
             LocalDate.of(m.groupValues[3].toIntOrNull() ?: today.year, monthNumber(m.groupValues[1]), m.groupValues[2].toInt())
         } }
+        bareDay.findAll(text).forEach { m -> add(m, true) {
+            today.withDayOfMonth(m.groupValues[1].toInt())
+        } }
         namedDay.findAll(text).forEach { m -> add(m) {
             val day = DayOfWeek.of(weekdays.indexOfFirst { Regex(it, RegexOption.IGNORE_CASE).matches(m.groupValues[1]) } + 1)
-            val next = Regex("^(?:next|aglay|agle|agli)", RegexOption.IGNORE_CASE).containsMatchIn(m.value)
+            val next = Regex("^(?:next|aglay|agle|agli|اگلے|اگلی)", RegexOption.IGNORE_CASE).containsMatchIn(m.value)
             today.with(if (next) TemporalAdjusters.next(day) else TemporalAdjusters.previous(day))
         } }
         daysAgo.findAll(text).forEach { m -> add(m) {

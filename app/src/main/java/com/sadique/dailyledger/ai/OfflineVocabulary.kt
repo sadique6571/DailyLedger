@@ -26,8 +26,9 @@ object OfflineVocabulary {
         "petrole" to "petrol", "paitrol" to "petrol", "پٹرول" to "petrol",
     )
 
+    private val wordPattern = Regex("[\\p{L}]+")
     fun normalize(text: String): String {
         val clean = text.lowercase(Locale.ROOT).replace('ي', 'ی').replace('ك', 'ک')
-        return Regex("[\\p{L}]+").replace(clean) { aliases[it.value] ?: it.value }
+        return wordPattern.replace(clean) { aliases[it.value] ?: it.value }
     }
 }

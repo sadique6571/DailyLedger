@@ -44,21 +44,22 @@ fun CategoryDropdown(
     val strings = com.sadique.dailyledger.i18n.LocalStrings.current
     val context = LocalContext.current
     val focus = LocalFocusManager.current
-    val history = LocalCategoryHistory.current.filter { it.type == type }
-    val catalog = remember(context) { CategoryCatalog.load(context) }
-    val categories = (catalog.filter { it.type == type } + history.map {
-        LedgerCategory("Your categories", it.category, type, emptyList())
-    }).filter { it.label.isNotBlank() }.distinctBy { it.label.lowercase() }
-    val frequent = history.groupingBy { it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key }
+    val shared = LocalCategoryOptions.current?.get(type)
+    val allHistory = LocalCategoryHistory.current
+    val options = shared ?: remember(context, allHistory, strings, type) {
+        CategoryOptions.build(CategoryCatalog.load(context), allHistory, strings::text).getValue(type)
+    }
+    val categories = options.indexed.map { it.first }
+    val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
     var query by remember(type, value) { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
-    val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-    val filtered = categories.filter { category ->
-        val text = OfflineVocabulary.normalize((listOf(category.label, category.group, strings.text(category.label), strings.text(category.group)) + category.aliases).joinToString(" "))
-        words.all { it in text }
+    val filtered = remember(options, query) {
+        val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
     }
+    val visible = filtered.take(80)
     ExposedDropdownMenuBox(expanded = expanded && enabled,
         onExpandedChange = { if (enabled) { expanded = it; if (it) editing = true } },
         modifier = modifier.fillMaxWidth()) {
@@ -81,7 +82,7 @@ fun CategoryDropdown(
                 val recent = frequent.mapNotNull { label -> filtered.find { it.label == label } }
                 if (recent.isNotEmpty()) sections["Frequently used"] = recent
             }
-            sections.putAll(filtered.groupBy { it.group })
+            sections.putAll(visible.groupBy { it.group })
             sections.forEach { (group, rows) ->
                 Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 rows.forEach { category ->
@@ -93,6 +94,7 @@ fun CategoryDropdown(
                     )
                 }
             }
+            if (filtered.size > visible.size) Text("${visible.size} of ${filtered.size} matches. Type more to narrow the list.", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
             if (filtered.isEmpty()) Text("No matching category", Modifier.padding(16.dp))
             if (allowCustom && query.isNotBlank() && categories.none { it.label.equals(query.trim(), true) }) {
                 DropdownMenuItem(text = { Text("Add custom: ${query.trim().take(60)}") },

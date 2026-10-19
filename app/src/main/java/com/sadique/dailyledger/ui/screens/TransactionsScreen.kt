@@ -90,7 +90,7 @@ fun TransactionsScreen(
     val frequentCategories = remember(items) { items.groupingBy { it.type to it.category }.eachCount().entries.sortedByDescending { it.value }.take(5).map { it.key } }
     val today = LocalDate.now()
     val searchStrings = com.sadique.dailyledger.i18n.LocalStrings.current
-    val filtered = items.filter {
+    val filtered = remember(items, undoPendingId, favoritesOnly, favoriteIds, filter, dateRange, selectedDay, query, searchStrings, today) { items.filter {
         it.id != undoPendingId &&
         (!favoritesOnly || it.id in favoriteIds) &&
         (filter == "ALL" || it.type == filter) &&
@@ -102,14 +102,14 @@ fun TransactionsScreen(
                 "DAY" -> it.date == selectedDay
                 else -> true
             }
-    }
+    } }
 
-    val sorted = when (sortOrder) {
+    val sorted = remember(filtered, sortOrder) { when (sortOrder) {
         "OLDEST" -> filtered.sortedWith(compareBy<TransactionEntity> { it.date }.thenBy { it.id })
         "AMOUNT_HIGH" -> filtered.sortedByDescending { it.amountMinor }
         "AMOUNT_LOW" -> filtered.sortedBy { it.amountMinor }
         else -> filtered.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.id })
-    }
+    } }
 
     Scaffold(
         snackbarHost = { SnackbarHost(undoBar) },

@@ -33,6 +33,8 @@ fun InsightsCard(
     onEnable: () -> Unit,
     busy: Boolean = false,
     onRefresh: () -> Unit = {},
+    onDismissTip: (SpendingTip) -> Unit = {},
+    dismissedTipKeys: Set<String> = emptySet(),
 ) {
     Card(
         Modifier.fillMaxWidth(),
@@ -54,10 +56,11 @@ fun InsightsCard(
 
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
 
-            snapshot.tips.forEach { tip ->
+            snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
                     Text(tip.detail)
+                    TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                 }
             }
 
@@ -81,9 +84,10 @@ fun InsightsCard(
             } else {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
-                cloudTips.forEach { tip ->
+                cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
                     Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Text(tip.detail)
+                    TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                 }
             }
         }
