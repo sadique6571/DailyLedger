@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -46,6 +48,8 @@ fun CategoryDropdown(
     val strings = com.sadique.dailyledger.i18n.LocalStrings.current
     val context = LocalContext.current
     val focus = LocalFocusManager.current
+    val density=LocalDensity.current
+    var menuWidth by remember { mutableIntStateOf(1) }
     val shared = LocalCategoryOptions.current?.get(type)
     val allHistory = LocalCategoryHistory.current
     val options = shared ?: remember(context, allHistory, strings, type) {
@@ -63,7 +67,7 @@ fun CategoryDropdown(
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
         onExpandedChange = { if (enabled) { expanded = it; if (it) editing = true } },
-        modifier = modifier.fillMaxWidth()) {
+        modifier = modifier.fillMaxWidth().onSizeChanged { menuWidth=it.width }) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
             onValueChange = { query = it.take(80); editing = true; expanded = true },
@@ -84,7 +88,7 @@ fun CategoryDropdown(
             val sections = linkedMapOf<String, List<LedgerCategory>>()
             if (recent.isNotEmpty()) sections["Frequently used"] = recent
             sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
-            LazyColumn(Modifier.fillMaxWidth().height(300.dp).testTag("category-results")) {
+            LazyColumn(Modifier.width(with(density){menuWidth.toDp()}).height(300.dp).testTag("category-results")) {
                 sections.forEach { (group, rows) ->
                     item(key = "heading-$group") {
                         Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),

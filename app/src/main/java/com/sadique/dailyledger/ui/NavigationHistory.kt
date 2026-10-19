@@ -2,7 +2,7 @@ package com.sadique.dailyledger.ui
 
 /** Real screen history, including nested search/Settings/AI paths. Bottom tabs start a new path. */
 data class NavigationHistory(val entries: List<Int> = listOf(HOME)) {
-    init { require(entries.isNotEmpty() && entries.first() == HOME && entries.all { it in HOME..LEARNING }) }
+    init { require(entries.isNotEmpty() && entries.first() == HOME && entries.all { it in HOME..FINANCE_TOOLS }) }
     val current get() = entries.last()
     val parent get() = entries.dropLast(1).lastOrNull()
     val canGoBack get() = entries.size > 1
