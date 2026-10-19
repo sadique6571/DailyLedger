@@ -53,6 +53,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     var refund by remember { mutableStateOf<TransactionEntity?>(null) };var split by remember { mutableStateOf(false) }
     var vault by remember { mutableStateOf(false) };var busy by remember { mutableStateOf(false) };var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf<String?>(null) };var selected by remember { mutableStateOf(emptySet<String>()) }
+    var advancePurchase by remember { mutableStateOf<FinanceItem?>(null) }
     var settle by remember { mutableStateOf<FinanceItem?>(null) };var goal by remember { mutableStateOf<FinanceItem?>(null) }
     var whatIf by rememberSaveable { mutableStateOf("") }; var query by rememberSaveable { mutableStateOf("") }
     val scope=rememberCoroutineScope()
@@ -163,7 +164,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
                         Text("Rate comparisons require quantity, unit and rate on at least two matching item entries.")
                     } }
                     item { Text("Why spending changed this month",style=MaterialTheme.typography.titleMedium);Text("Same elapsed calendar days, matching item and unit, weighted purchase rates. Refunds are excluded from quantity/rate attribution because returned quantities are unknown.") }
-                    items(monthlyRateComparisons(tx)) { c -> LedgerCard { Text(c.name,translate=false);Text("Net purchase change: ${moneyText(c.totalChange)} • Quantity effect: ${moneyText(c.quantityEffect)} • Rate effect: ${moneyText(c.rateEffect)}") } }
+                    items(monthlyRateComparisons(tx,today)) { c -> LedgerCard { Text(c.name,translate=false);Text("Net purchase change: ${moneyText(c.totalChange)} • Quantity effect: ${moneyText(c.quantityEffect)} • Rate effect: ${moneyText(c.rateEffect)}") } }
                     item { Text("Latest purchase rates",style=MaterialTheme.typography.titleMedium) }
                     val comparisons=priceComparisons(tx)
                     if(comparisons.isEmpty())item{Text("Add quantity and rate using Entries & refunds → New entry.")}
@@ -221,10 +222,16 @@ fun FinanceToolsScreen(vm:MainViewModel) {
                     items(workspace.items.filter { it.kind==FinanceKind.REIMBURSEMENT },key={it.id}) { row -> FinanceItemCard(row,masked) {
                         Text("Received: ${moneyText(row.settled)} • Outstanding: ${moneyText(row.amount-row.settled)}")
                         if(!row.done)Button(onClick={settle=row},enabled=!busy){Text("Record returned money")}
+                        if(row.settled==0L)TextButton(onClick={run{finance.deleteItem(row.id)}},enabled=!busy){Text("Remove claim (keep expense)")}
                     } }
                 }
                 "Installments" -> {
                     item{Button(onClick={addKind=FinanceKind.INSTALLMENT},enabled=!busy){Text("Add installment purchase")};Text("Only the advance and installments you mark paid become expenses; the full purchase is not deducted twice.")}
+                    items(workspace.items.filter { it.kind==FinanceKind.INSTALLMENT_PURCHASE },key={it.id}) { purchase -> FinanceItemCard(purchase,masked) {
+                        Text("Advance: ${moneyText(purchase.opening)} • Paid: ${moneyText(purchase.settled)} • Remaining: ${moneyText((purchase.amount-purchase.settled).coerceAtLeast(0))}")
+                        if(purchase.opening>0 && purchase.transactionId.isBlank())Button(onClick={advancePurchase=purchase},enabled=!busy){Text("Record advance")}
+                        if(purchase.settled==0L)TextButton(onClick={run{finance.cancelInstallments(purchase.id)}},enabled=!busy){Text("Cancel unpaid installment plan")}
+                    } }
                     items(workspace.items.filter { it.kind==FinanceKind.INSTALLMENT }.sortedBy{it.date},key={it.id}) { row -> FinanceItemCard(row,masked) {
                         if(!row.done)Button(onClick={paying=setOf(row.id)},enabled=!busy){Text("Review & pay")}
                     } }
@@ -288,6 +295,10 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     } }
     if(showEntry) FinanceEntryEditor(vm.ownerId,workspace.accounts,editing?.takeIf{it.id.isNotBlank()},editing?.takeIf{it.id.isBlank()},privateVisible,{showEntry=false}) { row -> save { saveTransactionRow(row,editing?.takeIf{it.id.isNotBlank()}?.updatedAt) } }
     refund?.let { parent -> AmountDateDialog("Record refund",(parent.amountMinor-tx.filter{it.refundOf==parent.id}.sumOf{it.amountMinor}),workspace.accounts,{refund=null}) { amount,date,account -> save { finance.refund(parent.id,amount,date,"Refund • ${parent.note.ifBlank{parent.category}}",account) } } }
+    advancePurchase?.let { purchase -> AmountDateDialog("Record advance",purchase.opening,(listOf(purchase.account)+workspace.accounts).distinct(),{advancePurchase=null}) { amount,date,account ->
+        require(amount==purchase.opening){"Record the exact advance amount. Installments cover the remaining purchase price."}
+        save { finance.payAdvance(purchase.id,date,account) }
+    } }
     settle?.let { item -> AmountDateDialog("Record returned money",item.amount-item.settled,workspace.accounts,{settle=null}) { amount,date,account -> save{finance.settleReimbursement(item.id,amount,date,account)} } }
     goal?.let { item -> AmountDateDialog("Record saved contribution",item.amount-item.settled,(listOf(item.account)+workspace.accounts).distinct(),{goal=null}) { amount,date,account -> save { finance.contributeGoal(item.id,amount,date,account) } } }
     if(paying.isNotEmpty()) {

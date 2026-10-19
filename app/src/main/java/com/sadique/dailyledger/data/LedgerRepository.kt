@@ -162,13 +162,16 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             require(refunds.isEmpty() || (row.type=="EXPENSE" && refunds.sumOf { it.amountMinor }<=row.amountMinor && refunds.all { it.category==row.category && (!row.privateEntry || it.privateEntry) })) { "Correct linked refunds before changing this purchase." }
         }
         if(row.privateEntry)require(profile.workspace.items.none { it.transactionId==row.id || (it.kind==FinanceKind.REIMBURSEMENT && it.reference==row.id) }) { "Linked planning or claim records remain public. Use a standalone entry for private records." }
+        val linkedPlan=profile.workspace.items.find { it.transactionId==row.id && it.kind in listOf(FinanceKind.SHOPPING,FinanceKind.PLANNED,FinanceKind.INSTALLMENT,FinanceKind.INSTALLMENT_PURCHASE) }
+        if(linkedPlan!=null) require(row.type=="EXPENSE" && row.refundOf.isBlank() && row.amountMinor==(if(linkedPlan.kind==FinanceKind.INSTALLMENT_PURCHASE)linkedPlan.opening else linkedPlan.amount)) { "Delete and re-record this planned payment to change its amount." }
         val linkedReceipt=profile.workspace.items.find { it.kind==FinanceKind.CLAIM_RECEIPT && it.transactionId==row.id }
         if(linkedReceipt!=null)require(row.type=="INCOME" && row.amountMinor==linkedReceipt.amount) { "Delete and re-record a claim receipt to change its amount." }
         val linkedClaim=profile.workspace.items.find { it.kind==FinanceKind.REIMBURSEMENT && it.reference==row.id }
         if(linkedClaim!=null)require(row.type=="EXPENSE" && row.refundOf.isBlank() && row.amountMinor==linkedClaim.amount) { "This amount belongs to a reimbursement claim." }
         val revision=EntryRevision(UUID.randomUUID().toString(),row.id,System.currentTimeMillis(),if(old==null) "CREATE" else "EDIT",old?.let(::transactionSnapshot).orEmpty(),transactionSnapshot(row))
-        updateProfile { it.copy(workspace=it.workspace.copy(revisions=it.workspace.revisions+revision,items=it.workspace.items.map { item -> if(item.transactionId==row.id) item.copy(date=row.date,account=row.account,settled=if(item.kind==FinanceKind.CLAIM_RECEIPT)item.settled else row.amountMinor) else item })) }
+        updateProfile { it.copy(workspace=it.workspace.copy(revisions=it.workspace.revisions+revision,items=it.workspace.items.map { item -> if(item.transactionId==row.id && item.kind!=FinanceKind.INSTALLMENT_PURCHASE) item.copy(date=if(item.kind in listOf(FinanceKind.SHOPPING,FinanceKind.PLANNED,FinanceKind.INSTALLMENT))item.date else row.date,account=row.account,settled=if(item.kind==FinanceKind.CLAIM_RECEIPT)item.settled else row.amountMinor) else item })) }
         dao.upsertTransaction(row)
+        if(profile.workspace.items.any{it.kind==FinanceKind.INSTALLMENT_PURCHASE}) { val actual=dao.transactionsNow(ownerId); updateProfile { it.copy(workspace=it.workspace.reconcileInstallments(actual)) } }
     }
     suspend fun deleteTransaction(item: TransactionEntity) = db.withTransaction {
         require(item.ownerId==ownerId);val records=dao.transactionsNow(ownerId);val current=records.find { it.id==item.id } ?: return@withTransaction
@@ -183,6 +186,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
                 else -> r }
         })) }
         dao.deleteTransaction(current)
+        if(w.items.any{it.kind==FinanceKind.INSTALLMENT_PURCHASE}) { val actual=dao.transactionsNow(ownerId); updateProfile { it.copy(workspace=it.workspace.reconcileInstallments(actual)) } }
     }
 
     suspend fun saveLoan(direction: String, person: String, principalMinor: Long, dueDate: String?, note: String, phone: String = "", whatsapp: String = "") {
@@ -581,6 +585,10 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         }
         restoredTransactions.filter { it.refundOf.isNotBlank() }.groupBy { it.refundOf }.forEach { (id,rows) -> require(rows.sumOf { it.amountMinor }<=restoredTransactions.first { it.id==id }.amountMinor) }
         restoredProfile?.workspace?.items?.forEach { item ->
+            if(item.kind in listOf(FinanceKind.SHOPPING,FinanceKind.PLANNED,FinanceKind.INSTALLMENT)) {
+                require(item.done==item.transactionId.isNotBlank())
+                if(item.done)require(restoredTransactions.any { it.id==item.transactionId && it.type=="EXPENSE" && it.refundOf.isBlank() && it.amountMinor==item.amount })
+            }
             if(item.transactionId.isNotBlank() && item.kind!=FinanceKind.GOAL_CONTRIBUTION)require(restoredTransactions.any { it.id==item.transactionId }) { "A tool item refers to a missing ledger entry." }
             if(item.kind==FinanceKind.REIMBURSEMENT)require(restoredTransactions.any { it.id==item.reference && it.type=="EXPENSE" && it.refundOf.isBlank() && it.amountMinor==item.amount }) { "Claim purchase is missing or inconsistent." }
         }
@@ -590,6 +598,14 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             require(w.items.any { it.id==receipt.reference && it.kind==FinanceKind.REIMBURSEMENT })
             require(restoredTransactions.any { it.id==receipt.transactionId && it.type=="INCOME" && it.amountMinor==receipt.amount })
         } }
+        restoredProfile?.workspace?.let { w ->
+            w.items.filter{it.kind==FinanceKind.INSTALLMENT_PURCHASE}.forEach{root->
+                val parts=w.items.filter{it.kind==FinanceKind.INSTALLMENT && it.reference==root.id}
+                require(parts.isNotEmpty() && parts.sumOf{it.amount}+root.opening==root.amount)
+            }
+            w.items.filter{it.kind==FinanceKind.INSTALLMENT}.forEach{part->require(w.items.any{it.id==part.reference && it.kind==FinanceKind.INSTALLMENT_PURCHASE})}
+            require(w.reconcileInstallments(restoredTransactions)==w) { "Installment paid totals are inconsistent." }
+        }
         dao.insertTransactions(restoredTransactions)
         require(dao.transactionsNow(ownerId).size == restoredTransactions.size) {
             "Not all transactions were restored. Your local data was not changed."

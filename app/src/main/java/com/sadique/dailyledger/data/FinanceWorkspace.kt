@@ -9,7 +9,7 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /** Financial tools live in the encrypted profile row and participate in the same Room backup transaction. */
-enum class FinanceKind { ACCOUNT, TRANSFER, ADJUSTMENT, ALLOCATION, PLANNED, SHOPPING, GOAL, SHORTCUT, INSTALLMENT, REIMBURSEMENT, CLAIM_RECEIPT, GOAL_CONTRIBUTION }
+enum class FinanceKind { ACCOUNT, TRANSFER, ADJUSTMENT, ALLOCATION, PLANNED, SHOPPING, GOAL, SHORTCUT, INSTALLMENT, REIMBURSEMENT, CLAIM_RECEIPT, GOAL_CONTRIBUTION, INSTALLMENT_PURCHASE }
 data class FinanceItem(
     val id: String = UUID.randomUUID().toString(), val kind: FinanceKind, val title: String,
     val amount: Long, val date: String, val category: String = "Other", val account: String = "Cash",
@@ -63,6 +63,13 @@ data class FinanceWorkspace(val items: List<FinanceItem> = emptyList(), val revi
             r.copy(transactionId = id(r.transactionId), before = snapshot(r.before), after = snapshot(r.after))
         })
     }
+    fun reconcileInstallments(tx:List<TransactionEntity>):FinanceWorkspace = copy(items=items.map { item ->
+        if(item.kind!=FinanceKind.INSTALLMENT_PURCHASE)item else {
+            val advance=tx.find{it.id==item.transactionId}?.amountMinor ?: 0
+            val paid=items.filter{it.kind==FinanceKind.INSTALLMENT && it.reference==item.id}.sumOf{part->tx.find{it.id==part.transactionId}?.amountMinor ?: 0}
+            item.copy(settled=advance+paid,done=advance+paid>=item.amount)
+        }
+    }).validated()
     fun merge(other: FinanceWorkspace) = copy(items = (items + other.items).distinctBy { it.id }, revisions = (revisions + other.revisions).distinctBy { it.id }, checked = checked + other.checked).validated()
     companion object {
         fun decode(o:JSONObject): FinanceWorkspace {

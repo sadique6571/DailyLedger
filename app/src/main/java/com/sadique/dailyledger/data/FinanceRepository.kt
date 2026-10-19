@@ -42,9 +42,10 @@ class FinanceRepository(private val repo: LedgerRepository) {
         var next=w
         selected.forEach { item ->
             val txId=saveEntry("EXPENSE",item.amount,item.category,item.title,date,item.account,item.quantity,item.unit,item.rate)
-            next=next.put(item.copy(done=true,transactionId=txId))
+            next=next.put(item.copy(done=true,transactionId=txId,settled=item.amount))
         }
-        repo.updateProfile { it.copy(workspace=it.workspace.copy(items=next.items)) }
+        val actual=dao.transactionsNow(owner)
+        repo.updateProfile { it.copy(workspace=it.workspace.copy(items=next.items).reconcileInstallments(actual)) }
     }
     suspend fun splitBill(rows:List<TransactionDraft>, total:Long, account:String, batch:String) = db.withTransaction {
         require(rows.size in 2..50 && rows.all { it.type=="EXPENSE" })
@@ -72,11 +73,24 @@ class FinanceRepository(private val repo: LedgerRepository) {
         require(total>0 && advance in 0 until total && count in 1..120)
         val remaining=total-advance;require(remaining>=count)
         val group=UUID.randomUUID().toString()
-        if(advance>0)saveEntry("EXPENSE",advance,category,"$title • Advance",LocalDate.now().toString(),account)
+        val advanceId=if(advance>0)saveEntry("EXPENSE",advance,category,"$title • Advance",LocalDate.now().toString(),account) else ""
+        saveItem(FinanceItem(id=group,kind=FinanceKind.INSTALLMENT_PURCHASE,title=title,amount=total,date=first.toString(),category=category,account=account,opening=advance,settled=advance,transactionId=advanceId))
         repeat(count) { n ->
             val amount=remaining/count + if(n.toLong()<remaining%count) 1 else 0
             saveItem(FinanceItem(kind=FinanceKind.INSTALLMENT,title="$title • ${n+1}/$count",amount=amount,date=first.plusMonths(n.toLong()).toString(),category=category,account=account,reference=group))
         }
+    }
+    suspend fun payAdvance(id:String,date:String,account:String) = db.withTransaction {
+        val item=requireNotNull(repo.profileSnapshot().workspace.items.find{it.id==id && it.kind==FinanceKind.INSTALLMENT_PURCHASE})
+        require(item.transactionId.isBlank() && item.opening>0)
+        val txId=saveEntry("EXPENSE",item.opening,item.category,"${item.title} • Advance",date,account)
+        val actual=dao.transactionsNow(owner)
+        repo.updateProfile { it.copy(workspace=it.workspace.put(item.copy(transactionId=txId)).reconcileInstallments(actual)) }
+    }
+    suspend fun cancelInstallments(id:String) = db.withTransaction {
+        val w=repo.profileSnapshot().workspace;val item=requireNotNull(w.items.find{it.id==id && it.kind==FinanceKind.INSTALLMENT_PURCHASE})
+        require(item.settled==0L && item.transactionId.isBlank() && w.items.none{it.kind==FinanceKind.INSTALLMENT && it.reference==id && it.transactionId.isNotBlank()})
+        repo.updateProfile { it.copy(workspace=w.copy(items=w.items.filterNot{row->row.id==id || row.kind==FinanceKind.INSTALLMENT && row.reference==id})) }
     }
     suspend fun contributeGoal(id:String,amount:Long,date:String,account:String="Cash") = db.withTransaction {
         val item=requireNotNull(repo.profileSnapshot().workspace.items.find { it.id==id && it.kind==FinanceKind.GOAL })

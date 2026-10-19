@@ -78,7 +78,7 @@ object SpendingInsights {
         val old = comparable(previous)
         val savedThisMonth = currentSavings.sumOf { it.amountMinor }
         val savingRate = if (summary.salary > 0L) ((savedThisMonth.toDouble() / summary.salary) * 100.0).roundToInt().coerceIn(0, 100) else 0
-        val loanPaidById = loanPayments.filter { it.ownerId == owner }.groupBy { it.loanId }.mapValues { (_, rows) -> rows.sumOf { it.expenseEffect() } }
+        val loanPaidById = loanPayments.filter { it.ownerId == owner }.groupBy { it.loanId }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
         val borrowedOutstanding = loans.filter { it.ownerId == owner && it.direction == "BORROWED" }.sumOf { loan ->
             (loan.principalMinor - (loanPaidById[loan.id] ?: 0L)).coerceAtLeast(0L)
         }
