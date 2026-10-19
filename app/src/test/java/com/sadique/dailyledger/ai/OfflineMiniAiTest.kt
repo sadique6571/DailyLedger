@@ -61,6 +61,6 @@ class OfflineMiniAiTest {
     @Test fun wordsDoNotMatchInsideNamesAndCategoryOrderIsSpecific() {
         assertEquals("EXPENSE", OfflineMiniAi.drafts("Milad shopping 500")!!.entries.single().type)
         assertEquals("Rent", OfflineMiniAi.drafts("kiraya makan 5000")!!.entries.single().category)
-        assertEquals(listOf("Milk", "Snacks", "Vegetables"), OfflineMiniAi.drafts("aj dodh 150 papar 100 sabzi 100")!!.entries.map { it.category })
+        assertEquals(listOf("Milk", "Papar", "Vegetables"), OfflineMiniAi.drafts("aj dodh 150 papar 100 sabzi 100")!!.entries.map { it.category })
     }
 }

@@ -6,7 +6,7 @@ object ItemCategories {
         LedgerCategory(group, label, "EXPENSE", words.toList())
 
     val entries = listOf(
-        item("Prepared food", "Salan", "salan", "saalan", "salaan", "curry", "cooked curry", "سالن"),
+        item("Prepared food", "Salan", "salan", "saalan", "salaan", "curry", "cooked curry", "chicken salan", "murghi salan", "daal salan", "dal salan", "sabzi salan", "chicken curry", "meat curry", "beef curry", "mutton curry", "سالن"),
         item("Breakfast & dairy", "Packaged milk", "milk pak", "milkpak", "milk pack", "milkpack", "packaged milk", "tetra pack milk", "olpers", "olper", "ملک پیک", "پیکٹ دودھ", "ڈبے کا دودھ"),
         item("Snacks & treats", "Chocolate", "chocolate", "chocolates", "choclate", "choklet", "چاکلیٹ"),
         item("Snacks & treats", "Toffee & candy", "toffee", "toffees", "tofi", "toffy", "candy", "candies", "ٹافی", "ٹافیاں"),
