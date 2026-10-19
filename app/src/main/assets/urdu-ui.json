@@ -1067,7 +1067,7 @@
   "Income total: {0}": "آمدنی کا کل: {0}",
   "Salary calendar": "تنخواہ کا کیلنڈر",
   "Salary date": "تنخواہ کی تاریخ",
-  "Next expected salary": "اگلی متوقع تنخواہ",
+  "Next expected salary": "اگلی تنخواہ کی متوقع تاریخ",
   "Choose date": "تاریخ منتخب کریں",
   "Daily allowance": "روزانہ خرچ کی گنجائش",
   "Actual daily average": "اصل روزانہ اوسط خرچ",
@@ -1096,5 +1096,10 @@
   "Bills to reserve for": "بلوں کے لیے رقم الگ رکھیں",
   "Spending pace before salary": "تنخواہ سے پہلے خرچ کی رفتار",
   "Amounts hidden in privacy mode": "پرائیویسی موڈ میں رقوم پوشیدہ ہیں",
-  "Budgets, reminder schedules, salary calendar and AI learning are encrypted on this phone and included in your Google Drive backup.": "بجٹ، یاددہانیاں، تنخواہ کا کیلنڈر اور اے آئی کی سیکھ اس فون پر انکرپٹڈ ہیں اور گوگل ڈرائیو بیک اپ میں شامل ہیں۔"
+  "Budgets, reminder schedules, salary calendar and AI learning are encrypted on this phone and included in your Google Drive backup.": "بجٹ، یاددہانیاں، تنخواہ کا کیلنڈر اور اے آئی کی سیکھ اس فون پر انکرپٹڈ ہیں اور گوگل ڈرائیو بیک اپ میں شامل ہیں۔",
+  "Select salary date": "تنخواہ کی تاریخ منتخب کریں",
+  "Select next expected salary date": "اگلی تنخواہ کی متوقع تاریخ منتخب کریں",
+  "Choose dates here; the Home screen keeps your countdown.": "تاریخیں یہاں منتخب کریں؛ ہوم اسکرین پر باقی دن نظر آئیں گے۔",
+  "Select the salary date for this month. The same date next month is suggested automatically. Change the next expected date anytime for a 20-day or 40-day gap.": "اس مہینے کی تنخواہ کی تاریخ منتخب کریں۔ اگلے مہینے کی یہی تاریخ خود تجویز ہو گی۔ ۲۰ یا ۴۰ دن کے وقفے کے لیے اگلی متوقع تاریخ جب چاہیں بدل سکتے ہیں۔",
+  "Dates are estimates only. Record received salary separately. Shorter months use their last available day.": "یہ تاریخیں صرف اندازے کے لیے ہیں۔ موصولہ تنخواہ الگ درج کریں۔ چھوٹے مہینے میں آخری دستیاب دن استعمال ہو گا۔"
 }
