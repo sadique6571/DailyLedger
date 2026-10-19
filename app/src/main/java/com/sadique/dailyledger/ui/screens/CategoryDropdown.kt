@@ -23,6 +23,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
@@ -86,7 +88,9 @@ fun CategoryDropdown(
         options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
-        onExpandedChange = { if (enabled) { expanded = it } },
+        // Tapping an editable input should reopen its results, not toggle them
+        // closed while the user is trying to continue typing.
+        onExpandedChange = { if (enabled) expanded = true },
         modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
@@ -102,7 +106,10 @@ fun CategoryDropdown(
                     if(value.isNotBlank() || query.isNotBlank()) IconButton(enabled=enabled,onClick={
                         query="";editing=true;expanded=true;onSelect("")
                     },modifier=Modifier.testTag("category-clear")) { Icon(Icons.Rounded.Close,"Clear category") }
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    IconButton(enabled = enabled, onClick = { expanded = !expanded },
+                        modifier = Modifier.testTag("category-toggle").semantics {
+                            contentDescription = strings.text("Categories")
+                        }) { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
                 }
             },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, enabled)

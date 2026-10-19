@@ -25,10 +25,11 @@ class CategoryTypingTest {
     @get:Rule val compose = createComposeRule()
 
     private fun assertDraft(text: String) = compose.onNodeWithTag("category-dropdown")
-        .assert(SemanticsMatcher.expectValue(
-            androidx.compose.ui.semantics.SemanticsProperties.EditableText,
-            androidx.compose.ui.text.AnnotatedString(text),
-        ))
+        .assert(SemanticsMatcher("Editable text is '$text'") { node ->
+            val key = androidx.compose.ui.semantics.SemanticsProperties.EditableText
+            // IME composition can add underline spans without changing the text.
+            node.config.contains(key) && node.config[key].text == text
+        })
 
     private fun typingSurvivesDismissal(initial: String) {
         var committed = initial
