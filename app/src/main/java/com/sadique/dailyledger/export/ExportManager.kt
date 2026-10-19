@@ -41,8 +41,8 @@ object ExportManager {
     ): String = withContext(Dispatchers.IO) {
         require(from == null || through == null || !from.isAfter(through)) { "Start date must be on or before end date." }
         val rows = mutableListOf("section,date,type,category,description,amount_pkr")
-        repo.transactions.first().filter { it.isWithin(from, through) }.forEach {
-            rows += listOf("transaction", it.date, it.type, it.category, it.note, plainAmount(it.amountMinor))
+        repo.transactions.first().filterNot { it.privateEntry }.filter { it.isWithin(from, through) }.forEach {
+            rows += listOf("transaction", it.date, if(it.refundOf.isNotBlank())"REFUND" else it.type, it.category, it.note, plainAmount(it.amountMinor))
                 .joinToString(",") { value -> esc(value) }
         }
         repo.savings.first().filter { it.date.isWithin(from, through) }.forEach {
@@ -82,7 +82,7 @@ object ExportManager {
         save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", bytes)
     }
     internal suspend fun statementBytes(repo: LedgerRepository, from: LocalDate?, through: LocalDate?): ByteArray =
-        statementBytes(repo.transactions.first(), from, through,
+        statementBytes(repo.transactions.first().filterNot { it.privateEntry }, from, through,
             repo.committees.first(), repo.committeePayments.first(), repo.committeeReceipts.first())
 
     internal fun statementBytes(

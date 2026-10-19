@@ -67,18 +67,18 @@ object SpendingInsights {
         val categories = current
             .filter { it.type == "EXPENSE" }
             .groupBy { it.category.trim().ifBlank { "Other" } }
-            .map { (name, rows) -> name to rows.sumOf { it.amountMinor } }
+            .map { (name, rows) -> name to rows.sumOf { it.expenseEffect() } }
             .sortedByDescending { it.second }
 
         fun comparable(m: YearMonth) = own
             .filter { it.type == "EXPENSE" && it.date.startsWith("$m-") && LocalDate.parse(it.date).dayOfMonth <= days }
-            .sumOf { it.amountMinor }
+            .sumOf { it.expenseEffect() }
 
         val now = comparable(month)
         val old = comparable(previous)
         val savedThisMonth = currentSavings.sumOf { it.amountMinor }
         val savingRate = if (summary.salary > 0L) ((savedThisMonth.toDouble() / summary.salary) * 100.0).roundToInt().coerceIn(0, 100) else 0
-        val loanPaidById = loanPayments.filter { it.ownerId == owner }.groupBy { it.loanId }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
+        val loanPaidById = loanPayments.filter { it.ownerId == owner }.groupBy { it.loanId }.mapValues { (_, rows) -> rows.sumOf { it.expenseEffect() } }
         val borrowedOutstanding = loans.filter { it.ownerId == owner && it.direction == "BORROWED" }.sumOf { loan ->
             (loan.principalMinor - (loanPaidById[loan.id] ?: 0L)).coerceAtLeast(0L)
         }
@@ -144,7 +144,7 @@ object SpendingInsights {
             // Compare each category over the same elapsed calendar days, not a full previous month.
             fun comparableCategories(m: YearMonth) = own.filter {
                 it.type == "EXPENSE" && it.date.startsWith("$m-") && LocalDate.parse(it.date).dayOfMonth <= days
-            }.groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
+            }.groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.expenseEffect() } }
             val previousByCategory = comparableCategories(previous)
             val rise = comparableCategories(month).mapNotNull { (name, amount) ->
                 previousByCategory[name]?.takeIf { it > 0 && amount > it }?.let { Triple(name, amount - it, it) }

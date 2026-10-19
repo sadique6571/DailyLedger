@@ -35,7 +35,7 @@ data class BudgetProgress(val category: String, val spent: Long, val limit: Long
 object PlannerMath {
     fun budgets(owner: String, rules: List<CategoryBudget>, records: List<TransactionEntity>, month: YearMonth): List<BudgetProgress> {
         val totals = records.filter { it.ownerId == owner && it.type == "EXPENSE" && it.date.startsWith("$month-") }
-            .groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
+            .groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.expenseEffect() } }
         return rules.map { BudgetProgress(it.category, totals[it.category] ?: 0, it.limitMinor) }
     }
     fun due(bills: List<RecurringBill>, today: LocalDate) = bills.filter { it.enabled && it.nextDue() <= today }.sortedBy { it.nextDue() }

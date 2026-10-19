@@ -16,6 +16,12 @@ data class TransactionEntity(
     val date: String,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "'Cash'") val account: String = "Cash",
+    @ColumnInfo(defaultValue = "''") val quantity: String = "",
+    @ColumnInfo(defaultValue = "''") val unit: String = "",
+    @ColumnInfo(defaultValue = "0") val unitPriceMinor: Long = 0,
+    @ColumnInfo(defaultValue = "''") val refundOf: String = "",
+    @ColumnInfo(defaultValue = "0") val privateEntry: Boolean = false,
 )
 
 @Entity(tableName = "loans", indices = [Index("ownerId")])

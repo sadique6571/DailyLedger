@@ -25,7 +25,7 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState(),
-    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}) {
+    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {
@@ -33,6 +33,7 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Text("Everything you need in one place", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val rows = listOf(
+                Triple("Money tools", "Plans, accounts, shopping, refunds and private records", Icons.Rounded.AccountBalanceWallet) to onFinanceTools,
                 Triple("Insights", "Spending patterns and offline saving suggestions", Icons.Rounded.BarChart) to onInsights,
                 Triple("Transactions", "Search, edit and manage your entries", Icons.Rounded.Description) to onTransactions,
                 Triple("Loans", "Borrowed, lent and payment history", Icons.Rounded.Handshake) to onLoans,

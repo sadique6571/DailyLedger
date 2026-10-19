@@ -87,12 +87,12 @@ fun DashboardScreen(
     val summary = remember(tx, cp, savings, ledgerCycle, creditPayments, month) { ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
         ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments) }
     val expenseRows = remember(tx, ledgerCycle, month) { tx.filter {
-        it.type == "EXPENSE" && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
+        it.type == "EXPENSE" && !it.privateEntry && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }
     }
-    val grouped = remember(expenseRows) { expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.amountMinor } }.entries.sortedByDescending { it.value } }
+    val grouped = remember(expenseRows) { expenseRows.groupBy { if(it.privateEntry) "Private spending" else it.category }.mapValues { it.value.sumOf { row -> row.expenseEffect() } }.entries.filter { it.value > 0 }.sortedByDescending { it.value } }
     val currentMonthExpenses = remember(tx, month) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") } }
-    val frequentItems = remember(currentMonthExpenses) { currentMonthExpenses.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
+    val frequentItems = remember(currentMonthExpenses) { currentMonthExpenses.filter { !it.privateEntry && it.refundOf.isBlank() }.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
         .sortedByDescending { it.second }
         .take(4) }
@@ -109,7 +109,7 @@ fun DashboardScreen(
     var archiveMessage by remember { mutableStateOf("") }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
     var frequentExpanded by rememberSaveable { mutableStateOf(true) }
-    val recent = tx.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.updatedAt }).take(4)
+    val recent = tx.filterNot { it.privateEntry }.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.updatedAt }).take(4)
     val cycleStartLabel = ledgerCycle?.let {
         Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate().toString()
     }
@@ -293,7 +293,7 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenPlanning) { Text("Review") }
                 }
             }
-            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
+            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, categories.sumOf { it.second }, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -360,9 +360,9 @@ fun DashboardScreen(
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(entry.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Text((if (entry.type == "INCOME") "+ " else "− ") + visibleMoney(entry.amountMinor),
+                                Text((if (entry.type == "INCOME" || entry.refundOf.isNotBlank()) "+ " else "− ") + visibleMoney(entry.amountMinor),
                                     fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                                    color = if (entry.type == "INCOME") LedgerColors.Green else LedgerColors.Red)
+                                    color = if (entry.type == "INCOME" || entry.refundOf.isNotBlank()) LedgerColors.Green else LedgerColors.Red)
                             }
                         }
                     }
@@ -586,7 +586,7 @@ fun DashboardScreen(
         )
     }
     selectedFrequentCategory?.let { category ->
-        val purchases = currentMonthExpenses.filter { it.frequentPurchaseLabel().equals(category, ignoreCase = true) }
+        val purchases = currentMonthExpenses.filter { !it.privateEntry && it.refundOf.isBlank() && it.frequentPurchaseLabel().equals(category, ignoreCase = true) }
             .sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.createdAt })
         val total = purchases.sumOf { it.amountMinor }
         AlertDialog(

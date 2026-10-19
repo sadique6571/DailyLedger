@@ -61,6 +61,7 @@ fun TransactionsScreen(
     onAutoFill: (() -> Unit)? = null,
     initialQuery: String = "",
     initialFilter: String = "ALL",
+    onDetailedEntry: ((TransactionEntity) -> Unit)? = null,
 ) {
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -204,7 +205,7 @@ fun TransactionsScreen(
                         Column(Modifier.weight(1f)) {
                             Text(x.category, style = MaterialTheme.typography.titleMedium)
                              Text(x.type.lowercase().replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.labelSmall,
-                                 color = if (x.type == "INCOME") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                 color = if (x.type == "INCOME" || x.refundOf.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                             Text(x.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             TextButton(onClick = { showDetails = x }, contentPadding = PaddingValues(0.dp)) { Text("Details") }
                             if (x.note.isNotBlank()) {
@@ -215,7 +216,7 @@ fun TransactionsScreen(
                             IconButton(onClick = { toggleFavorite(x.id) }) {
                                 Icon(if (x.id.toString() in favoriteIds) Icons.Filled.Star else Icons.Outlined.StarBorder, if (x.id.toString() in favoriteIds) "Remove favorite" else "Add favorite")
                             }
-                            Text(if (display.privateAmounts) "Rs •••••" else money(if (x.type == "EXPENSE") -x.amountMinor else x.amountMinor))
+                            Text(if (display.privateAmounts) "Rs •••••" else money(if (x.type == "EXPENSE" && x.refundOf.isBlank()) -x.amountMinor else x.amountMinor))
                             IconButton(onClick = { pendingDelete = x }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${x.category} transaction") }
                         }
                     }
@@ -269,7 +270,7 @@ fun TransactionsScreen(
             val action = { onSave(type, amount, cat, note, date, edit); show = false; Unit }
             val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
             if (duplicate) { pendingSave = action; duplicateWarning = true } else action()
-        }, initialType = quickTemplate?.type ?: "EXPENSE", initialCategory = quickTemplate?.category ?: "", initialAmount = quickTemplate?.let { plainAmount(it.amountMinor) } ?: "")
+        }, onAdvanced = onDetailedEntry?.let { action -> { draft:TransactionEntity -> show=false;edit=null;action(draft) } }, initialType = quickTemplate?.type ?: "EXPENSE", initialCategory = quickTemplate?.category ?: "", initialAmount = quickTemplate?.let { plainAmount(it.amountMinor) } ?: "")
         }
     }
 }
@@ -284,6 +285,7 @@ fun TransactionDialog(
     initialNote: String = "",
     initialAmount: String = "",
     onHistory: ((String, String) -> Unit)? = null,
+    onAdvanced: ((TransactionEntity) -> Unit)? = null,
 ) {
     var type by remember { mutableStateOf(x?.type ?: initialType) }
     var amount by remember { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: initialAmount) }
@@ -320,6 +322,9 @@ fun TransactionDialog(
                     }
                 }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
+                onAdvanced?.let { action -> TextButton(onClick = {
+                    action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
+                }) { Text("Quantity, account & privacy options") } }
                 CategoryDropdown(type, cat, { cat = it })
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())

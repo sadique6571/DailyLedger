@@ -16,9 +16,9 @@ internal object StatementData {
         payments: List<CommitteePaymentEntity>, receipts: List<CommitteeReceiptEntity>,
         from: LocalDate?, through: LocalDate?): List<StatementSection> {
         require(from == null || through == null || !from.isAfter(through)) { "Start date must be on or before end date." }
-        val activity = transactions.filter { it.date.inStatementPeriod(from, through) }.map {
-            StatementRow(it.date, it.note.ifBlank { it.category }, it.category, it.type,
-                it.amountMinor, it.type == "INCOME", it.createdAt)
+        val activity = transactions.filter { !it.privateEntry && it.date.inStatementPeriod(from, through) }.map {
+            StatementRow(it.date, it.note.ifBlank { it.category }, it.category, if(it.refundOf.isNotBlank())"REFUND" else it.type,
+                it.amountMinor, it.type == "INCOME" || it.refundOf.isNotBlank(), it.createdAt)
         }
         val names = committees.associate { it.id to it.name }
         val kameti = payments.filter { it.month.inStatementPeriod(from, through) }.map {

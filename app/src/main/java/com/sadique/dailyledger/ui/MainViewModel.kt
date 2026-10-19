@@ -30,6 +30,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         LedgerRepository(AppDatabase.get(getApplication<Application>()), oldOwner) { CategoryLearningStore(getApplication<Application>(), oldOwner).snapshot() }.learningSnapshot()
         migrateOwner(oldOwner)
     }
+    val accountNames=repo.profileBackup.map { it.workspace.accounts }.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),listOf("Cash","Bank","Easypaisa","JazzCash"))
     val transactions=repo.transactions.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val creditPurchases=repo.creditPurchases.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val creditPayments=repo.creditPayments.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
@@ -74,6 +75,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         // The database commit succeeded. A scheduler failure must not be presented as a failed save.
         // Pending status and the periodic worker retain the backup obligation.
         runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
+        runCatching { com.sadique.dailyledger.widget.LedgerWidget.refresh(getApplication<Application>()) }
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
@@ -84,7 +86,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val learning = repo.aiLearning.catch { e ->
         _learningError.value = e.message ?: "AI learning could not be read. Saved data was kept."
     }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.Eagerly, LearningSnapshot())
-    private val historyRules = transactions.map { CategoryLearning.fromHistory(it, ownerId) }
+    private val historyRules = transactions.map { CategoryLearning.fromHistory(it.filterNot { row -> row.privateEntry }, ownerId) }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val learnedCategories = combine(learning, historyRules) { explicit, history ->
         explicit.rules + history.filter { rule ->
@@ -119,6 +121,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             planner.markHandled(bill.id, due, alreadyLocked = true)
         }
         runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
+        runCatching { com.sadique.dailyledger.widget.LedgerWidget.refresh(getApplication<Application>()) }
     }
     private val manualInsights = ManualInsights(viewModelScope, aiPrefs.enabled, aiPrefs::cached, aiPrefs::save)
     val aiEnabled = manualInsights.enabled

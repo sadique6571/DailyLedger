@@ -1,4 +1,6 @@
 package com.sadique.dailyledger.ai
+import com.sadique.dailyledger.data.expenseEffect
+
 
 import com.sadique.dailyledger.data.SalarySummary
 import com.sadique.dailyledger.data.TransactionEntity
@@ -48,8 +50,8 @@ data class DailySpendingGuide(
                 val count = requireNotNull(elapsed)
                 transactions.asSequence().filter { it.type == "EXPENSE" && it.amountMinor > 0 }
                     .filter { row -> runCatching { LocalDate.parse(row.date) }.getOrNull()?.let { it >= start && it <= today } == true }
-                    .fold(java.math.BigInteger.ZERO) { sum, row -> sum.add(java.math.BigInteger.valueOf(row.amountMinor)) }
-                    .divide(java.math.BigInteger.valueOf(count)).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).toLong()
+                    .fold(java.math.BigInteger.ZERO) { sum, row -> sum.add(java.math.BigInteger.valueOf(row.expenseEffect())) }
+                    .divide(java.math.BigInteger.valueOf(count)).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).toLong().coerceAtLeast(0L)
             }
             return DailySpendingGuide(lastSalary, expected, days, allowance, low, elapsed, actual)
         }

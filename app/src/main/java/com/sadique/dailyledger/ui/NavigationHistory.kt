@@ -25,13 +25,14 @@ data class NavigationHistory(val entries: List<Int> = listOf(HOME)) {
         const val CALENDAR = 12
         const val COMPARISON = 13
         const val SEARCH = 14
+        const val FINANCE_TOOLS = 16
         const val LEARNING = 15
         fun label(route: Int?) = when (route) {
             TRANSACTIONS -> "Transactions"; LOANS -> "Loans"; KAMETI -> "Kameti"; SAVINGS -> "Savings"
             INSIGHTS -> "Insights"; MORE -> "More"; UDHAR -> "Udhar"; SETTINGS -> "Settings"
             AUTO_FILL -> "AI Auto Fill"; BUDGETS -> "Category budgets"; BILLS -> "Bills & reminders"
             CALENDAR -> "Kameti calendar"; COMPARISON -> "Monthly comparison"; SEARCH -> "Search all ledgers"
-            LEARNING -> "AI learning"; else -> "Home"
+            FINANCE_TOOLS -> "Money tools"; LEARNING -> "AI learning"; else -> "Home"
         }
     }
 }

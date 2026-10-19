@@ -1,4 +1,6 @@
 package com.sadique.dailyledger.notifications
+import com.sadique.dailyledger.data.expenseEffect
+
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -59,7 +61,7 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         if (today.dayOfMonth == 1) {
             val previous = currentMonth.minusMonths(1).toString()
             val income = transactions.filter { it.type == "INCOME" && it.date.startsWith(previous) }.sumOf { it.amountMinor }
-            val expense = transactions.filter { it.type == "EXPENSE" && it.date.startsWith(previous) }.sumOf { it.amountMinor }
+            val expense = transactions.filter { it.type == "EXPENSE" && it.date.startsWith(previous) }.sumOf { it.expenseEffect() }
             messages += "Last month: income PKR ${income / 100}, expense PKR ${expense / 100}"
         }
         if (messages.isNotEmpty()) notify(messages.joinToString(" • "))

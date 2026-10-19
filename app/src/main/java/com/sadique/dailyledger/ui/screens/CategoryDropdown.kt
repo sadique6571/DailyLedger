@@ -7,6 +7,8 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Search
@@ -59,7 +61,6 @@ fun CategoryDropdown(
         val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
         options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
     }
-    val visible = filtered.take(80)
     ExposedDropdownMenuBox(expanded = expanded && enabled,
         onExpandedChange = { if (enabled) { expanded = it; if (it) editing = true } },
         modifier = modifier.fillMaxWidth()) {
@@ -77,28 +78,30 @@ fun CategoryDropdown(
         ExposedDropdownMenu(expanded = expanded && enabled,
             onDismissRequest = { expanded = false; editing = false },
             modifier = Modifier.heightIn(max = 320.dp)) {
+            // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
+            val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()
+            val recentLabels = recent.map { it.label }.toSet()
             val sections = linkedMapOf<String, List<LedgerCategory>>()
-            if (query.isBlank()) {
-                val recent = frequent.mapNotNull { label -> filtered.find { it.label == label } }
-                if (recent.isNotEmpty()) sections["Frequently used"] = recent
-            }
-            sections.putAll(visible.groupBy { it.group })
-            sections.forEach { (group, rows) ->
-                Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                rows.forEach { category ->
-                    val visual = categoryVisual(category.label, type)
-                    DropdownMenuItem(
-                        text = { Text(category.label) },
-                        leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
-                        onClick = { choose(category.label) },
-                    )
+            if (recent.isNotEmpty()) sections["Frequently used"] = recent
+            sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
+            LazyColumn(Modifier.fillMaxWidth().height(300.dp).testTag("category-results")) {
+                sections.forEach { (group, rows) ->
+                    item(key = "heading-$group") {
+                        Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                    items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
+                        val visual = categoryVisual(category.label, type)
+                        DropdownMenuItem(text = { Text(category.label) },
+                            leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
+                            onClick = { choose(category.label) })
+                    }
                 }
-            }
-            if (filtered.size > visible.size) Text("${visible.size} of ${filtered.size} matches. Type more to narrow the list.", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
-            if (filtered.isEmpty()) Text("No matching category", Modifier.padding(16.dp))
-            if (allowCustom && query.isNotBlank() && categories.none { it.label.equals(query.trim(), true) }) {
-                DropdownMenuItem(text = { Text("Add custom: ${query.trim().take(60)}") },
-                    onClick = { choose(query.trim().take(60)) })
+                if (filtered.isEmpty()) item { Text("No matching category", Modifier.padding(16.dp)) }
+                if (allowCustom && query.isNotBlank() && categories.none { it.label.equals(query.trim(), true) }) {
+                    item { DropdownMenuItem(text = { Text("Add custom: ${query.trim().take(60)}") },
+                        onClick = { choose(query.trim().take(60)) }) }
+                }
             }
         }
     }
