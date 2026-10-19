@@ -10,7 +10,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.sadique.dailyledger.ai.AiDraftResult
-import com.sadique.dailyledger.ai.TransactionDraft
+import com.sadique.dailyledger.data.TransactionDraft
 import com.sadique.dailyledger.ui.screens.AutoFillScreen
 import com.sadique.dailyledger.ui.screens.CategoryDropdown
 import com.sadique.dailyledger.ui.screens.TransactionDialog
