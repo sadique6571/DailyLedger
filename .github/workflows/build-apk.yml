@@ -1,173 +1,41 @@
-name: Build Daily Ledger APK
-
+name: Original ZIP UI preview only
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
-      - codex/build-apk-20261005
-      - codex/ledger-ui-offline-20261014
-      - codex/ledger-fixes-20261015
-      - codex/kameti-financial-operations-phase3-20261017
-
-  # Include stacked PRs targeting feature branches, not only main.
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
-  build:
+  preview:
     runs-on: ubuntu-latest
     timeout-minutes: 35
-
     steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Test Firebase security rules
-        run: |
-          npm install --no-audit --no-fund
-          npm test
-
-      - name: Test backup-key Cloud Functions
-        run: |
-          npm --prefix functions install --no-audit --no-fund
-          npm --prefix functions run lint
-          npm --prefix functions test
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools'
-          log-accepted-android-sdk-licenses: false
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make Gradle executable
-        run: chmod +x gradlew
-
-      - name: Test backup core
-        run: bash tests/run-core-tests.sh
-
-      - name: Build and unit test APK
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease
-
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare untouched ZIP source with preview harness
+        run: python3 docs/zip-preview/prepare.py
+      - run: chmod +x gradlew
+      - run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-
-      - name: Test data, restore review, AI review and UI on Android
-        uses: reactivecircus/android-emulator-runner@v2
+      - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
           arch: x86_64
-          disable-animations: true
           profile: pixel_2
-          script: bash tests/run-device-tests.sh
-
-      - name: Upload test reports
+          disable-animations: true
+          script: bash docs/zip-preview/capture.sh
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: DailyLedger-test-reports
+          name: Original-ZIP-UI-preview
           path: |
-            app/build/reports/tests/
-            app/build/reports/androidTests/
-            app/build/outputs/androidTest-results/
             ui-previews/
+            app/build/reports/androidTests/
           retention-days: 14
-
-      - name: Verify and prepare APK
-        run: |
-          python3 - <<'PY'
-          import hashlib, os, pathlib, re, shutil, subprocess
-          apk = pathlib.Path('app/build/outputs/apk/release/app-release.apk')
-          assert apk.is_file(), 'APK was not produced'
-          sdk = pathlib.Path(os.environ['ANDROID_HOME'])
-          versions = sorted((sdk / 'build-tools').glob('*'), key=lambda p: [int(n) for n in re.findall(r'\d+', p.name)])
-          build_tools = next(p for p in reversed(versions) if (p / 'apksigner').exists())
-          signature = subprocess.check_output([str(build_tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True)
-          expected_sha1 = 'c6e19da96097e5424a34766e15746edca7c0f707'
-          assert expected_sha1 in signature.lower().replace(':', ''), 'Signing certificate differs from Firebase configuration'
-          badging = subprocess.check_output([str(build_tools / 'aapt'), 'dump', 'badging', str(apk)], text=True)
-          assert "package: name='com.sadique.dailyledger'" in badging, 'Unexpected application ID'
-          assert 'application-debuggable' not in badging, 'Distributed APK must not be debuggable'
-          import zipfile
-          with zipfile.ZipFile(apk) as archive:
-              dex = b''.join(archive.read(n) for n in archive.namelist() if n.endswith('.dex'))
-              assert b'Lcom/google/firebase/appcheck/debug/DebugAppCheckProviderFactory;' not in dex, 'Debug attestation provider leaked into release'
-              assert b'Lcom/google/firebase/appcheck/playintegrity/PlayIntegrityAppCheckProviderFactory;' in dex, 'Release attestation provider missing' 
-          output = pathlib.Path('apk-output')
-          output.mkdir(exist_ok=True)
-          target = output / 'DailyLedger.apk'
-          shutil.copy2(apk, target)
-          checksum = hashlib.sha256(target.read_bytes()).hexdigest()
-          report = signature + '\n' + badging.splitlines()[0] + '\nSHA256: ' + checksum + '\n'
-          (output / 'verification.txt').write_text(report)
-          print(report)
-          PY
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: DailyLedger-APK
-          path: apk-output/
-          compression-level: 9
-          retention-days: 14
-          if-no-files-found: error
-
-  publish_v2:
-    name: Publish GitHub v2.0.0 release
-    needs: build
-    # One-time release gate: only this deliberately titled, tested PR #7 merge
-    # can publish. All future main commits keep building without releasing.
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release DailyLedger v2.0.0 (#7)') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout release notes
-        uses: actions/checkout@v4
-
-      - name: Download verified APK and certificate report
-        uses: actions/download-artifact@v4
-        with:
-          name: DailyLedger-APK
-          path: release-files
-
-      - name: Publish signed APK as v2.0.0
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          test -s release-files/DailyLedger.apk
-          test -s release-files/verification.txt
-          test -s docs/V2_RELEASE_NOTES.md
-          if git ls-remote --exit-code --tags origin refs/tags/v2.0.0 >/dev/null 2>&1; then
-            echo "Refusing to replace an existing v2.0.0 tag" >&2
-            exit 1
-          fi
-          gh release create v2.0.0 \
-            release-files/DailyLedger.apk \
-            release-files/verification.txt \
-            --repo "${GITHUB_REPOSITORY}" \
-            --target "${GITHUB_SHA}" \
-            --title "DailyLedger v2.0.0" \
-            --notes-file docs/V2_RELEASE_NOTES.md \
-            --latest
