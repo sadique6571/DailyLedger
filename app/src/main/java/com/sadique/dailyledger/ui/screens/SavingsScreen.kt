@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
@@ -79,7 +81,7 @@ fun SavingDialog(dismiss: () -> Unit, onHistory: (() -> Unit)? = null, save: (St
                 FilterChip(kind == "LEFTOVER", { kind = "LEFTOVER" }, { Text("Leftover") })
             }
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
-            OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+            LedgerDateField(date, { date = it }, label = "Entry date")
             OutlinedTextField(note, { note = it }, label = { Text("Note") })
             onHistory?.let { action -> TextButton(onClick = action) { Text("View history") } }
         }

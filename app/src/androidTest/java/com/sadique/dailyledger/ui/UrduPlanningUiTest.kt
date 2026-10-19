@@ -142,7 +142,7 @@ class UrduPlanningUiTest {
         compose.setContent { DailyLedgerTheme("LIGHT") { BillReview(bill, { closed = true }) { _, draft -> saved = draft } } }
         compose.onNodeWithText("2026-02-28").assertExists()
         assertNull(saved)
-        compose.onNodeWithText("Date YYYY-MM-DD").performTextReplacement("2026-03-01")
+        compose.onNodeWithText("Entry date").performTextReplacement("2026-03-01")
         compose.onNodeWithText("Confirm & save").performClick()
         compose.waitUntil(5000) { saved != null }
         assertEquals("2026-03-01", saved?.date); assertEquals(150000L, saved?.amountMinor); assertTrue(closed)

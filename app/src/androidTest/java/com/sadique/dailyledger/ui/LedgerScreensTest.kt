@@ -212,6 +212,7 @@ class LedgerScreensTest {
         }
         compose.onNodeWithText("Receive amount").performScrollTo().performClick()
         compose.onNodeWithText("Received amount PKR").performTextReplacement("60000")
+        screenshot("kameti-entry-fields")
         compose.onNodeWithText("Save receiving").performClick()
         compose.onNodeWithText("Partially received").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Receive amount").assertIsEnabled()

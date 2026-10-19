@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -332,7 +334,7 @@ private fun OrganizerCircleDialog(dismiss: () -> Unit, save: (String, Long, Int,
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(name, { name = it }, label = { Text("Kameti / place name") })
             OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per full share") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-            OutlinedTextField(slots, { slots = it }, label = { Text("Total full-share turns (e.g. 20)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(slots, { slots = it }, label = { Text("Full-share turns") }, supportingText = { Text("For example, 20 turns.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             OutlinedTextField(start, { start = it }, label = { Text("Start YYYY-MM") })
             if (valid) Text("Monthly target: ${rowMoney(Math.multiplyExact(minor!!, n!!.toLong()))}")
         }},
@@ -475,7 +477,7 @@ private fun OrganizerPaymentDialog(member: OrganizerMemberEntity, circle: Organi
             Text(member.name, translate = false)
             Text(if (payout) "Turn #${member.turnNumber} • Member payout due ${rowMoney(remaining)}" else "$month • Due ${rowMoney(remaining)}")
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-            OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") })
+            LedgerDateField(date, { date = it }, label = "Entry date")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf("Cash","Bank","Easypaisa","JazzCash").forEach { choice ->
                     FilterChip(method == choice, { method = choice }, label = { Text(choice) })

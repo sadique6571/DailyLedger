@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -289,7 +291,6 @@ fun TransactionDialog(
     var note by remember { mutableStateOf(x?.note ?: initialNote) }
     var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
     var discardWarning by remember { mutableStateOf(false) }
-    val formContext = LocalContext.current
     val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
     val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
@@ -337,18 +338,8 @@ fun TransactionDialog(
                         contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Today") }
                     TextButton(onClick = { date = LocalDate.now().minusDays(1).toString() },
                         contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Yesterday") }
-                    Spacer(Modifier.weight(1f))
-                    IconButton(
-                        onClick = {
-                            val selected = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
-                            DatePickerDialog(formContext, { _, year, month, day ->
-                                date = LocalDate.of(year, month + 1, day).toString()
-                            }, selected.year, selected.monthValue - 1, selected.dayOfMonth).show()
-                        },
-                        modifier = Modifier.size(40.dp).testTag("transaction-calendar"),
-                    ) { Icon(Icons.Default.DateRange, contentDescription = "Choose date from calendar") }
                 }
-                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true, modifier = Modifier.fillMaxWidth(), supportingText = { Text("Use a valid YYYY-MM-DD date") })
+                LedgerDateField(date, { date = it }, label = if (type == "INCOME" && cat.equals("Salary", true)) "Salary date" else "Entry date", calendarTag = "transaction-calendar")
             }
         },
         confirmButton = {
