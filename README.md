@@ -1,3 +1,7 @@
+## Combined update — 2.0.0 build 32
+
+Build 31's complete Money tools and full searchable category list remain. Selected `DailyLedger-2.1.0.zip` changes add shared design tokens, gradient/tonal cards, screen components, photos/PDF payment proofs and a 15-minute edit-backup queue. The existing signing certificate, Firebase sign-in/online AI and Google Drive account restore remain unchanged. See [combined update details](docs/COMBINED_BUILD_32.md).
+
 # Daily Ledger
 
 ## Money tools and complete category list

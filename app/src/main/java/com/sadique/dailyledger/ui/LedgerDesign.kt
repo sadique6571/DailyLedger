@@ -62,24 +62,66 @@ fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, content
     val display = LocalDisplayPreferences.current!!
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
-    val shape = RoundedCornerShape(LedgerDesignTokens.CardCorner)
+    val shape = LedgerTokens.ShapeCard
     Surface(
         modifier, shape = shape,
-        color = scheme.surface, shadowElevation = 4.dp,
+        color = scheme.surface, shadowElevation = LedgerTokens.Elevation2,
         border = androidx.compose.foundation.BorderStroke(
-            1.dp, scheme.primary.copy(alpha = if (dark) .28f else .17f),
+            1.dp, scheme.primary.copy(alpha = if (dark) .24f else .14f),
         ),
     ) {
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
                     Brush.verticalGradient(listOf(
-                        scheme.primaryContainer.copy(alpha = if (dark) .15f else .17f),
+                        scheme.primaryContainer.copy(alpha = if (dark) .13f else .15f),
                         scheme.surface,
                     )),
                     shape = shape,
                 ).padding(display.cardPadding.dp),
             verticalArrangement = Arrangement.spacedBy(contentSpacing),
+            content = content,
+        )
+    }
+}
+
+/** Compact card for history rows and small record blocks. */
+@Composable
+fun LedgerHistoryCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = LedgerTokens.ShapeCard,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shadowElevation = LedgerTokens.Elevation1,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
+    ) {
+        Column(
+            Modifier.padding(LedgerDesignTokens.InnerPadding),
+            verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space4),
+            content = content,
+        )
+    }
+}
+
+/** Elevated card for full money records. */
+@Composable
+fun LedgerRecordCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = LedgerTokens.ShapeCard,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = LedgerTokens.Elevation1,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
+    ) {
+        Column(
+            Modifier.padding(LedgerTokens.Space16),
+            verticalArrangement = Arrangement.spacedBy(LedgerDesignTokens.RowGap),
             content = content,
         )
     }
@@ -124,11 +166,12 @@ fun GlowIcon(icon: ImageVector, color: Color, modifier: Modifier = Modifier, siz
 @Composable
 fun GradientButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
                    icon: ImageVector? = Icons.AutoMirrored.Rounded.ArrowForward) {
-    val gradient = if (enabled) listOf(Color(0xFF0589BC), Color(0xFF007DA1), Color(0xFF00BE8F))
+    val gradient = if (enabled) listOf(Color(0xFF0B8FB8), Color(0xFF007DA1), Color(0xFF00BE8F))
         else listOf(Color(0xFF809BAA), Color(0xFF809BAA))
+    val shape = LedgerTokens.ShapeSmall
     Button(onClick = onClick, enabled = enabled,
-        modifier = modifier.heightIn(min = 50.dp).background(Brush.linearGradient(gradient), RoundedCornerShape(17.dp)),
-        shape = RoundedCornerShape(17.dp), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        modifier = modifier.heightIn(min = 50.dp).background(Brush.linearGradient(gradient), shape),
+        shape = shape, contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Color.Transparent,
             contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = 0.8f))) {
         Text(text, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)

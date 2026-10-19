@@ -184,3 +184,16 @@ data class LedgerArchiveEntity(
     val closingBalanceMinor: Long,
     val archivedAt: Long,
 )
+
+/** Complete proof content stays inside the encrypted database and account backup. */
+@Entity(tableName = "payment_proofs", indices = [Index("ownerId"), Index("paymentId")])
+data class PaymentProofEntity(
+    @PrimaryKey val id: String,
+    val ownerId: String,
+    val paymentId: String,
+    val kind: String,
+    val mimeType: String,
+    val data: String,
+    val sizeBytes: Long,
+    val createdAt: Long,
+)

@@ -11,6 +11,7 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
 
 @Database(
     entities = [
+        PaymentProofEntity::class,
         AiLearningEntity::class,
         ProfileBackupEntity::class,
         TransactionEntity::class,
@@ -30,7 +31,7 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
         LedgerCycleEntity::class,
         LedgerArchiveEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +39,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
 
     companion object {
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS payment_proofs (id TEXT NOT NULL, ownerId TEXT NOT NULL, paymentId TEXT NOT NULL, kind TEXT NOT NULL, mimeType TEXT NOT NULL, data TEXT NOT NULL, sizeBytes INTEGER NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(id))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_proofs_ownerId ON payment_proofs(ownerId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_proofs_paymentId ON payment_proofs(paymentId)")
+            }
+        }
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE committees ADD COLUMN shares INTEGER NOT NULL DEFAULT 1")
@@ -200,7 +208,7 @@ abstract class AppDatabase : RoomDatabase() {
                 DatabaseEncryption.migrate(file, password)
                 Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "daily-ledger.db")
                     .openHelperFactory(EncryptedOpenHelperFactory(password))
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .build().also { it.backupContext = context.applicationContext; INSTANCE = it }
             }
         }

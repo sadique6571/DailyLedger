@@ -48,7 +48,7 @@ class OrganizerKametiTest {
             rejects { owner.organizer.deleteCircle(circle.id) }
 
             val json = owner.exportJson()
-            assertEquals(10, JSONObject(json).getInt("version"))
+            assertEquals(11, JSONObject(json).getInt("version"))
             another.importJson(json)
             assertEquals(2, another.organizer.members.first().size)
             assertEquals(2, another.organizer.payouts.first().size)

@@ -23,7 +23,7 @@ class ProfileBackupTest {
             source.updateProfile { settings }
             source.saveTransaction("EXPENSE", 10000, "Milk", "Keep", "2026-10-18")
             val json = source.exportJson()
-            assertEquals(10, JSONObject(json).getInt("version"))
+            assertEquals(11, JSONObject(json).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(json)
             assertEquals(settings, restored.profileSnapshot().copy(workspace=FinanceWorkspace()))
@@ -61,7 +61,7 @@ class ProfileBackupTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, 0).use {
             it.execSQL("DROP TABLE profile_backup"); it.version = 8
         }
-        val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10).build()
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11).build()
         try {
             val old = LedgerRepository(db, "old"); val current = LedgerRepository(db, "new")
             old.updateProfile { plan() }

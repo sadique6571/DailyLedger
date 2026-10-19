@@ -219,6 +219,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         require(item.ownerId == ownerId)
         dao.deleteLoanPayments(ownerId, item.id)
         dao.deleteLoan(item)
+        pruneProofs()
     }
 
     suspend fun addLoanPayment(loanId: String, amountMinor: Long, date: String, note: String, method: String = "Cash") = db.withTransaction {
@@ -251,6 +252,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         require(item.ownerId == ownerId)
         dao.deleteCreditPayments(ownerId, item.id)
         dao.deleteCreditPurchase(item)
+        pruneProofs()
     }
 
     suspend fun saveCreditDrafts(drafts: List<CreditDraft>, batchId: String) = db.withTransaction {
@@ -394,6 +396,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         dao.deleteCommitteeReceipts(ownerId, item.id)
         dao.deleteCommitteeMembers(ownerId, item.id)
         dao.deleteCommittee(item)
+        pruneProofs()
     }
 
     suspend fun saveSaving(kind: String, amountMinor: Long, date: String, note: String) {
@@ -450,6 +453,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             dao.migrateOrganizerMembers(oldOwner, ownerId)
             dao.migrateOrganizerCollections(oldOwner, ownerId)
             dao.migrateOrganizerPayouts(oldOwner, ownerId)
+            dao.migratePaymentProofs(oldOwner, ownerId)
             dao.migrateSavings(oldOwner, ownerId)
             dao.migrateLedgerCycle(oldOwner, ownerId)
             dao.migrateLedgerArchives(oldOwner, ownerId)
@@ -463,7 +467,11 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             YearMonth.now().atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
             0L,
         ).also { dao.insertLedgerCycle(it) }
-        val root = JSONObject().put("version", 10).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        val root = JSONObject().put("version", 11).put("ownerId", ownerId).put("exportedAt", System.currentTimeMillis())
+        root.put("paymentProofs", JSONArray().apply { validProofs().sortedBy { ownedId(it.id) }.forEach { x ->
+            put(JSONObject().put("id",ownedId(x.id)).put("paymentId",ownedId(x.paymentId)).put("kind",x.kind)
+                .put("mimeType",x.mimeType).put("data",x.data).put("sizeBytes",x.sizeBytes).put("createdAt",x.createdAt))
+        } })
         root.put("profileSettings", profileSnapshot().let { it.copy(workspace=it.workspace.remap(ownerId)) }.json())
         root.put("transactions", JSONArray().apply { dao.transactionsNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("type",x.type).put("amountMinor",x.amountMinor).put("category",x.category).put("note",x.note).put("date",x.date).put("createdAt",x.createdAt).put("updatedAt",x.updatedAt).put("account",x.account).put("quantity",x.quantity).put("unit",x.unit).put("unitPriceMinor",x.unitPriceMinor).put("refundOf",if(x.refundOf.isBlank()) "" else ownedId(x.refundOf)).put("privateEntry",x.privateEntry)) } })
         root.put("loans", JSONArray().apply { dao.loansNow(ownerId).sortedBy { ownedId(it.id) }.forEach { x -> put(JSONObject().put("id",ownedId(x.id)).put("direction",x.direction).put("person",x.person).put("principalMinor",x.principalMinor).putNullable("dueDate",x.dueDate).put("note",x.note).put("createdAt",x.createdAt).put("closed",x.closed).put("phone",x.phone).put("whatsapp",x.whatsapp)) } })
@@ -495,6 +503,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     }
 
     suspend fun clearAllForOwner() = db.withTransaction {
+        dao.clearPaymentProofs(ownerId)
         dao.upsertProfileBackup(ProfileBackupEntity(ownerId, ProfileBackupData().json().toString()))
         dao.upsertAiLearning(AiLearningEntity(ownerId, LearningSnapshot().json().toString()))
         dao.clearTransactions(ownerId)
@@ -525,11 +534,13 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     suspend fun importJson(json: String) = db.withTransaction {
         val root = JSONObject(json)
         val version = root.optInt("version")
-        require(version in 1..10) { "Unsupported backup version. Update the app to restore it." }
+        require(version in 1..11) { "Unsupported backup version. Update the app to restore it." }
         if(version<10) {
             val currentWorkspace=profileSnapshot().workspace
             require(currentWorkspace.items.none { it.kind in listOf(FinanceKind.ACCOUNT,FinanceKind.TRANSFER,FinanceKind.ADJUSTMENT,FinanceKind.REIMBURSEMENT,FinanceKind.CLAIM_RECEIPT,FinanceKind.GOAL_CONTRIBUTION) || it.transactionId.isNotBlank() } && dao.transactionsNow(ownerId).none { it.privateEntry || it.account!="Cash" || it.quantity.isNotBlank() || it.refundOf.isNotBlank() }) { "This older backup does not include your Money tools/private data. Use a current backup to protect it." }
         }
+        if(version<11) require(validProofs().isEmpty()) { "This backup does not include your payment proofs. Use a current backup to protect them." }
+        if(version>=11) require(root.optJSONArray("paymentProofs")!=null) { "Backup is missing payment proofs." }
         // Validate learning before any delete/write; Room commits both ledger and learning together.
         val restoredProfile = if (version >= 9) ProfileBackupData.decode(root.getJSONObject("profileSettings")).let { it.copy(workspace=it.workspace.remap(ownerId)) } else null
         val restoredLearning = if (version >= 8) {
@@ -740,6 +751,17 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             if (restoredLearning != null) dao.upsertAiLearning(AiLearningEntity(ownerId, restoredLearning.json().toString()))
         // Backups v1–v7 did not contain learning. Keep the current account's learning intact.
 
+        if(version>=11) {
+            val proofs=root.getJSONArray("paymentProofs").objects().map { o ->
+                PaymentProofEntity(ownedId(o.getString("id")),ownerId,ownedId(o.getString("paymentId")),o.getString("kind"),
+                    o.getString("mimeType"),o.getString("data"),o.getLong("sizeBytes"),o.getLong("createdAt"))
+            }
+            require(proofs.size<=200 && proofs.map{it.id}.distinct().size==proofs.size) { "Invalid proof list." }
+            require(proofs.sumOf{it.sizeBytes.coerceIn(0,MAX_PROOF_BYTES.toLong())}<=MAX_ALL_PROOF_BYTES) { "Proof backup is too large." }
+            proofs.forEach { validateProof(it) }
+            dao.clearPaymentProofs(ownerId)
+            dao.insertPaymentProofs(proofs)
+        }
         savedCommittees.forEach { committee ->
                 require(committee.sharesHalfUnits > 0 && members.filter { it.committeeId == committee.id && it.isMe }.sumOf { it.shareHalfUnits } <= committee.sharesHalfUnits) { "Too many personal kameti shares in backup." }
             }

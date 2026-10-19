@@ -443,45 +443,28 @@ fun DailyLedgerApp(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            LedgerBackdrop {
-                LedgerBrandHeader(
-                    subtitle = when (tab) {
-                        1 -> "All your transactions"; 2 -> "Borrowed & lent"; 3 -> "Your kameti, organized"
-                        4 -> "For a brighter tomorrow"; 5 -> "Understand your spending"; 6 -> "Everything in one place"; 7 -> "Udhar Saman"
-                        in BUDGETS..LEARNING -> NavigationHistory.label(tab)
-                        else -> "Your money, a brighter tomorrow"
-                    }, modifier = Modifier.statusBarsPadding(),
-                ) {
-                    if (navigation.entries.size > 2 || tab in BUDGETS..LEARNING) IconButton(onClick = ::goBack, modifier = Modifier.testTag(if (settingsReturn) "return-to-settings" else "navigate-up")) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to ${NavigationHistory.label(navigation.parent)}")
-                    }
-                    IconButton(onClick = { open(SEARCH) }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
-                    IconButton(onClick = { remindersOpen = true }) {
-                        Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
-                    }
-                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(3.dp))
-                        Text("AI Entry", fontSize = 11.sp)
-                    }
-                }
-            }
+            AppTopBar(
+                tab = tab,
+                subtitle = when (tab) {
+                    1 -> "All your transactions"; 2 -> "Borrowed & lent"; 3 -> "Your kameti, organized"
+                    4 -> "For a brighter tomorrow"; 5 -> "Understand your spending"; 6 -> "Everything in one place"; 7 -> "Udhar Saman"
+                    in BUDGETS..NavigationHistory.FINANCE_TOOLS -> NavigationHistory.label(tab)
+                    else -> "Your money, a brighter tomorrow"
+                },
+                showNavigateUp = navigation.entries.size > 2 || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS,
+                navigateUpLabel = "Back to ${NavigationHistory.label(navigation.parent)}",
+                navigateUpTestTag = if (settingsReturn) "return-to-settings" else "navigate-up",
+                onNavigateUp = ::goBack,
+                onSearch = { open(SEARCH) },
+                onReminders = { remindersOpen = true },
+                onAiEntry = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) },
+            )
         },
         bottomBar = {
-            Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
-            NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
-                tabs.forEachIndexed { i, t ->
-                    val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..LEARNING; else -> false }
-                    NavigationBarItem(selected = selected,
-                        onClick = { navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
-                        icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
-                        label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
-                            indicatorColor = Color.Transparent, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant))
-                }
-            }
-            }
+            AppBottomBar(
+                tab = tab,
+                onSelectTab = { i -> navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
+            )
         },
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
@@ -553,6 +536,7 @@ fun DailyLedgerApp(
                 2 -> LoansScreen(
                     loans = loans,
                     payments = lp,
+                    repo = vm.repo,
                     onAdd = { d, p, a, due, n, phone, wa -> vm.launch { saveLoan(d, p, a, due, n, phone, wa) } },
                     onPayment = { id, a, d, n, method -> vm.launch { addLoanPayment(id, a, d, n, method) } },
                     onDelete = { x -> vm.launch { deleteLoan(x) } },
@@ -562,6 +546,7 @@ fun DailyLedgerApp(
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
+                    repo = vm.repo,
                     organizerCircles = organizerCircles,
                     organizerMembers = organizerMembers,
                     organizerCollections = organizerCollections,
@@ -598,7 +583,7 @@ fun DailyLedgerApp(
                             busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) }, onDismissTip = ::dismissTip, dismissedTipKeys = dismissedTips)
                     }
                 }
-                7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,
+                7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
                 BUDGETS -> BudgetScreen(user.id, vm.planner, tx)

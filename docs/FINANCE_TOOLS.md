@@ -41,3 +41,5 @@ Open **More → Money tools**. Normal salary/expense forms also offer **Quantity
 - Offline voice language availability, actual home-screen launcher behaviour and biometric hardware need checking on a supported physical phone. Emulator checks cover fallback/validation/UI/data; they cannot prove recognition quality for every phone or receipt.
 
 Implementation uses the official [ML Kit text recognition guide](https://developers.google.com/ml-kit/vision/text-recognition/v2/android) and [Android SpeechRecognizer API](https://developer.android.com/reference/android/speech/SpeechRecognizer).
+
+Build 32 retains these workflows and adds complete payment-proof backup with schema/backup v11; see [combined build notes](COMBINED_BUILD_32.md).

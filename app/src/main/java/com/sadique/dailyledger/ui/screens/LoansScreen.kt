@@ -42,6 +42,7 @@ import java.nio.charset.StandardCharsets
 @Composable
 fun LoansScreen(
     loans: List<LoanEntity>, payments: List<LoanPaymentEntity>,
+    repo: LedgerRepository? = null,
     onAdd: (String, String, Long, String?, String, String, String) -> Unit,
     onPayment: (String, Long, String, String, String) -> Unit,
     onDelete: (LoanEntity) -> Unit,
@@ -80,7 +81,9 @@ fun LoansScreen(
                         val history = if (showHistory) allPayments else allPayments.take(3)
                         history.forEach { payment ->
                             com.sadique.dailyledger.ui.LedgerHistoryCard() {
-                                Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                                PaymentRowWithProofs(payment.id, "loan", repo) {
+                                    Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                         }
                     }
