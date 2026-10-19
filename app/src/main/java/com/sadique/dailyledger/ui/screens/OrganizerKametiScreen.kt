@@ -16,7 +16,6 @@ import java.time.YearMonth
 
 @Composable
 fun OrganizerKametiScreen(
-    repo: LedgerRepository? = null,
     circles: List<OrganizerCircleEntity>,
     members: List<OrganizerMemberEntity>,
     collections: List<OrganizerCollectionEntity>,
@@ -30,6 +29,7 @@ fun OrganizerKametiScreen(
     onPayout: (String, Long, String, String) -> Unit,
     onDeleteMember: (String) -> Unit,
     onDeleteCircle: (String) -> Unit,
+    repo: LedgerRepository? = null,
 ) {
     var addCircle by remember { mutableStateOf(false) }
     var memberFor by remember { mutableStateOf<OrganizerCircleEntity?>(null) }

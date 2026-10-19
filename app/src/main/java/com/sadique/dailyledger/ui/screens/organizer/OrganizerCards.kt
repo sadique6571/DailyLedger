@@ -22,7 +22,6 @@ import java.time.YearMonth
 
 @Composable
 internal fun OrganizerCircleCard(
-    repo: LedgerRepository? = null,
     circle: OrganizerCircleEntity,
     roster: List<OrganizerMemberEntity>,
     collections: List<OrganizerCollectionEntity>,
@@ -35,6 +34,7 @@ internal fun OrganizerCircleCard(
     onDeleteMember: (OrganizerMemberEntity) -> Unit,
     onPayMember: (OrganizerMemberEntity, Boolean) -> Unit,
     onShareReminder: (String, String) -> Unit,
+    repo: LedgerRepository? = null,
 ) {
     val context = LocalContext.current
     val expected = Math.multiplyExact(circle.fullMonthlyMinor, circle.totalSlots.toLong())
