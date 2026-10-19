@@ -77,7 +77,7 @@ fun CategoryDropdown(
         options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
-        onExpandedChange = { if (enabled) { expanded = it; if (it) editing = true } },
+        onExpandedChange = { if (enabled) { expanded = it } },
         modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
