@@ -89,7 +89,7 @@ data class FinanceWorkspace(val items: List<FinanceItem> = emptyList(), val revi
 }
 
 fun quantityAmount(quantity: String, rateMinor: Long): Long {
-    require(rateMinor > 0); val q=BigDecimal(quantity); require(q > BigDecimal.ZERO && q.scale() <= 6)
+    require(rateMinor in 1..1_000_000_000_000L && quantity.length in 1..30); val q=BigDecimal(quantity); require(q > BigDecimal.ZERO && q.scale() <= 6)
     return q.multiply(BigDecimal(rateMinor)).setScale(0,RoundingMode.HALF_UP).longValueExact().also { require(it in 1..1_000_000_000_000L) }
 }
 fun TransactionEntity.expenseEffect(): Long = if(type != "EXPENSE") 0 else if(refundOf.isNotBlank()) -amountMinor else amountMinor

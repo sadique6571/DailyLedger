@@ -99,8 +99,9 @@ class MainActivity : FragmentActivity() {
                     catch(_:Exception){value=true}
                 } else value=false
             }
-            DisposableEffect(displayPrefs.secureScreens,privatePresent) {
-                if (displayPrefs.secureScreens || privatePresent) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            val sensitiveEditors by com.sadique.dailyledger.security.SensitiveEditors.active.collectAsStateWithLifecycle()
+            DisposableEffect(displayPrefs.secureScreens,privatePresent,sensitiveEditors) {
+                if (displayPrefs.secureScreens || privatePresent || sensitiveEditors>0) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             }

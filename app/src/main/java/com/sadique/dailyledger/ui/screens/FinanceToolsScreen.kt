@@ -80,7 +80,11 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     fun moneyText(n:Long)=if(masked)"Rs •••••" else money(n)
     val life=androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(life) {
-        val observer=androidx.lifecycle.LifecycleEventObserver { _, event -> if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP) vault=false }
+        val observer=androidx.lifecycle.LifecycleEventObserver { _, event -> if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+            if(vault || editing?.privateEntry==true){showEntry=false;editing=null}
+            if(refund?.privateEntry==true)refund=null
+            vault=false
+        } }
         life.lifecycle.addObserver(observer);onDispose { life.lifecycle.removeObserver(observer) }
     }
     BackHandler(page!="Money tools") { page="Money tools";vault=false;selected=emptySet() }

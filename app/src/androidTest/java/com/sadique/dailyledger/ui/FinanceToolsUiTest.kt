@@ -2,7 +2,7 @@ package com.sadique.dailyledger.ui
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.screens.*
 import org.junit.Assert.*
@@ -10,7 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class FinanceToolsUiTest {
-    @get:Rule val compose=createComposeRule()
+    @get:Rule val compose=createAndroidComposeRule<androidx.activity.ComponentActivity>()
     @Test fun completeCategoryListCanScrollBeyondEightyAndSelectLastMatch(){
         var chosen=""
         val catalog=(1..240).map{LedgerCategory("Group ${(it-1)/40}","Item $it","EXPENSE",emptyList())}
@@ -44,6 +44,15 @@ class FinanceToolsUiTest {
         assertEquals("Money tools",NavigationHistory.label(NavigationHistory.FINANCE_TOOLS))
         val h=NavigationHistory().open(NavigationHistory.MORE).open(NavigationHistory.FINANCE_TOOLS)
         assertEquals(NavigationHistory.MORE,h.back().current)
+    }
+    @Test fun privateEditorClosesAndClearsTemporaryScreenProtectionWhenBackgrounded(){
+        var open by mutableStateOf(true)
+        compose.setContent{DailyLedgerTheme("DARK"){if(open)FinanceEntryEditor("o",listOf("Cash","Bank"),null,defaultPrivate=true,dismiss={open=false},onSave={}) else androidx.compose.material3.Text("Private editor closed")}}
+        compose.runOnIdle{assertTrue(com.sadique.dailyledger.security.SensitiveEditors.active.value>0)}
+        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        compose.onNodeWithText("Private editor closed").assertExists()
+        compose.runOnIdle{assertEquals(0,com.sadique.dailyledger.security.SensitiveEditors.active.value)}
     }
     private fun screenshot(name:String){compose.waitForIdle();val fd=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-$name.png");android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use{it.readBytes()}}
 }

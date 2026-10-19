@@ -153,7 +153,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         if(expectedUpdatedAt!=null) require(old!=null && old.updatedAt==expectedUpdatedAt) { "Entry changed. Reopen it before saving." }
         val profile=profileSnapshot();require(row.account in profile.workspace.accounts)
         if(row.quantity.isNotBlank()) require(row.unit.isNotBlank() && quantityAmount(row.quantity,row.unitPriceMinor)==row.amountMinor) { "Quantity × rate must equal the amount. Edit quantity/rate in Money tools." }
-        require(row.unit.length<=30)
+        require(row.unit.length<=30 && row.quantity.length<=30 && row.id.length in 1..250)
         if(row.refundOf.isNotBlank()) {
             val parent=requireNotNull(records.find { it.id==row.refundOf && it.type=="EXPENSE" && it.refundOf.isBlank() }) { "Refund purchase is missing." }
             require(row.type=="EXPENSE" && row.category==parent.category && (!parent.privateEntry || row.privateEntry))
@@ -578,7 +578,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         }
         restoredTransactions.forEach { row ->
             if(row.quantity.isNotBlank()) require(row.unit.isNotBlank() && quantityAmount(row.quantity,row.unitPriceMinor)==row.amountMinor)
-            require(row.unit.length<=30 && row.account in (restoredProfile?.workspace?.accounts ?: listOf("Cash","Bank","Easypaisa","JazzCash")))
+            require(row.unit.length<=30 && row.quantity.length<=30 && row.account in (restoredProfile?.workspace?.accounts ?: listOf("Cash","Bank","Easypaisa","JazzCash")))
             if(row.refundOf.isNotBlank()) {
                 val parent=requireNotNull(restoredTransactions.find { it.id==row.refundOf && it.type=="EXPENSE" && it.refundOf.isBlank() })
                 require(row.type=="EXPENSE" && row.category==parent.category && (!parent.privateEntry || row.privateEntry))

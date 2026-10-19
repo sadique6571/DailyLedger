@@ -84,6 +84,17 @@ internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()
     var date by remember{mutableStateOf(source?.date ?: LocalDate.now().toString())};var account by remember{mutableStateOf(source?.account ?: "Cash")}
     var quantity by remember{mutableStateOf(source?.quantity.orEmpty())};var unit by remember{mutableStateOf(source?.unit.orEmpty())}
     var rate by remember{mutableStateOf(source?.unitPriceMinor?.takeIf{it>0}?.let(::plainAmount).orEmpty())};var hidden by remember{mutableStateOf(source?.privateEntry ?: defaultPrivate)}
+    val ownerLifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(hidden) {
+        val protects=hidden
+        if(protects)com.sadique.dailyledger.security.SensitiveEditors.enter()
+        onDispose { if(protects)com.sadique.dailyledger.security.SensitiveEditors.leave() }
+    }
+    DisposableEffect(ownerLifecycle,hidden) {
+        val observer=androidx.lifecycle.LifecycleEventObserver{_,event->if(hidden && event==androidx.lifecycle.Lifecycle.Event.ON_STOP)dismiss()}
+        ownerLifecycle.lifecycle.addObserver(observer)
+        onDispose{ownerLifecycle.lifecycle.removeObserver(observer)}
+    }
     val total=if(quantity.isBlank())parseMinor(amount) else runCatching{quantityAmount(quantity,parseMinor(rate) ?: 0)}.getOrNull()
     FinanceFormDialog(if(initial==null)"New detailed entry" else "Edit entry details",dismiss,save={
         if(hidden)check(com.sadique.dailyledger.security.Biometrics.pick(context)!=null || context.getSystemService(android.app.KeyguardManager::class.java).isDeviceSecure){"Set a phone PIN or fingerprint before creating private entries."}
