@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -62,15 +61,16 @@ class CategoryTypingTest {
 
     @Test fun unfinishedCustomCategorySurvivesSavedStateRestoration() {
         val restoration = StateRestorationTester(compose)
-        var committed = ""
+        var committed = "Other"
         restoration.setContent { DailyLedgerTheme("LIGHT") {
-            var selected by rememberSaveable { mutableStateOf("") }
+            var selected by remember { mutableStateOf("Other") }
             CategoryDropdown("EXPENSE", selected, { selected = it; committed = it })
         } }
-        compose.onNodeWithTag("category-dropdown").performClick().performTextInput("Office lunch box")
+        compose.onNodeWithTag("category-dropdown").performClick().performTextReplacement("Office lunch box")
         pressBack()
         restoration.emulateSavedInstanceStateRestore()
         assertDraft("Office lunch box")
+        compose.runOnIdle { assertEquals("", committed) }
         compose.onNodeWithTag("category-dropdown").performClick()
         compose.onNodeWithText("Add custom: Office lunch box").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Office lunch box", committed) }

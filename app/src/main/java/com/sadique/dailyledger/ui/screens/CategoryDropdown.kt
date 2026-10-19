@@ -74,6 +74,12 @@ fun CategoryDropdown(
     // Only an explicit selection/clear or a change of transaction type replaces it.
     var query by rememberSaveable(type) { mutableStateOf("") }
     var editing by rememberSaveable(type) { mutableStateOf(false) }
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    LaunchedEffect(type, editing, value) {
+        // A parent form may recreate its initial selection after state restore.
+        // An unfinished search must not silently become that old selection.
+        if (editing && value.isNotBlank()) currentOnSelect("")
+    }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
     val filtered = remember(options, query) {
         val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
