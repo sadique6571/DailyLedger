@@ -18,7 +18,7 @@ class EntryFieldUiTest {
         } }
         compose.onNodeWithText("Entry date").performScrollTo().performTextReplacement("2026-10-01")
         compose.onNodeWithTag("transaction-calendar").performClick()
-        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("transaction-calendar-cancel").performClick()
         compose.onNodeWithText("Entry date").assertTextContains("2026-10-01")
         compose.onNodeWithTag("transaction-calendar").performClick()
         compose.onNodeWithText("Apply date").performClick()
@@ -48,7 +48,7 @@ class EntryFieldUiTest {
         } }
         compose.onNodeWithText("Use a valid YYYY-MM-DD date").assertDoesNotExist()
         compose.onNodeWithTag("date-calendar-Due date (optional)").performClick()
-        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("date-calendar-Due date (optional)-cancel").performClick()
         compose.runOnIdle { assertEquals("", value) }
         compose.onNodeWithTag("date-calendar-Due date (optional)").performClick()
         compose.onNodeWithText("Apply date").performClick()

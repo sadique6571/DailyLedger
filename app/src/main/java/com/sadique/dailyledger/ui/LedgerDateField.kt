@@ -48,7 +48,7 @@ fun LedgerDateField(
                 }
                 calendarOpen = false
             }) { Text("Apply date") } },
-            dismissButton = { TextButton(onClick = { calendarOpen = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(modifier = Modifier.testTag("$calendarTag-cancel"), onClick = { calendarOpen = false }) { Text("Cancel") } },
         ) {
             DatePicker(picker, title = { Text(label, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp),
                 color = MaterialTheme.colorScheme.primary) }, colors = DatePickerDefaults.colors(
