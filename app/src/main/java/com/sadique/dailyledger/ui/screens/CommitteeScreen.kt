@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 import com.sadique.dailyledger.ui.LedgerRaisedCard as Card
 
@@ -347,7 +349,7 @@ fun CommitteeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Turn #${member.turnNumber} • ${member.turnMonth}")
-                    OutlinedTextField(date, { date = it }, label = { Text("Received date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+                    LedgerDateField(date, { date = it }, label = "Received date")
                 }
             },
             confirmButton = { Button(enabled = isValidDate(date), onClick = { onMemberReceived(member, date); markMemberReceived = null }) { Text("Mark received") } },
@@ -486,7 +488,7 @@ private fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance,
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Remaining: ${visibleMoney(balance.remaining)}")
                 OutlinedTextField(amount, { amount = it }, label = { Text("Received amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, isError = !validAmount)
-                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
+                LedgerDateField(date, { date = it }, label = "Entry date")
                 Text("Payment method", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Cash", "Bank", "Easypaisa", "JazzCash", "Other").forEach { FilterChip(method == it, { method = it }, { Text(it) }) }
@@ -530,7 +532,7 @@ private fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Strin
                     Text("Total expected receiving: ${visibleMoney(expected!!)}", style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(start, { start = it }, label = { Text("Start month YYYY-MM") }, isError = !isValidMonth(start), singleLine = true)
-                OutlinedTextField(payout, { payout = it }, label = { Text("Legacy single turn (optional; use Add member / turn for multiple)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(payout, { payout = it }, label = { Text("Single payout turn (optional)") }, supportingText = { Text("For multiple turns, use Add member / turn.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 if (p != null && t != null && p in 1..t && isValidMonth(start)) Text("My month: ${YearMonth.parse(start).plusMonths((p - 1).toLong())}", style = MaterialTheme.typography.bodySmall)
                 ContactPickerButton { _, pickedPhone -> organizerPhone = pickedPhone }
                 OutlinedTextField(organizerPhone, { organizerPhone = it }, label = { Text("Organizer phone / WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)

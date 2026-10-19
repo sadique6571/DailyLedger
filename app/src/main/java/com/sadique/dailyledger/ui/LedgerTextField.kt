@@ -5,7 +5,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -32,7 +31,7 @@ fun LedgerTextField(
 ) {
     val palette = MaterialTheme.colorScheme
     OutlinedTextField(
-        value = value, onValueChange = onValueChange, modifier = modifier.shadow(4.dp, RoundedCornerShape(LedgerDesignTokens.CardCorner), clip = false),
+        value = value, onValueChange = onValueChange, modifier = modifier,
         enabled = enabled, readOnly = readOnly, label = label, placeholder = placeholder,
         leadingIcon = leadingIcon, trailingIcon = trailingIcon, supportingText = supportingText,
         isError = isError, visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
@@ -44,7 +43,17 @@ fun LedgerTextField(
             disabledContainerColor = palette.surfaceContainerLow,
             errorContainerColor = lerp(palette.surface, palette.errorContainer, .5f),
             focusedBorderColor = palette.primary,
-            unfocusedBorderColor = palette.outline,
+            unfocusedBorderColor = palette.primary.copy(alpha = .55f),
+            focusedLabelColor = palette.primary,
+            unfocusedLabelColor = palette.primary,
+            focusedLeadingIconColor = palette.primary,
+            unfocusedLeadingIconColor = palette.primary,
+            focusedTrailingIconColor = palette.primary,
+            unfocusedTrailingIconColor = palette.primary,
+            focusedPlaceholderColor = palette.onSurfaceVariant,
+            unfocusedPlaceholderColor = palette.onSurfaceVariant,
+            focusedSupportingTextColor = palette.onSurfaceVariant,
+            unfocusedSupportingTextColor = palette.onSurfaceVariant,
             focusedTextColor = palette.onSurface,
             unfocusedTextColor = palette.onSurface,
             errorTextColor = palette.onSurface,

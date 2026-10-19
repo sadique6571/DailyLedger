@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -180,7 +182,7 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
             Text(bill.type)
             CategoryDropdown(bill.type, category, { category = it }, enabled = !busy)
             OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount (Rs)") })
-            OutlinedTextField(date, { date = it }, enabled = !busy, label = { Text("Date YYYY-MM-DD") })
+            LedgerDateField(date, { date = it }, label = "Entry date", enabled = !busy)
             OutlinedTextField(note, { note = it.take(500) }, enabled = !busy, label = { Text("Note") })
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }

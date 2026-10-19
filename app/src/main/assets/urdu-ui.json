@@ -1101,5 +1101,16 @@
   "Select next expected salary date": "اگلی تنخواہ کی متوقع تاریخ منتخب کریں",
   "Choose dates here; the Home screen keeps your countdown.": "تاریخیں یہاں منتخب کریں؛ ہوم اسکرین پر باقی دن نظر آئیں گے۔",
   "Select the salary date for this month. The same date next month is suggested automatically. Change the next expected date anytime for a 20-day or 40-day gap.": "اس مہینے کی تنخواہ کی تاریخ منتخب کریں۔ اگلے مہینے کی یہی تاریخ خود تجویز ہو گی۔ ۲۰ یا ۴۰ دن کے وقفے کے لیے اگلی متوقع تاریخ جب چاہیں بدل سکتے ہیں۔",
-  "Dates are estimates only. Record received salary separately. Shorter months use their last available day.": "یہ تاریخیں صرف اندازے کے لیے ہیں۔ موصولہ تنخواہ الگ درج کریں۔ چھوٹے مہینے میں آخری دستیاب دن استعمال ہو گا۔"
+  "Dates are estimates only. Record received salary separately. Shorter months use their last available day.": "یہ تاریخیں صرف اندازے کے لیے ہیں۔ موصولہ تنخواہ الگ درج کریں۔ چھوٹے مہینے میں آخری دستیاب دن استعمال ہو گا۔",
+  "Entry date": "اندراج کی تاریخ",
+  "Purchase date": "خریداری کی تاریخ",
+  "Due date (optional)": "ادائیگی کی تاریخ (اختیاری)",
+  "Received date": "وصولی کی تاریخ",
+  "Optional • YYYY-MM-DD": "اختیاری • YYYY-MM-DD",
+  "Apply date": "تاریخ منتخب کریں",
+  "Single payout turn (optional)": "وصولی کی ایک باری (اختیاری)",
+  "For multiple turns, use Add member / turn.": "ایک سے زیادہ باریوں کے لیے رکن یا باری شامل کرنے کا اختیار استعمال کریں۔",
+  "Full-share turns": "مکمل حصے کی باریاں",
+  "For example, 20 turns.": "مثلاً ۲۰ باریاں۔",
+  "Leave blank to use phone number": "فون نمبر استعمال کرنے کے لیے خالی چھوڑ دیں۔"
 }

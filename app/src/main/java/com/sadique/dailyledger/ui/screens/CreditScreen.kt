@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerDateField
+
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -278,11 +280,8 @@ private fun CreditEntryDialog(
                 OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true)
-                OutlinedTextField(date, { date = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Purchase date YYYY-MM-DD") }, isError = !isValidDate(date), singleLine = true)
-                OutlinedTextField(due, { due = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Due date (optional) YYYY-MM-DD") },
-                    isError = due.isNotBlank() && !isValidDate(due), singleLine = true)
+                LedgerDateField(date, { date = it }, label = "Purchase date")
+                LedgerDateField(due, { due = it }, label = "Due date (optional)", optional = true)
                 OutlinedTextField(note, { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
                 Text("Contact (optional)", style = MaterialTheme.typography.labelLarge)
                 OutlinedTextField(phone, { phone = it }, modifier = Modifier.fillMaxWidth(),
@@ -415,7 +414,7 @@ private fun CreditPaymentDialog(
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
                 Text("Payment aapke current salary-cycle balance se minus hogi.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedTextField(date, { date = it }, label = { Text("Date YYYY-MM-DD") }, isError = !isValidDate(date))
+                LedgerDateField(date, { date = it }, label = "Entry date")
                 Text("Payment method", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Cash", "Bank", "Easypaisa", "JazzCash").forEach { option ->

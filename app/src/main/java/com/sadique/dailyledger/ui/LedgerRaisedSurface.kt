@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 fun LedgerSurface(
     modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(20.dp),
     color: Color = MaterialTheme.colorScheme.surface, contentColor: Color = contentColorFor(color),
-    tonalElevation: Dp = 0.dp, shadowElevation: Dp = 4.dp, border: BorderStroke? = null,
+    tonalElevation: Dp = 0.dp, shadowElevation: Dp = 2.dp, border: BorderStroke? = null,
     content: @Composable () -> Unit,
 ) {
     val circular = shape == CircleShape
@@ -30,7 +30,7 @@ fun LedgerSurface(
         modifier = modifier,
         shape = if (circular) CircleShape else RoundedCornerShape(LedgerDesignTokens.CardCorner),
         color = color.compositeOver(MaterialTheme.colorScheme.surface), contentColor = contentColor, tonalElevation = 0.dp,
-        shadowElevation = if (circular) 0.dp else 4.dp,
+        shadowElevation = if (circular) 0.dp else 2.dp,
         border = if (circular) border else BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = if (ledgerIsDark()) .14f else .85f), edge, edge))), content = content,
     )
 }
