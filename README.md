@@ -1,3 +1,7 @@
+## Category typing fix — 2.0.0 build 34
+
+Unfinished category searches stay visible when the suggestions close, focus moves, the keyboard/back button is used, or the field's saved state is restored. Select a result or explicitly add a custom category before saving; manual entries no longer silently replace an unfinished search with Other. The shared fix covers manual/edit forms and AI review. See [build 34](docs/BUILD_34.md).
+
 ## Smaller update — 2.0.0 build 33
 
 Release code/resources are optimized with R8. All existing CPU architectures remain supported. Receipt attachment actions are removed; old stored proof data stays compatible with schema/backup v11. Receipt OCR for reviewed AI entries remains. Category editing clears the old selection instead of restoring “Other”; only chosen categories are learned. New everyday food categories and Roman Urdu/Urdu aliases work with offline and cloud AI. See [build 33](docs/BUILD_33.md).

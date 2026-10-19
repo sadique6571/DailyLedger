@@ -15,8 +15,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
@@ -69,8 +69,11 @@ fun CategoryDropdown(
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
 
-    var query by remember(type) { mutableStateOf("") }
-    var editing by remember { mutableStateOf(false) }
+    // Dismissing the suggestions is not cancelling an edit. Keep the search draft
+    // through focus changes, keyboard/back dismissal and lazy-list recreation.
+    // Only an explicit selection/clear or a change of transaction type replaces it.
+    var query by rememberSaveable(type) { mutableStateOf("") }
+    var editing by rememberSaveable(type) { mutableStateOf(false) }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
     val filtered = remember(options, query) {
         val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -97,11 +100,10 @@ fun CategoryDropdown(
                 }
             },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, enabled)
-                .onFocusChanged { if (!it.isFocused && !expanded) editing = false }
                 .testTag("category-dropdown"),
         )
         if(expanded && enabled) {
-          BackHandler { expanded=false;editing=false }
+          BackHandler { expanded = false }
           val position=remember(view,margin) { object:PopupPositionProvider {
               override fun calculatePosition(anchorBounds:IntRect,windowSize:IntSize,layoutDirection:LayoutDirection,popupContentSize:IntSize):IntOffset {
                   val frame=android.graphics.Rect();view.getWindowVisibleDisplayFrame(frame)
@@ -116,7 +118,7 @@ fun CategoryDropdown(
                   return IntOffset(x.coerceIn(0,(windowSize.width-popupContentSize.width).coerceAtLeast(0)),y)
               }
           } }
-          Popup(popupPositionProvider=position,onDismissRequest={expanded=false;editing=false},properties=PopupProperties(focusable=false)) {
+          Popup(popupPositionProvider=position,onDismissRequest={expanded=false},properties=PopupProperties(focusable=false)) {
            androidx.compose.material3.Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,shadowElevation=3.dp) {
             // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
             val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()

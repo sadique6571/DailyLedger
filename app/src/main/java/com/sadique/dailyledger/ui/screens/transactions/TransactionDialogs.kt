@@ -100,9 +100,9 @@ fun TransactionDialog(
         },
         confirmButton = {
             Button(
-                enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0,
+                enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
                 onClick = {
-                    parseMinor(amount)?.takeIf { it > 0 }?.let { save(type, it, cat.ifBlank { if (type == "INCOME") "Other income" else "Other" }, note, date.trim()) }
+                    parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { save(type, it, cat, note, date.trim()) }
                 },
             ) { Text("Save") }
         },
