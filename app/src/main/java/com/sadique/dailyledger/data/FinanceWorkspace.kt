@@ -104,8 +104,8 @@ object FinanceMath {
         val elapsed=(ChronoUnit.DAYS.between(start,today)+1).coerceAtLeast(1)
         val spent=transactions.filter { runCatching { LocalDate.parse(it.date) in start..today }.getOrDefault(false) }.sumOf { it.expenseEffect() }.coerceAtLeast(0)
         val average=spent / elapsed;val days=ChronoUnit.DAYS.between(today,salary).coerceAtLeast(1)
-        val needed=Math.multiplyExact(average,days)
-        return SurvivalForecast(average,days,needed,(needed-remaining).coerceAtLeast(0),if(average>0) remaining.coerceAtLeast(0)/average else null)
+        val needed=java.math.BigInteger.valueOf(average).multiply(java.math.BigInteger.valueOf(days)).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).toLong()
+        return SurvivalForecast(average,days,needed,java.math.BigInteger.valueOf(needed).subtract(java.math.BigInteger.valueOf(remaining)).max(java.math.BigInteger.ZERO).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).toLong(),if(average>0) remaining.coerceAtLeast(0)/average else null)
     }
     fun accountBalance(account:String, workspace:FinanceWorkspace, tx:List<TransactionEntity>):Long {
         var balance=workspace.items.filter { it.kind==FinanceKind.ACCOUNT && it.title==account }.sumOf { it.amount }
@@ -114,8 +114,23 @@ object FinanceMath {
         workspace.items.filter { it.kind==FinanceKind.TRANSFER }.forEach { if(it.account==account) balance=Math.subtractExact(balance,it.amount);if(it.reference==account)balance=Math.addExact(balance,it.amount) }
         return balance
     }
+    fun trackedAccountBalance(account:String,w:FinanceWorkspace,tx:List<TransactionEntity>,loans:List<LoanEntity>,loanPayments:List<LoanPaymentEntity>,savings:List<SavingEntity>,payments:List<CommitteePaymentEntity>,receipts:List<CommitteeReceiptEntity>,creditPayments:List<CreditPaymentEntity>):Long {
+        require(account in w.accounts)
+        var amount=accountBalance(account,w,tx)
+        fun method(m:String)=if(m in w.accounts)m else "Cash"
+        if(account=="Cash") {
+            amount-=savings.sumOf{it.amountMinor}
+            amount+=w.items.filter{it.kind==FinanceKind.GOAL_CONTRIBUTION && it.account!="Cash"}.sumOf{it.amount}
+            loans.forEach{amount+=if(it.direction=="BORROWED")it.principalMinor else -it.principalMinor}
+        } else amount-=w.items.filter{it.kind==FinanceKind.GOAL_CONTRIBUTION && it.account==account}.sumOf{it.amount}
+        loanPayments.filter{method(it.method)==account}.forEach{p->amount+=if(loans.find{it.id==p.loanId}?.direction=="LENT")p.amountMinor else -p.amountMinor}
+        amount-=payments.filter{method(it.method)==account && it.chargesSalaryBalance()}.sumOf{it.amountMinor}
+        amount+=receipts.filter{method(it.method)==account}.sumOf{it.amountMinor}
+        amount-=creditPayments.filter{method(it.method)==account}.sumOf{it.amountMinor}
+        return amount
+    }
     fun goalPerSalary(target:Long, already:Long, deadline:LocalDate, salary:LocalDate):Long {
-        require(target>0 && already>=0 && deadline>=LocalDate.now() && deadline>=salary)
+        require(target>0 && already>=0 && salary>=LocalDate.now() && deadline>=LocalDate.now() && deadline>=salary)
         val count=(ChronoUnit.MONTHS.between(salary.withDayOfMonth(1),deadline.withDayOfMonth(1))+1).coerceAtLeast(1)
         val left=(target-already).coerceAtLeast(0);return (left+count-1)/count
     }
@@ -126,8 +141,9 @@ fun priceComparisons(tx:List<TransactionEntity>):List<RateComparison> = tx.filte
     .groupBy { (it.note.ifBlank { it.category }.trim().lowercase() to it.unit.trim().lowercase()) }.values.mapNotNull { records ->
         val latest=records.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.createdAt });if(latest.size<2)return@mapNotNull null
         val now=latest[0];val old=latest[1];val oq=BigDecimal(old.quantity);val nq=BigDecimal(now.quantity)
-        val qEffect=nq.subtract(oq).multiply(BigDecimal(old.unitPriceMinor)).setScale(0,RoundingMode.HALF_UP).longValueExact()
-        RateComparison(now.note.ifBlank { now.category },old.unitPriceMinor,now.unitPriceMinor,qEffect,now.amountMinor-old.amountMinor-qEffect,now.amountMinor-old.amountMinor)
+        val qEffect=runCatching{nq.subtract(oq).multiply(BigDecimal(old.unitPriceMinor)).setScale(0,RoundingMode.HALF_UP).longValueExact()}.getOrNull() ?: return@mapNotNull null
+        val rateEffect=runCatching{Math.subtractExact(now.amountMinor-old.amountMinor,qEffect)}.getOrNull() ?: return@mapNotNull null
+        RateComparison(now.note.ifBlank { now.category },old.unitPriceMinor,now.unitPriceMinor,qEffect,rateEffect,now.amountMinor-old.amountMinor)
     }
 
 /** Same elapsed calendar days; uses weighted purchase rates and separates quantity from rate changes exactly in paisa. */
@@ -140,8 +156,9 @@ fun monthlyRateComparisons(tx:List<TransactionEntity>,today:LocalDate):List<Rate
             val oq=old.fold(BigDecimal.ZERO){sum,r->sum+BigDecimal(r.quantity)};val nq=now.fold(BigDecimal.ZERO){sum,r->sum+BigDecimal(r.quantity)}
             val ot=old.sumOf{it.amountMinor};val nt=now.sumOf{it.amountMinor}
             val oldRate=BigDecimal(ot).divide(oq,12,RoundingMode.HALF_UP);val newRate=BigDecimal(nt).divide(nq,12,RoundingMode.HALF_UP)
-            val quantityEffect=(nq-oq).multiply(oldRate).setScale(0,RoundingMode.HALF_UP).longValueExact()
-            RateComparison(now.first().note.ifBlank{now.first().category},oldRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),newRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),quantityEffect,nt-ot-quantityEffect,nt-ot)
+            val quantityEffect=runCatching{(nq-oq).multiply(oldRate).setScale(0,RoundingMode.HALF_UP).longValueExact()}.getOrNull() ?: return@mapNotNull null
+            val rateEffect=runCatching{Math.subtractExact(nt-ot,quantityEffect)}.getOrNull() ?: return@mapNotNull null
+            RateComparison(now.first().note.ifBlank{now.first().category},oldRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),newRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),quantityEffect,rateEffect,nt-ot)
         }
 }
 

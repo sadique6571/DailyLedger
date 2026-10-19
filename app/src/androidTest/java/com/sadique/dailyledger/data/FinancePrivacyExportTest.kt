@@ -22,4 +22,14 @@ class FinancePrivacyExportTest {
         assertTrue(row.id in privateRevisionIds(emptyList(),listOf(created,changed)))
     }
 
+    @Test fun olderPrivatePhrasesNeverReappearInPublicLearningAfterRename(){
+        val old=TransactionEntity("p","o","EXPENSE",10000,"Restaurant","Secret coffee","2026-10-19",1,1)
+        val hidden=old.copy(note="Changed note",privateEntry=true)
+        val public=old.copy(id="public",note="Public lunch")
+        val revision=EntryRevision(java.util.UUID.randomUUID().toString(),old.id,2,"EDIT",transactionSnapshot(old),transactionSnapshot(hidden))
+        val rules=listOf(com.sadique.dailyledger.ai.LearnedCategoryRule("EXPENSE","Secret coffee","Restaurant"),com.sadique.dailyledger.ai.LearnedCategoryRule("EXPENSE","Public lunch","Restaurant"))
+        val visible=com.sadique.dailyledger.ai.publicLearningRules(rules,listOf(hidden,public),listOf(revision))
+        assertEquals(listOf(rules.last()),visible)
+    }
+
 }

@@ -40,4 +40,11 @@ class FinanceMathTest {
         val first=LocalDate.now().plusMonths(1).withDayOfMonth(5)
         assertEquals(3334L,FinanceMath.goalPerSalary(10000,0,first.plusMonths(2),first))
     }
+    @Test fun extremeValidAmountsDoNotCrashForecastOrRateReports(){
+        val f=FinanceMath.forecast(0,(1..10).map{tx("p$it",1_000_000_000_000)},LocalDate.parse("2026-10-01"),LocalDate.parse("9999-10-01"),LocalDate.parse("2026-10-01"))
+        assertEquals(Long.MAX_VALUE,f.needed)
+        val rows=listOf(tx("old",1_000_000_000_000,q="1",rate=1_000_000_000_000),tx("new",1_000_000_000_000,"2026-10-02",q="1000000000000",rate=1))
+        assertTrue(priceComparisons(rows).isEmpty())
+    }
+
 }

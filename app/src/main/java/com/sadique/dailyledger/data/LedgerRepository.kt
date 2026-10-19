@@ -143,13 +143,31 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             require(existing.size == rows.size && rows.all { r -> existing.any { it.id == r.id && it.type == r.type && it.amountMinor == r.amountMinor && it.category == r.category && it.note == r.note && it.date == r.date } }) {
                 "This draft was already saved. Start a new Auto Fill entry."
             }
-        } else rows.forEach { saveTransactionRow(it) }
+        } else saveNewBatchRows(rows)
     }
 
+    /** New standalone rows are validated once and append history once, rather than rewriting the profile per item. */
+    internal suspend fun saveNewBatchRows(rows:List<TransactionEntity>) = db.withTransaction {
+        require(rows.size in 1..100 && rows.map{it.id}.distinct().size==rows.size)
+        val profile=profileSnapshot();val existing=dao.transactionsNow(ownerId).map{it.id}.toSet()
+        rows.forEach { row ->
+            require(row.ownerId==ownerId && row.id.startsWith("$ownerId:") && row.id.length<=250 && row.id !in existing)
+            require(row.type in listOf("INCOME","EXPENSE") && row.amountMinor in 1..1_000_000_000_000L)
+            require(!row.privateEntry && row.refundOf.isBlank() && row.account in profile.workspace.accounts)
+            require(row.category.isNotBlank() && row.category.length<=60 && row.note.length<=1500 && row.quantity.length<=30 && row.unit.length<=30)
+            LocalDate.parse(row.date)
+            if(row.quantity.isNotBlank())require(row.unit.isNotBlank() && quantityAmount(row.quantity,row.unitPriceMinor)==row.amountMinor)
+        }
+        val revisions=rows.map{row->EntryRevision(UUID.randomUUID().toString(),row.id,System.currentTimeMillis(),"CREATE","",transactionSnapshot(row))}
+        val next=profile.copy(workspace=profile.workspace.copy(revisions=profile.workspace.revisions+revisions)).validated()
+        dao.insertTransactions(rows)
+        dao.upsertProfileBackup(ProfileBackupEntity(ownerId,next.json().toString()))
+    }
     internal suspend fun saveTransactionRow(row: TransactionEntity, expectedUpdatedAt:Long?=null) = db.withTransaction {
         require(row.ownerId==ownerId && row.amountMinor in 1..1_000_000_000_000L && row.type in listOf("INCOME","EXPENSE"))
         require(row.category.isNotBlank() && row.category.length<=60 && row.note.length<=1500)
         LocalDate.parse(row.date);val records=dao.transactionsNow(ownerId);val old=records.find { it.id==row.id }
+        if(old==null)require(row.id.startsWith("$ownerId:")) { "New entry ID does not belong to this account." }
         if(expectedUpdatedAt!=null) require(old!=null && old.updatedAt==expectedUpdatedAt) { "Entry changed. Reopen it before saving." }
         val profile=profileSnapshot();require(row.account in profile.workspace.accounts)
         if(row.quantity.isNotBlank()) require(row.unit.isNotBlank() && quantityAmount(row.quantity,row.unitPriceMinor)==row.amountMinor) { "Quantity × rate must equal the amount. Edit quantity/rate in Money tools." }

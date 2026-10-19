@@ -17,6 +17,11 @@ class FinanceRepository(private val repo: LedgerRepository) {
         require(old==null || old.transactionId.isBlank()) { "A paid record cannot be rewritten. Correct its ledger entry first." }
         repo.updateProfile { it.copy(workspace=it.workspace.put(item)) }
     }
+    suspend fun reconcile(title:String,actual:Long,date:String,account:String,reason:String) = db.withTransaction {
+        require(reason.isNotBlank());val w=repo.profileSnapshot().workspace
+        val tracked=FinanceMath.trackedAccountBalance(account,w,dao.transactionsNow(owner),dao.loansNow(owner),dao.loanPaymentsNow(owner),dao.savingsNow(owner),dao.committeePaymentsNow(owner),dao.committeeReceiptsNow(owner),dao.creditPaymentsNow(owner))
+        saveItem(FinanceItem(kind=FinanceKind.ADJUSTMENT,title=title,amount=Math.subtractExact(actual,tracked),date=date,account=account,note=reason.take(1400)+" • Actual PKR ${com.sadique.dailyledger.ui.plainAmount(actual)}"))
+    }
     suspend fun deleteItem(id:String) = db.withTransaction {
         val w=repo.profileSnapshot().workspace; val item=requireNotNull(w.items.find { it.id==id })
         require(item.kind !in listOf(FinanceKind.INSTALLMENT,FinanceKind.INSTALLMENT_PURCHASE)) { "Use the installment purchase controls to cancel its plan." }
@@ -40,13 +45,13 @@ class FinanceRepository(private val repo: LedgerRepository) {
         val selected=w.items.filter { it.id in ids }
         require(ids.isNotEmpty() && ids.size<=100 && selected.size==ids.size)
         require(selected.all { it.kind in listOf(FinanceKind.SHOPPING,FinanceKind.PLANNED,FinanceKind.INSTALLMENT) && !it.done && it.transactionId.isBlank() }) { "An item was already paid or changed. Refresh before paying." }
-        var next=w
-        selected.forEach { item ->
-            val txId=saveEntry("EXPENSE",item.amount,item.category,item.title,date,item.account,item.quantity,item.unit,item.rate)
-            next=next.put(item.copy(done=true,transactionId=txId,settled=item.amount))
-        }
+        val now=System.currentTimeMillis()
+        val rows=selected.map { item -> TransactionEntity("$owner:${UUID.randomUUID()}",owner,"EXPENSE",item.amount,item.category,item.title,date,now,now,item.account,item.quantity,item.unit,item.rate) }
+        repo.saveNewBatchRows(rows)
+        val paid=selected.zip(rows).associate { (item,row)->item.id to item.copy(done=true,transactionId=row.id,settled=item.amount) }
+        val nextItems=w.items.map{paid[it.id] ?: it}
         val actual=dao.transactionsNow(owner)
-        repo.updateProfile { it.copy(workspace=it.workspace.copy(items=next.items).reconcileInstallments(actual)) }
+        repo.updateProfile { it.copy(workspace=it.workspace.copy(items=nextItems).reconcileInstallments(actual)) }
     }
     suspend fun splitBill(rows:List<TransactionDraft>, total:Long, account:String, batch:String) = db.withTransaction {
         require(rows.size in 2..50 && rows.all { it.type=="EXPENSE" })
@@ -54,10 +59,10 @@ class FinanceRepository(private val repo: LedgerRepository) {
         UUID.fromString(batch)
         val existing=dao.transactionsNow(owner)
         require(existing.none { it.id.startsWith("$owner:split-$batch-") }) { "This bill is already saved." }
-        rows.forEachIndexed { i,d ->
-            d.validated();val now=System.currentTimeMillis()
-            repo.saveTransactionRow(TransactionEntity("$owner:split-$batch-$i",owner,d.type,d.amountMinor,d.category,d.note,d.date,now,now,account))
-        }
+        val now=System.currentTimeMillis()
+        repo.saveNewBatchRows(rows.mapIndexed { i,d ->
+            d.validated();TransactionEntity("$owner:split-$batch-$i",owner,d.type,d.amountMinor,d.category,d.note,d.date,now,now,account)
+        })
     }
     suspend fun createReimbursement(title:String, amount:Long, category:String, date:String, account:String) = db.withTransaction {
         val id=saveEntry("EXPENSE",amount,category,title,date,account)
@@ -75,11 +80,12 @@ class FinanceRepository(private val repo: LedgerRepository) {
         val remaining=total-advance;require(remaining>=count)
         val group=UUID.randomUUID().toString()
         val advanceId=if(advance>0)saveEntry("EXPENSE",advance,category,"$title • Advance",LocalDate.now().toString(),account) else ""
-        saveItem(FinanceItem(id=group,kind=FinanceKind.INSTALLMENT_PURCHASE,title=title,amount=total,date=first.toString(),category=category,account=account,opening=advance,settled=advance,transactionId=advanceId))
-        repeat(count) { n ->
+        val purchase=FinanceItem(id=group,kind=FinanceKind.INSTALLMENT_PURCHASE,title=title,amount=total,date=first.toString(),category=category,account=account,opening=advance,settled=advance,transactionId=advanceId)
+        val parts=(0 until count).map { n ->
             val amount=remaining/count + if(n.toLong()<remaining%count) 1 else 0
-            saveItem(FinanceItem(kind=FinanceKind.INSTALLMENT,title="$title • ${n+1}/$count",amount=amount,date=first.plusMonths(n.toLong()).toString(),category=category,account=account,reference=group))
+            FinanceItem(kind=FinanceKind.INSTALLMENT,title="$title • ${n+1}/$count",amount=amount,date=first.plusMonths(n.toLong()).toString(),category=category,account=account,reference=group)
         }
+        repo.updateProfile { it.copy(workspace=it.workspace.copy(items=it.workspace.items+purchase+parts).validated()) }
     }
     suspend fun payAdvance(id:String,date:String,account:String) = db.withTransaction {
         val item=requireNotNull(repo.profileSnapshot().workspace.items.find{it.id==id && it.kind==FinanceKind.INSTALLMENT_PURCHASE})
@@ -111,7 +117,7 @@ class FinanceRepository(private val repo: LedgerRepository) {
         val saved=existing.filter { it.id.startsWith("$owner:review-$batch-") }
         if(saved.isNotEmpty()) {
             require(saved.size==expected.size && expected.all { r -> saved.any { it.id==r.id && it.type==r.type && it.amountMinor==r.amountMinor && it.category==r.category && it.note==r.note && it.date==r.date && it.account==r.account } }) { "This review was already saved with different details. Start a new review." }
-        } else expected.forEach { repo.saveTransactionRow(it) }
+        } else repo.saveNewBatchRows(expected)
     }
     suspend fun check(key:String, checked:Boolean) { require(key.length in 1..200);repo.updateProfile { it.copy(workspace=it.workspace.copy(checked=if(checked) it.workspace.checked+key else it.workspace.checked-key)) } }
 }

@@ -58,6 +58,7 @@ fun CategoryDropdown(
     val categories = options.indexed.map { it.first }
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
+    var menuHeight by remember(expanded) { mutableIntStateOf(0) }
     var query by remember(type, value) { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
@@ -81,14 +82,15 @@ fun CategoryDropdown(
         )
         ExposedDropdownMenu(expanded = expanded && enabled,
             onDismissRequest = { expanded = false; editing = false },
-            modifier = Modifier.heightIn(max = 320.dp)) {
+            modifier = Modifier.heightIn(max = 320.dp).onSizeChanged { menuHeight=it.height }) {
             // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
             val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()
             val recentLabels = recent.map { it.label }.toSet()
             val sections = linkedMapOf<String, List<LedgerCategory>>()
             if (recent.isNotEmpty()) sections["Frequently used"] = recent
             sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
-            LazyColumn(Modifier.width(with(density){menuWidth.toDp()}).height(300.dp).testTag("category-results")) {
+            val viewport=if(menuHeight==0)300.dp else minOf(300.dp,(with(density){menuHeight.toDp()}-16.dp).coerceAtLeast(1.dp))
+            LazyColumn(Modifier.width(with(density){menuWidth.toDp()}).height(viewport).testTag("category-results")) {
                 sections.forEach { (group, rows) ->
                     item(key = "heading-$group") {
                         Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),

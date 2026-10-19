@@ -59,21 +59,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     val scope=rememberCoroutineScope()
     suspend fun save(action:suspend LedgerRepository.()->Unit) { vm.saveChange(action);success="Saved";error=null }
     fun run(action:suspend LedgerRepository.()->Unit) { if(!busy)scope.launch { busy=true;error=null;try{save(action)}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message}finally{busy=false} } }
-    fun accountBalance(account:String):Long {
-        var amount=FinanceMath.accountBalance(account,workspace,tx)
-        fun method(m:String)=if(m in workspace.accounts)m else "Cash"
-        if(account=="Cash") {
-            amount-=savings.sumOf { it.amountMinor }
-            amount+=workspace.items.filter{it.kind==FinanceKind.GOAL_CONTRIBUTION && it.account!="Cash"}.sumOf{it.amount}
-            loans.forEach { amount+=if(it.direction=="BORROWED")it.principalMinor else -it.principalMinor }
-        }
-        if(account!="Cash")amount-=workspace.items.filter{it.kind==FinanceKind.GOAL_CONTRIBUTION && it.account==account}.sumOf{it.amount}
-        loanPayments.filter { method(it.method)==account }.forEach { p -> amount+=if(loans.find { it.id==p.loanId }?.direction=="LENT")p.amountMinor else -p.amountMinor }
-        amount-=payments.filter { method(it.method)==account && it.chargesSalaryBalance() }.sumOf { it.amountMinor }
-        amount+=receipts.filter { method(it.method)==account }.sumOf { it.amountMinor }
-        amount-=creditPayments.filter { method(it.method)==account }.sumOf { it.amountMinor }
-        return amount
-    }
+    fun accountBalance(account:String):Long = FinanceMath.trackedAccountBalance(account,workspace,tx,loans,loanPayments,savings,payments,receipts,creditPayments)
     val privateVisible=vault && page=="Private entries"
     val privateHistory=if(page in listOf("Edit history","Private entries"))remember(workspace.revisions,tx){privateRevisionIds(tx,workspace.revisions)} else emptySet()
     val masked=LocalDisplayPreferences.current?.privateAmounts==true
@@ -172,7 +158,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
                     items(monthlyRateComparisons(tx,today)) { c -> LedgerCard { Text(c.name,translate=false);Text("Net purchase change: ${moneyText(c.totalChange)} • Quantity effect: ${moneyText(c.quantityEffect)} • Rate effect: ${moneyText(c.rateEffect)}") } }
                     item { Text("Latest purchase rates",style=MaterialTheme.typography.titleMedium) }
                     val comparisons=priceComparisons(tx)
-                    if(comparisons.isEmpty())item{Text("Add quantity and rate using Entries & refunds → New entry.")}
+                    if(comparisons.isEmpty())item{Text("No comparable item/unit pairs yet. Add quantity and rate using Entries & refunds → New entry; check unusually large quantities.")}
                     items(comparisons) { c -> LedgerCard(contentSpacing=6.dp) {
                         Text(c.name,style=MaterialTheme.typography.titleMedium)
                         Text("Unit rate: ${moneyText(c.oldRate)} → ${moneyText(c.newRate)}")
@@ -246,7 +232,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
                     items(workspace.items.filter { it.kind==FinanceKind.GOAL },key={it.id}) { row -> FinanceItemCard(row,masked) {
                         val perSalary=runCatching { FinanceMath.goalPerSalary(row.amount,row.settled,LocalDate.parse(row.date),next) }.getOrNull()
                         Text("Saved toward goal: ${moneyText(row.settled)}")
-                        Text(if(perSalary==null) "Deadline is before the next salary or has passed; review the plan." else "Needed each salary: ${moneyText(perSalary)}")
+                        Text(if(perSalary==null) "Review the salary date and goal deadline before estimating." else "Needed each salary: ${moneyText(perSalary)}")
                         perSalary?.let { Text(if(it<=summary.remaining.coerceAtLeast(0))"Within current remaining balance; future salaries may differ." else "Above current remaining balance; extend the deadline or lower the target.") }
                         TextButton(onClick={editPlan=row;addKind=FinanceKind.GOAL},enabled=!busy){Text("Edit goal")}
                         if(row.settled<row.amount)Button(onClick={goal=row},enabled=!busy){Text("Record saved contribution")}
@@ -289,6 +275,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     addKind?.let { kind -> FinanceItemDialog(kind,workspace.accounts,::accountBalance,{addKind=null;editPlan=null},initial=editPlan) { item,advance,count ->
         save {
             when(kind) {
+                FinanceKind.ADJUSTMENT -> finance.reconcile(item.title,item.amount,item.date,item.account,item.note)
                 FinanceKind.REIMBURSEMENT -> finance.createReimbursement(item.title,item.amount,item.category,item.date,item.account)
                 FinanceKind.INSTALLMENT -> finance.createInstallments(item.title,item.amount,advance,count,LocalDate.parse(item.date),item.account,item.category)
                 else -> finance.saveItem(if(kind==FinanceKind.GOAL && editPlan!=null)item.copy(settled=editPlan!!.settled,done=editPlan!!.settled==item.amount) else item)

@@ -144,4 +144,18 @@ class FinanceRepositoryTest {
         }finally{db.close()}
     }
 
+    @Test fun reconciliationUsesFreshAccountRecordsWithoutChangingSalaryIncomeOrExpense()=runBlocking {
+        val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
+        try {
+            val repo=LedgerRepository(db,"o")
+            repo.finance.saveEntry("INCOME",100000,"Salary","","2026-10-01")
+            repo.finance.saveEntry("EXPENSE",30000,"Other","Later purchase","2026-10-02")
+            repo.finance.reconcile("Cash count",50000,"2026-10-03","Cash","Counted wallet")
+            val tx=db.ledgerDao().transactionsNow("o");val w=repo.profileSnapshot().workspace
+            assertEquals(50000L,FinanceMath.accountBalance("Cash",w,tx))
+            assertEquals(70000L,monthlySalarySummary(tx,"2026-10").remaining)
+            assertEquals(-20000L,w.items.single().amount)
+        }finally{db.close()}
+    }
+
 }

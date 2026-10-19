@@ -50,7 +50,7 @@ internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()
     val dialogTitle=when(kind){FinanceKind.ACCOUNT->"Account opening balance";FinanceKind.TRANSFER->"Transfer between accounts";FinanceKind.ADJUSTMENT->"Reconcile actual balance";FinanceKind.GOAL->"Saving goal";FinanceKind.INSTALLMENT->"Installment purchase";FinanceKind.REIMBURSEMENT->"Pay on someone's behalf";FinanceKind.SHOPPING->"Shopping item";FinanceKind.SHORTCUT->"Custom shortcut";FinanceKind.ALLOCATION->"Salary allocation";else->"Planned payment"}
     FinanceFormDialog(dialogTitle,dismiss,save={
         val raw=requireNotNull(total){"Enter a valid amount."}
-        val adjusted=if(kind==FinanceKind.ADJUSTMENT)Math.subtractExact(raw,balance(account)) else raw
+        val adjusted=raw
         val item=FinanceItem(id=initial?.id ?: UUID.randomUUID().toString(),kind=kind,title=title.ifBlank{if(kind==FinanceKind.ACCOUNT)account else dialogTitle},amount=adjusted,date=date,category=category,account=account,
             reference=if(kind==FinanceKind.TRANSFER)destination else if(kind==FinanceKind.SHORTCUT)shortcutType else initial?.reference.orEmpty(),quantity=quantity,unit=unit,rate=if(quantity.isBlank())0 else requireNotNull(parseMinor(rate)),
             settled=if(kind==FinanceKind.GOAL)requireNotNull(parseMinor(already)){"Enter saved amount or zero."} else initial?.settled ?: 0,note=note,opening=if(kind==FinanceKind.GOAL)initial?.opening ?: requireNotNull(parseMinor(already)) else 0).validated()
@@ -60,7 +60,7 @@ internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()
         LedgerTextField(title,{title=it},label={Text(if(kind==FinanceKind.ACCOUNT)"Account name" else "Name / purpose")},enabled=!busy,modifier=Modifier.fillMaxWidth())
         if(kind!=FinanceKind.ACCOUNT)FinanceSelect("Account",account,accounts,{account=it;if(destination==it)destination=accounts.first{x->x!=it}},!busy)
         if(kind==FinanceKind.TRANSFER)FinanceSelect("To account",destination,accounts.filter{it!=account},{destination=it},!busy)
-        if(kind==FinanceKind.ADJUSTMENT)Text("Tracked balance: ${money(balance(account))}. The difference becomes an adjustment, never an expense.")
+        if(kind==FinanceKind.ADJUSTMENT)Text("Tracked balance: ${money(balance(account))}. The actual difference is checked again when saving; it affects this account, never salary income or expenses.")
         LedgerTextField(amount,{amount=it},label={Text(if(kind==FinanceKind.ADJUSTMENT)"Actual balance PKR" else if(kind==FinanceKind.GOAL)"Target PKR" else if(kind==FinanceKind.INSTALLMENT)"Total price PKR" else "Amount PKR")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
         if(kind==FinanceKind.SHOPPING){
             LedgerTextField(quantity,{quantity=it},label={Text("Quantity (optional)")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))

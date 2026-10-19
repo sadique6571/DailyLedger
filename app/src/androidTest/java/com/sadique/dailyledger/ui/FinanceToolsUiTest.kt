@@ -18,6 +18,7 @@ class FinanceToolsUiTest {
         compose.setContent{DailyLedgerTheme("LIGHT"){CompositionLocalProvider(LocalCategoryOptions provides options){CategoryDropdown("EXPENSE","",{chosen=it})}}}
         compose.onNodeWithTag("category-dropdown").performClick()
         compose.onNodeWithTag("category-results").performScrollToKey("category-EXPENSE-Item 240")
+        screenshot("category-list-last")
         compose.onNodeWithText("Item 240").assertIsDisplayed().performClick()
         compose.runOnIdle{assertEquals("Item 240",chosen)}
     }
