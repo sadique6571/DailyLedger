@@ -62,10 +62,13 @@ fun PaymentProofSection(
     val scope = rememberCoroutineScope()
     val proofs by repo.observePaymentProofs(paymentId).collectAsState(initial = emptyList())
     var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<PaymentProofEntity?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null && !busy) scope.launch {
+            busy=true
+            try {
             runCatching {
                 val mime = context.contentResolver.getType(uri)
                 require(mime == null || mime.startsWith("image/") || mime == "application/pdf") {
@@ -73,7 +76,8 @@ fun PaymentProofSection(
                 }
                 repo.addPaymentProof(paymentId, kind, uri, mime, context)
                 error = null
-            }.onFailure { error = it.message ?: "Could not attach the proof." }
+            }.onFailure { if(it is kotlinx.coroutines.CancellationException) throw it; error = it.message ?: "Could not attach the proof." }
+            } finally { busy=false }
         }
     }
 
@@ -84,12 +88,14 @@ fun PaymentProofSection(
             Spacer(Modifier.width(4.dp))
             Text("(${proofs.size})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { picker.launch(arrayOf("image/*", "application/pdf")) }) {
+            TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("image/*", "application/pdf")) }) {
                 Icon(Icons.Rounded.AttachFile, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Attach", fontSize = 12.sp)
             }
         }
+        if(busy) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+        Text("Photos or PDF • 10 MB per file • 20 MB per account", style=MaterialTheme.typography.labelSmall)
         proofs.forEach { proof ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Receipt, null, Modifier.size(20.dp),

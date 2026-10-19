@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import androidx.compose.ui.draw.clip
+
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
