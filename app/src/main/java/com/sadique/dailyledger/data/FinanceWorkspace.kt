@@ -49,7 +49,13 @@ data class FinanceWorkspace(val items: List<FinanceItem> = emptyList(), val revi
         items.forEach { it.validated() }
         require(items.filter { it.kind == FinanceKind.ACCOUNT }.map { it.title }.distinct().size == items.count { it.kind == FinanceKind.ACCOUNT })
         items.forEach { require(it.account in accounts); if(it.kind == FinanceKind.TRANSFER) require(it.reference in accounts) }
-        revisions.forEach { UUID.fromString(it.id); require(it.transactionId.length in 1..250 && it.at > 0 && it.action in listOf("CREATE","EDIT","DELETE","DETAILS")); require(it.before.length <= 10000 && it.after.length <= 10000) }
+        revisions.forEach { UUID.fromString(it.id); require(it.transactionId.length in 1..250 && it.at > 0 && it.action in listOf("CREATE","EDIT","DELETE","DETAILS")); require(it.before.length <= 10000 && it.after.length <= 10000)
+            listOf(it.before,it.after).filter{snapshot->snapshot.isNotBlank()}.forEach { snapshot ->
+                val row=JSONObject(snapshot);require(row.getString("id")==it.transactionId)
+                require(row.getString("type") in listOf("INCOME","EXPENSE") && row.getLong("amount") in 1..1_000_000_000_000L)
+                LocalDate.parse(row.getString("date"));require(row.getString("note").length<=1500 && row.getString("category").length<=60)
+            }
+        }
         checked.forEach { require(it.length in 1..200) }
         return this
     }
@@ -58,7 +64,7 @@ data class FinanceWorkspace(val items: List<FinanceItem> = emptyList(), val revi
         .put("revisions",JSONArray().apply { revisions.forEach { put(it.json()) } }).put("checked",JSONArray(checked.sorted())).put("widgetBalance",widgetBalance)
     fun remap(owner: String): FinanceWorkspace {
         fun id(s:String) = if(s.isBlank()) s else "$owner:${s.substringAfterLast(':')}"
-        return copy(items = items.map { it.copy(transactionId = id(it.transactionId)) }, revisions = revisions.map { r ->
+        return copy(items = items.map { it.copy(transactionId = id(it.transactionId),reference=if(it.kind==FinanceKind.REIMBURSEMENT)id(it.reference) else it.reference) }, revisions = revisions.map { r ->
             fun snapshot(s:String) = if(s.isBlank()) s else JSONObject(s).put("id",id(JSONObject(s).getString("id"))).put("refundOf",id(JSONObject(s).optString("refundOf"))).put("ownerId",owner).toString()
             r.copy(transactionId = id(r.transactionId), before = snapshot(r.before), after = snapshot(r.after))
         })
@@ -137,4 +143,9 @@ fun monthlyRateComparisons(tx:List<TransactionEntity>,today:LocalDate):List<Rate
             val quantityEffect=(nq-oq).multiply(oldRate).setScale(0,RoundingMode.HALF_UP).longValueExact()
             RateComparison(now.first().note.ifBlank{now.first().category},oldRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),newRate.setScale(0,RoundingMode.HALF_UP).longValueExact(),quantityEffect,nt-ot-quantityEffect,nt-ot)
         }
+}
+
+fun privateRevisionIds(tx:List<TransactionEntity>,revisions:List<EntryRevision>):Set<String> = buildSet {
+    tx.filter{it.privateEntry}.forEach{add(it.id)}
+    revisions.forEach { revision -> if(listOf(revision.before,revision.after).any{it.isNotBlank() && JSONObject(it).optBoolean("private")})add(revision.transactionId) }
 }

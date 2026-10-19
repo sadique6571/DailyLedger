@@ -10,6 +10,7 @@ import java.util.UUID
 import com.sadique.dailyledger.ai.LearningSnapshot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 
 class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     private val legacyLearning: (() -> LearningSnapshot)? = null) {
@@ -30,7 +31,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
     val ledgerCycle = dao.observeLedgerCycle(ownerId)
     val ledgerArchives = dao.observeLedgerArchives(ownerId)
 
-    val profileBackup = dao.observeProfileBackup(ownerId).distinctUntilChanged().map { it?.let { row -> ProfileBackupData.decode(JSONObject(row.payload)) } ?: ProfileBackupData() }
+    val profileBackup = dao.observeProfileBackup(ownerId).distinctUntilChanged().map { it?.let { row -> ProfileBackupData.decode(JSONObject(row.payload)) } ?: ProfileBackupData() }.flowOn(kotlinx.coroutines.Dispatchers.IO)
     suspend fun profileSnapshot(): ProfileBackupData = db.withTransaction {
         dao.profileBackupNow(ownerId)?.let { ProfileBackupData.decode(JSONObject(it.payload)) } ?: ProfileBackupData.legacy(db.backupContext, ownerId).also {
             dao.upsertProfileBackup(ProfileBackupEntity(ownerId, it.json().toString()))

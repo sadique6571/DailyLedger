@@ -75,6 +75,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
         return amount
     }
     val privateVisible=vault && page=="Private entries"
+    val privateHistory=if(page in listOf("Edit history","Private entries"))remember(workspace.revisions,tx){privateRevisionIds(tx,workspace.revisions)} else emptySet()
     val masked=LocalDisplayPreferences.current?.privateAmounts==true
     fun moneyText(n:Long)=if(masked)"Rs •••••" else money(n)
     val life=androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -266,10 +267,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
                 }
                 "Edit history" -> {
                     item{Text("History records entry creation, edits and deletions. Private revisions require the Private entries unlock.");Button(onClick=::openPrivate){Text("Open private entries")}}
-                    val publicHistory=workspace.revisions.filter { r ->
-                        fun hidden(s:String)=s.isNotBlank() && JSONObject(s).optBoolean("private")
-                        !hidden(r.before) && !hidden(r.after)
-                    }.sortedByDescending { it.at }
+                    val publicHistory=workspace.revisions.filter { it.transactionId !in privateHistory }.sortedByDescending { it.at }
                     items(publicHistory,key={it.id}) { r -> RevisionCard(r,masked) }
                 }
                 "Widget privacy" -> item { LedgerCard(contentSpacing=8.dp) {
@@ -280,7 +278,7 @@ fun FinanceToolsScreen(vm:MainViewModel) {
             }
             if(page=="Private entries" && vault) {
                 item{Text("Private edit history",style=MaterialTheme.typography.titleMedium)}
-                items(workspace.revisions.filter { r -> listOf(r.before,r.after).any { it.isNotBlank() && JSONObject(it).optBoolean("private") } }.sortedByDescending{it.at},key={"private-${it.id}"}) { RevisionCard(it,masked) }
+                items(workspace.revisions.filter { it.transactionId in privateHistory }.sortedByDescending{it.at},key={"private-${it.id}"}) { RevisionCard(it,masked) }
             }
         }
     }

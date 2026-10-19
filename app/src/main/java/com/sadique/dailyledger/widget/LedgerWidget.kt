@@ -19,6 +19,7 @@ class LedgerWidget:AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val settings=SettingsStore(context).all.first()
+                val strings=com.sadique.dailyledger.i18n.LedgerStrings(com.sadique.dailyledger.ui.DisplayPreferences(context).language=="ur",com.sadique.dailyledger.i18n.LedgerStrings.load(context))
                 var text="Balance hidden"
                 if(settings.user!=null && !settings.biometric && !com.sadique.dailyledger.ui.DisplayPreferences(context).privateAmounts) {
                     val owner=settings.user.id
@@ -41,7 +42,8 @@ class LedgerWidget:AppWidgetProvider() {
                 }
                 ids.forEach { id ->
                     val views=RemoteViews(context.packageName,R.layout.ledger_widget)
-                    views.setTextViewText(R.id.widget_balance,text)
+                    views.setTextViewText(R.id.widget_balance,strings.text(text))
+                    views.setTextViewText(R.id.widget_add,strings.text("New expense"))
                     views.setOnClickPendingIntent(R.id.widget_root,PendingIntent.getActivity(context,id*2,Intent(context,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
                     views.setOnClickPendingIntent(R.id.widget_add,PendingIntent.getActivity(context,id*2+1,Intent(context,MainActivity::class.java).putExtra("ledger_action","expense").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
                     manager.updateAppWidget(id,views)

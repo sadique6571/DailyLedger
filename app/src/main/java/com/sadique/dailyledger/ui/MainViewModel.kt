@@ -88,12 +88,20 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.Eagerly, LearningSnapshot())
     private val historyRules = transactions.map { CategoryLearning.fromHistory(it.filterNot { row -> row.privateEntry }, ownerId) }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val learnedCategories = combine(learning, historyRules) { explicit, history ->
-        explicit.rules + history.filter { rule ->
+    val learnedCategories = combine(learning, historyRules, transactions) { explicit, history, rows ->
+        publicRules(explicit.rules,rows) + history.filter { rule ->
             explicit.rules.none { it.type == rule.type && it.phrase == rule.phrase } && "${rule.type}:${CategoryLearning.normalize(rule.phrase)}" !in explicit.suppressed
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private fun publicRules(rules:List<LearnedCategoryRule>,rows:List<TransactionEntity>):List<LearnedCategoryRule> {
+        val hidden=rows.filter{it.privateEntry}
+        val publicCategories=rows.filterNot{it.privateEntry}.map{it.category}.toSet()
+        return rules.filterNot { rule -> hidden.any { row ->
+            (row.note.isNotBlank() && CategoryLearning.normalize(rule.phrase) in CategoryLearning.normalize(row.note)) ||
+                (row.category==rule.category && row.category !in publicCategories)
+        } }
+    }
     private suspend fun changeLearning(change: (LearningSnapshot) -> LearningSnapshot): String? = try {
         withContext(Dispatchers.IO) {
             BackupLock.mutex.withLock {
@@ -154,7 +162,8 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         }
         val learned = repo.learningSnapshot()
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
-        val entries = result.entries.map { CategoryLearning.apply(it, learned.rules, history) }
+        val publicLearned=publicRules(learned.rules,repo.transactions.first())
+        val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
         result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = offline == null) },
             message = result.message + if (learnedCount > 0) " $learnedCount categories matched your saved learning." else "")

@@ -19,6 +19,7 @@ class FinanceRepository(private val repo: LedgerRepository) {
     }
     suspend fun deleteItem(id:String) = db.withTransaction {
         val w=repo.profileSnapshot().workspace; val item=requireNotNull(w.items.find { it.id==id })
+        require(item.kind !in listOf(FinanceKind.INSTALLMENT,FinanceKind.INSTALLMENT_PURCHASE)) { "Use the installment purchase controls to cancel its plan." }
         require(item.transactionId.isBlank() && item.settled==0L) { "Keep paid items for their record. Delete or correct their ledger entry first." }
         if(item.kind==FinanceKind.ACCOUNT) require(dao.transactionsNow(owner).none { it.account==item.title } && w.items.none { it.id!=id && (it.account==item.title || it.reference==item.title) }) { "This account is in use." }
         repo.updateProfile { it.copy(workspace=w.copy(items=w.items.filterNot { row -> row.id==id })) }

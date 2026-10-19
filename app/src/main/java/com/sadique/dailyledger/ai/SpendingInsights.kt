@@ -46,6 +46,7 @@ object SpendingInsights {
         val previous = month.minusMonths(1)
         val days = minOf(today.dayOfMonth, previous.lengthOfMonth())
         val own = transactions.filter { row ->
+            !row.privateEntry &&
             row.ownerId == owner && runCatching { LocalDate.parse(row.date) <= today }.getOrDefault(false)
         }
         val current = own.filter { row ->

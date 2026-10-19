@@ -36,6 +36,7 @@ class ManualInsights(
     fun updateContext(key: String, recordsAvailable: Boolean) {
         if (key == contextKey && recordsAvailable == hasRecords) return
         cancelRequest()
+        if(key!=contextKey)_tips.value=emptyList()
         contextKey = key
         hasRecords = recordsAvailable
         showCachedOrPrompt()
