@@ -157,11 +157,13 @@ class LedgerScreensTest {
         val frequent0 = compose.onNodeWithTag("frequent-item-0").fetchSemanticsNode().boundsInRoot
         val frequent1 = compose.onNodeWithTag("frequent-item-1").fetchSemanticsNode().boundsInRoot
         assertTrue("Frequent purchases must have a gap", frequent1.top > frequent0.bottom + 2f)
+        screenshot("frequent-raised-cards")
 
         compose.onNodeWithTag("dashboard-list").performScrollToKey("recent")
         val recent0 = compose.onNodeWithTag("recent-transaction-0").fetchSemanticsNode().boundsInRoot
         val recent1 = compose.onNodeWithTag("recent-transaction-1").fetchSemanticsNode().boundsInRoot
         assertTrue("Recent transactions must have a gap", recent1.top > recent0.bottom + 2f)
+        screenshot("recent-raised-cards")
 
         compose.onNodeWithTag("dashboard-list").performScrollToKey("separate-totals")
         val first = compose.onNodeWithTag("money-space-first").fetchSemanticsNode().boundsInRoot

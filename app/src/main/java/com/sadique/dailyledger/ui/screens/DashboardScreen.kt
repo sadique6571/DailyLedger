@@ -293,7 +293,7 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenPlanning) { Text("Review") }
                 }
             }
-            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory, snapshot?.tips?.firstOrNull { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }) }
+            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, summary.expenses, onExpenseHistory) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 12.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -305,17 +305,12 @@ fun DashboardScreen(
                     if (frequentExpanded) frequentItems.forEachIndexed { index, (label, total) ->
                         val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
                         val visual = categoryVisual(label, "EXPENSE")
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).testTag("frequent-item-$index")
+                        LedgerCard(
+                            modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
                                 .clickable { selectedFrequentCategory = label },
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = .32f)),
                         ) {
                             Row(
-                                Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(accent.copy(alpha = .17f), accent.copy(alpha = .04f))), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -350,17 +345,12 @@ fun DashboardScreen(
                         }
                     } else recent.forEachIndexed { index, entry ->
                         val visual = categoryVisual(entry.category, entry.type)
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).testTag("recent-transaction-$index")
+                        LedgerCard(
+                            modifier = Modifier.fillMaxWidth().testTag("recent-transaction-$index")
                                 .clickable { onAllTransactions?.invoke() },
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(20.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, visual.color.copy(alpha = .30f)),
                         ) {
                             Row(
-                                Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(visual.color.copy(alpha = .13f), visual.color.copy(alpha = .03f))), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                             ) {
@@ -681,7 +671,7 @@ private fun DashboardStat(title: String, amount: Long, detail: String, icon: Ima
 }
 
 @Composable
-internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit, tip: SpendingTip? = null) {
+internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     val scheme = MaterialTheme.colorScheme
@@ -723,14 +713,6 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(90.dp)) {
                     Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                     Text("Total spent", fontSize = 11.sp)
-                }
-            }
-            if (tip != null && categories.size >= 3 && !privacyEnabled) {
-                Surface(Modifier.fillMaxWidth().heightIn(max = 76.dp).testTag("donut-context-tip"), color = scheme.surfaceContainerLow) {
-                    Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(tip.title, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(tip.detail, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
-                    }
                 }
             }
             }
