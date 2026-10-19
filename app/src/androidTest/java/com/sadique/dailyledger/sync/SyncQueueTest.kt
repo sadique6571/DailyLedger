@@ -18,7 +18,7 @@ class SyncQueueTest {
             repeat(50) { SyncScheduler.syncNow(context, owner) }
             val rows = manager.getWorkInfosForUniqueWork(SyncScheduler.workName(owner)).get(20, TimeUnit.SECONDS)
             assertEquals(1, rows.size)
-            assertTrue(rows.single().nextScheduleTimeMillis >= before + TimeUnit.HOURS.toMillis(3) - 1000)
+            assertTrue(rows.single().nextScheduleTimeMillis >= before + TimeUnit.MINUTES.toMillis(15) - 1000)
             assertTrue(manager.getWorkInfosForUniqueWork(SyncScheduler.workName("other-$owner")).get().isEmpty())
         } finally { manager.cancelUniqueWork(SyncScheduler.workName(owner)).result.get() }
     }

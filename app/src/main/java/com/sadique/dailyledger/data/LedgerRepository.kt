@@ -454,6 +454,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             dao.migrateOrganizerCollections(oldOwner, ownerId)
             dao.migrateOrganizerPayouts(oldOwner, ownerId)
             dao.migratePaymentProofs(oldOwner, ownerId)
+            dao.migrateProofChunks(oldOwner, ownerId)
             dao.migrateSavings(oldOwner, ownerId)
             dao.migrateLedgerCycle(oldOwner, ownerId)
             dao.migrateLedgerArchives(oldOwner, ownerId)
@@ -504,6 +505,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
 
     suspend fun clearAllForOwner() = db.withTransaction {
         dao.clearPaymentProofs(ownerId)
+        dao.clearProofChunks(ownerId)
         dao.upsertProfileBackup(ProfileBackupEntity(ownerId, ProfileBackupData().json().toString()))
         dao.upsertAiLearning(AiLearningEntity(ownerId, LearningSnapshot().json().toString()))
         dao.clearTransactions(ownerId)
@@ -760,7 +762,8 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
             require(proofs.sumOf{it.sizeBytes.coerceIn(0,MAX_PROOF_BYTES.toLong())}<=MAX_ALL_PROOF_BYTES) { "Proof backup is too large." }
             proofs.forEach { validateProof(it) }
             dao.clearPaymentProofs(ownerId)
-            dao.insertPaymentProofs(proofs)
+        dao.clearProofChunks(ownerId)
+            persistProofs(proofs)
         }
         savedCommittees.forEach { committee ->
                 require(committee.sharesHalfUnits > 0 && members.filter { it.committeeId == committee.id && it.isMe }.sumOf { it.shareHalfUnits } <= committee.sharesHalfUnits) { "Too many personal kameti shares in backup." }

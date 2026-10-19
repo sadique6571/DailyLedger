@@ -197,3 +197,6 @@ data class PaymentProofEntity(
     val sizeBytes: Long,
     val createdAt: Long,
 )
+
+@Entity(tableName="payment_proof_chunks", primaryKeys=["proofId","part"], indices=[Index("ownerId")])
+data class PaymentProofChunkEntity(val proofId:String,val part:Int,val ownerId:String,val data:String)

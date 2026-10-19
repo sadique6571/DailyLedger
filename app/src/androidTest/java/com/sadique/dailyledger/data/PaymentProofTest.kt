@@ -48,7 +48,7 @@ class PaymentProofTest {
         val first=Room.databaseBuilder(context,AppDatabase::class.java,name).build();val r=LedgerRepository(first,"o");val id=payment(r)
         r.finance.saveEntry("EXPENSE",100,"Milk","Keep","2026-10-19",account="Bank",privateEntry=true)
         first.close()
-        android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path,null,0).use{it.execSQL("DROP TABLE payment_proofs");it.version=10}
+        android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path,null,0).use{it.execSQL("DROP TABLE payment_proofs");it.execSQL("DROP TABLE payment_proof_chunks");it.version=10}
         val db=Room.databaseBuilder(context,AppDatabase::class.java,name).addMigrations(AppDatabase.MIGRATION_10_11).build()
         try {
             val repo=LedgerRepository(db,"o");assertEquals("Bank",db.ledgerDao().transactionsNow("o").single().account);assertTrue(db.ledgerDao().transactionsNow("o").single().privateEntry)

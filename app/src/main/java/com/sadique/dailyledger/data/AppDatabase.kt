@@ -11,7 +11,7 @@ import com.sadique.dailyledger.security.EncryptedOpenHelperFactory
 
 @Database(
     entities = [
-        PaymentProofEntity::class,
+        PaymentProofEntity::class, PaymentProofChunkEntity::class,
         AiLearningEntity::class,
         ProfileBackupEntity::class,
         TransactionEntity::class,
@@ -42,6 +42,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS payment_proofs (id TEXT NOT NULL, ownerId TEXT NOT NULL, paymentId TEXT NOT NULL, kind TEXT NOT NULL, mimeType TEXT NOT NULL, data TEXT NOT NULL, sizeBytes INTEGER NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(id))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS payment_proof_chunks (proofId TEXT NOT NULL, part INTEGER NOT NULL, ownerId TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(proofId,part))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_proof_chunks_ownerId ON payment_proof_chunks(ownerId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_proofs_ownerId ON payment_proofs(ownerId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_proofs_paymentId ON payment_proofs(paymentId)")
             }

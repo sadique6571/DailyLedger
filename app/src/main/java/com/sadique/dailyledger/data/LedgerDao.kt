@@ -189,4 +189,10 @@ interface LedgerDao {
     @Query("DELETE FROM payment_proofs WHERE ownerId=:owner AND id=:id") suspend fun deletePaymentProof(owner: String,id: String)
     @Query("DELETE FROM payment_proofs WHERE ownerId=:owner") suspend fun clearPaymentProofs(owner: String)
     @Query("UPDATE payment_proofs SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migratePaymentProofs(oldOwner: String,newOwner: String)
+
+    @Query("SELECT * FROM payment_proof_chunks WHERE ownerId=:owner AND proofId=:id ORDER BY part") suspend fun proofChunks(owner:String,id:String):List<PaymentProofChunkEntity>
+    @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertProofChunks(items:List<PaymentProofChunkEntity>)
+    @Query("DELETE FROM payment_proof_chunks WHERE ownerId=:owner AND proofId=:id") suspend fun deleteProofChunks(owner:String,id:String)
+    @Query("DELETE FROM payment_proof_chunks WHERE ownerId=:owner") suspend fun clearProofChunks(owner:String)
+    @Query("UPDATE payment_proof_chunks SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateProofChunks(oldOwner:String,newOwner:String)
 }

@@ -53,9 +53,21 @@ internal suspend fun LedgerRepository.validateProof(proof:PaymentProofEntity) {
     require(proofParentExists(proof.kind,proof.paymentId)) { "The payment no longer exists in this account." }
     proofBytes(proof)
 }
-internal suspend fun LedgerRepository.validProofs()=database.ledgerDao().paymentProofsNow(ownerId).filter{proofParentExists(it.kind,it.paymentId)}
+internal suspend fun LedgerRepository.readProofData(proof:PaymentProofEntity):PaymentProofEntity {
+    val rows=database.ledgerDao().proofChunks(ownerId,proof.id)
+    require(rows.isNotEmpty() && rows.size<=28 && rows.all{it.data.length<=512*1024} && rows.map{it.part}==rows.indices.toList()) { "Proof content is incomplete." }
+    return proof.copy(data=rows.joinToString(""){it.data}).also{proofBytes(it)}
+}
+internal suspend fun LedgerRepository.persistProofs(proofs:List<PaymentProofEntity>) {
+    val d=database.ledgerDao()
+    d.insertPaymentProofs(proofs.map{it.copy(data="")})
+    proofs.forEach { proof ->
+        d.insertProofChunks(proof.data.chunked(512*1024).mapIndexed{index,chunk->PaymentProofChunkEntity(proof.id,index,ownerId,chunk)})
+    }
+}
+internal suspend fun LedgerRepository.validProofs()=database.ledgerDao().paymentProofsNow(ownerId).filter{proofParentExists(it.kind,it.paymentId)}.map{readProofData(it)}
 internal suspend fun LedgerRepository.pruneProofs() {
-    database.ledgerDao().paymentProofsNow(ownerId).filterNot{proofParentExists(it.kind,it.paymentId)}.forEach{database.ledgerDao().deletePaymentProof(ownerId,it.id)}
+    database.ledgerDao().paymentProofsNow(ownerId).filterNot{proofParentExists(it.kind,it.paymentId)}.forEach{database.ledgerDao().deletePaymentProof(ownerId,it.id);database.ledgerDao().deleteProofChunks(ownerId,it.id)}
 }
 internal suspend fun LedgerRepository.savePaymentProofData(paymentId:String,kind:String,bytes:ByteArray):String=database.withTransaction {
     require(proofParentExists(kind,paymentId)) { "This payment was removed. Your proof was not saved." }
@@ -63,7 +75,7 @@ internal suspend fun LedgerRepository.savePaymentProofData(paymentId:String,kind
     val d=database.ledgerDao()
     require((d.proofBytes(ownerId)?:0)+bytes.size<=MAX_ALL_PROOF_BYTES && d.paymentProofsNow(ownerId).size<200) { "Payment proofs are limited to 20 MB per account. Remove unneeded attachments first." }
     val id="$ownerId:${UUID.randomUUID()}"
-    d.insertPaymentProofs(listOf(PaymentProofEntity(id,ownerId,paymentId,kind,mime,Base64.getEncoder().encodeToString(bytes),bytes.size.toLong(),System.currentTimeMillis())))
+    persistProofs(listOf(PaymentProofEntity(id,ownerId,paymentId,kind,mime,Base64.getEncoder().encodeToString(bytes),bytes.size.toLong(),System.currentTimeMillis())))
     id
 }
 fun LedgerRepository.observePaymentProofs(paymentId:String)=database.ledgerDao().observePaymentProofs(ownerId,paymentId)
@@ -88,7 +100,7 @@ suspend fun LedgerRepository.deletePaymentProof(proof:PaymentProofEntity,context
     BackupLock.mutex.withLock {
         checkProofAccount(context);require(proof.ownerId==ownerId)
         SettingsStore(context).markDrivePending(ownerId)
-        database.ledgerDao().deletePaymentProof(ownerId,proof.id)
+        database.withTransaction { database.ledgerDao().deletePaymentProof(ownerId,proof.id);database.ledgerDao().deleteProofChunks(ownerId,proof.id) }
     }
     runCatching{SyncScheduler.syncNow(context,ownerId)};Unit
 }

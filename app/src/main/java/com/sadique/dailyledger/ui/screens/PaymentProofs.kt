@@ -145,7 +145,7 @@ private fun proofMeta(proof: PaymentProofEntity): String {
 }
 
 private suspend fun viewProof(context: android.content.Context, repo: LedgerRepository, proof: PaymentProofEntity) {
-    val file = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { proofCacheFile(context.applicationContext, proof) }
+    val file = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { proofCacheFile(context.applicationContext, repo.readProofData(proof)) }
     if (!file.isFile) return
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", file)
     val intent = Intent(Intent.ACTION_VIEW).apply {

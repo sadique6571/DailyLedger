@@ -25,6 +25,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.activity.compose.BackHandler
 import com.sadique.dailyledger.ai.OfflineVocabulary
 import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.LedgerCategory
@@ -49,7 +57,8 @@ fun CategoryDropdown(
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val density=LocalDensity.current
-    var menuWidth by remember { mutableIntStateOf(1) }
+    val view=LocalView.current
+    val margin=with(density){8.dp.roundToPx()}
     val shared = LocalCategoryOptions.current?.get(type)
     val allHistory = LocalCategoryHistory.current
     val options = shared ?: remember(context, allHistory, strings, type) {
@@ -58,7 +67,7 @@ fun CategoryDropdown(
     val categories = options.indexed.map { it.first }
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
-    var menuHeight by remember(expanded) { mutableIntStateOf(0) }
+
     var query by remember(type, value) { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
@@ -68,7 +77,7 @@ fun CategoryDropdown(
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
         onExpandedChange = { if (enabled) { expanded = it; if (it) editing = true } },
-        modifier = modifier.fillMaxWidth().onSizeChanged { menuWidth=it.width }) {
+        modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
             onValueChange = { query = it.take(80); editing = true; expanded = true },
@@ -80,17 +89,31 @@ fun CategoryDropdown(
                 .onFocusChanged { if (!it.isFocused && !expanded) editing = false }
                 .testTag("category-dropdown"),
         )
-        ExposedDropdownMenu(expanded = expanded && enabled,
-            onDismissRequest = { expanded = false; editing = false },
-            modifier = Modifier.heightIn(max = 320.dp).onSizeChanged { menuHeight=it.height }) {
+        if(expanded && enabled) {
+          BackHandler { expanded=false;editing=false }
+          val position=remember(view,margin) { object:PopupPositionProvider {
+              override fun calculatePosition(anchorBounds:IntRect,windowSize:IntSize,layoutDirection:LayoutDirection,popupContentSize:IntSize):IntOffset {
+                  val frame=android.graphics.Rect();view.getWindowVisibleDisplayFrame(frame)
+                  val screen=IntArray(2);val window=IntArray(2);view.getLocationOnScreen(screen);view.getLocationInWindow(window)
+                  val offsetY=screen[1]-window[1]
+                  val top=(frame.top-offsetY+margin).coerceAtLeast(margin)
+                  val bottom=minOf(windowSize.height-margin,frame.bottom-offsetY-margin).coerceAtLeast(top)
+                  val below=anchorBounds.bottom
+                  val above=anchorBounds.top-popupContentSize.height
+                  val y=if(below+popupContentSize.height<=bottom)below else if(above>=top)above else (bottom-popupContentSize.height).coerceAtLeast(top)
+                  val x=if(layoutDirection==LayoutDirection.Rtl)anchorBounds.right-popupContentSize.width else anchorBounds.left
+                  return IntOffset(x.coerceIn(0,(windowSize.width-popupContentSize.width).coerceAtLeast(0)),y)
+              }
+          } }
+          Popup(popupPositionProvider=position,onDismissRequest={expanded=false;editing=false},properties=PopupProperties(focusable=false)) {
+           androidx.compose.material3.Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,shadowElevation=3.dp) {
             // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
             val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()
             val recentLabels = recent.map { it.label }.toSet()
             val sections = linkedMapOf<String, List<LedgerCategory>>()
             if (recent.isNotEmpty()) sections["Frequently used"] = recent
             sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
-            val viewport=if(menuHeight==0)300.dp else minOf(300.dp,(with(density){menuHeight.toDp()}-16.dp).coerceAtLeast(1.dp))
-            LazyColumn(Modifier.width(with(density){menuWidth.toDp()}).height(viewport).testTag("category-results")) {
+            LazyColumn(Modifier.exposedDropdownSize(matchTextFieldWidth=true).heightIn(max=300.dp).testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
                 sections.forEach { (group, rows) ->
                     item(key = "heading-$group") {
                         Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
@@ -109,6 +132,8 @@ fun CategoryDropdown(
                         onClick = { choose(query.trim().take(60)) }) }
                 }
             }
+           }
+          }
         }
     }
 }
