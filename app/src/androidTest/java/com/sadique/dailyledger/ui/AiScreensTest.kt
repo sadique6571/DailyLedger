@@ -15,6 +15,24 @@ import org.junit.runner.RunWith
 import java.time.LocalDate
 @RunWith(AndroidJUnit4::class) class AiScreensTest {
  @get:Rule val compose=createComposeRule()
+ @Test fun donutKeepsTotalAndStartsWithThreeRowsThenExpandsAndCollapses() {
+  val categories = (1..8).map { "Category $it" to it * 10000L }
+  compose.setContent { DailyLedgerTheme("AQUA") {
+   androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+    SpendingDonutCard(categories, categories.sumOf { it.second }, {})
+   }
+  } }
+  compose.onNodeWithTag("chart-total").assertExists()
+  compose.onNodeWithTag("chart-category-Category 3").assertExists()
+  compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()
+  compose.onNodeWithTag("chart-toggle-categories").performScrollTo().performClick()
+  compose.onNodeWithTag("chart-category-Category 8").performScrollTo().assertIsDisplayed()
+  shot("donut-expanded")
+  compose.onNodeWithTag("chart-toggle-categories").performScrollTo().performClick()
+  compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()
+  compose.onNodeWithTag("chart-total").performScrollTo().assertIsDisplayed()
+  shot("donut-collapsed")
+ }
  @Test fun reviewEditThenSave(){var saved=emptyList<TransactionDraft>();val drafts=listOf(TransactionDraft("EXPENSE",150000,"Fuel","Petrol","2026-10-06"),TransactionDraft("EXPENSE",30000,"Milk","Doodh","2026-10-06"))
   compose.setContent{DailyLedgerTheme("AQUA"){AutoFillScreen(true,{},{},{AiDraftResult("Entries check karein",drafts)},{rows,_->saved=rows})}}
   compose.onNodeWithTag("autofill-list").performScrollToKey("input");compose.onNodeWithTag("autofill-input").performTextInput("Petrol 1500 aur doodh 300");compose.onNodeWithTag("autofill-generate").performScrollTo().performClick();compose.onNodeWithTag("autofill-list").performScrollToKey("review-heading");compose.onNodeWithText("Review 2 entries").performScrollTo().assertIsDisplayed();assertTrue(saved.isEmpty());compose.onNodeWithTag("autofill-list").performScrollToKey("draft-0");compose.onNodeWithTag("draft-edit-0").performScrollTo().performClick();compose.onNodeWithText("Amount PKR").performTextReplacement("1600");compose.onNodeWithText("Save",useUnmergedTree=true).performClick();compose.onNodeWithTag("autofill-list").performScrollToKey("save-drafts");compose.onNodeWithTag("autofill-save").assertIsEnabled();shot("autofill-review");compose.onNodeWithTag("autofill-save").performClick();compose.onNodeWithTag("autofill-confirm").assertIsEnabled().performClick();compose.waitForIdle();assertEquals(2,saved.size);assertEquals(160000L,saved.first().amountMinor);compose.onNodeWithTag("autofill-save").assertDoesNotExist()

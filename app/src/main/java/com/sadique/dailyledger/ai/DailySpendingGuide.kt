@@ -14,6 +14,8 @@ data class DailySpendingGuide(
     val daysUntilSalary: Long?,
     val dailyAllowanceMinor: Long?,
     val lowBalance: Boolean,
+    val elapsedSalaryDays: Long? = null,
+    val actualDailyExpenseMinor: Long? = null,
 ) {
     companion object {
         /** Uses this account's recorded balance only. Never advances or resets a salary cycle. */
@@ -39,7 +41,17 @@ data class DailySpendingGuide(
             val low = summary.remaining < 0L ||
                 (available > 0 && BigDecimal.valueOf(summary.remaining).multiply(BigDecimal.TEN) <= BigDecimal.valueOf(available)) ||
                 (summary.remaining == 0L && summary.totalOutflow > 0)
-            return DailySpendingGuide(lastSalary, expected, days, allowance, low)
+            // Include salary day and today, including days without purchases. Entry dates, not
+            // insertion timestamps, keep backdated purchases in their actual spending period.
+            val elapsed = lastSalary?.let { ChronoUnit.DAYS.between(it, today) + 1 }
+            val actual = lastSalary?.let { start ->
+                val count = requireNotNull(elapsed)
+                transactions.asSequence().filter { it.type == "EXPENSE" && it.amountMinor > 0 }
+                    .filter { row -> runCatching { LocalDate.parse(row.date) }.getOrNull()?.let { it >= start && it <= today } == true }
+                    .fold(java.math.BigInteger.ZERO) { sum, row -> sum.add(java.math.BigInteger.valueOf(row.amountMinor)) }
+                    .divide(java.math.BigInteger.valueOf(count)).min(java.math.BigInteger.valueOf(Long.MAX_VALUE)).toLong()
+            }
+            return DailySpendingGuide(lastSalary, expected, days, allowance, low, elapsed, actual)
         }
     }
 }
