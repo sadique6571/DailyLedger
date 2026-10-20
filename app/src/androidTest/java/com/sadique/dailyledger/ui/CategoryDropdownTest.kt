@@ -32,7 +32,7 @@ class CategoryDropdownTest {
         compose.onNodeWithTag("category-dropdown").performClick()
         compose.onNodeWithTag("category-dropdown").performTextInput("piyaz")
         compose.onNodeWithText("Onions").performScrollTo().performClick()
-        compose.onNodeWithText("Amount PKR").performTextInput("120")
+        compose.onNodeWithText("Amount PKR").performScrollTo().performTextInput("120")
         compose.onNodeWithText("Save").performClick()
         compose.waitUntil(5_000) { saved != null }
         assertEquals("Onions", saved?.category)

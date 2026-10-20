@@ -1,5 +1,8 @@
 package com.sadique.dailyledger.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
@@ -59,19 +62,31 @@ class EntrySheetTest {
     @Test fun sharedSheetDoesNotRestartWhileTypingAndHonoursBusyDismissGuard() {
         var busy by mutableStateOf(true)
         var closed by mutableStateOf(false)
+        var imeBottom = 0
         compose.setContent { DailyLedgerTheme("LIGHT") {
             var value by remember { mutableStateOf("") }
             if (!closed) LedgerEntrySheet(
                 onDismissRequest = { if (!busy) closed = true },
                 title = { Text("Entry") },
-                text = { LedgerTextField(value, { value = it }, label = { Text("Amount") }) },
+                text = {
+                    val bottom = WindowInsets.ime.getBottom(LocalDensity.current)
+                    SideEffect { imeBottom = bottom }
+                    LedgerTextField(value, { value = it }, label = { Text("Amount") })
+                },
                 confirmButton = {},
             )
         } }
         val field = compose.onNodeWithText("Amount")
         field.performClick()
-        compose.mainClock.advanceTimeBy(1000)
+        compose.waitUntil(5000) { imeBottom > 0 }
         val sheet = compose.onNodeWithTag("ledger-entry-sheet")
+        var previousTop = Float.NaN
+        var lastMovement = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) {
+            val current = sheet.fetchSemanticsNode().boundsInRoot.top
+            if (current != previousTop) { previousTop = current; lastMovement = android.os.SystemClock.uptimeMillis() }
+            android.os.SystemClock.uptimeMillis() - lastMovement > 400
+        }
         val top = sheet.fetchSemanticsNode().boundsInRoot.top
         compose.mainClock.autoAdvance = false
         try {
@@ -82,6 +97,12 @@ class EntrySheetTest {
                 compose.mainClock.advanceTimeBy(100)
             }
         } finally { compose.mainClock.autoAdvance = true }
+        field.assertTextContains("123")
+        val fd = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .uiAutomation.executeShellCommand("input keyevent 4")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        compose.waitUntil(5000) { imeBottom == 0 }
+        sheet.assertIsDisplayed()
         field.assertTextContains("123")
         // Dismiss via a downward gesture; the form remains while its save guard is busy.
         sheet.performTouchInput { swipeDown() }
