@@ -42,7 +42,7 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
     Row(Modifier.fillMaxWidth().widthIn(max = 440.dp).testTag("quick-entry-dial"),
         verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.weight(1f)) {
-            AnimatedVisibility(expanded,
+            androidx.compose.animation.AnimatedVisibility(visible = expanded,
                 enter = slideInHorizontally(tween(280)) { it } + fadeIn(tween(220)),
                 exit = slideOutHorizontally(tween(240)) { it } + fadeOut(tween(180))) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
