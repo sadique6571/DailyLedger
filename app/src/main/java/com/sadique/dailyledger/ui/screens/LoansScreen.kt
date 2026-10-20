@@ -49,6 +49,7 @@ fun LoansScreen(
     onPayment: (String, Long, String, String, String) -> Unit,
     onDelete: (LoanEntity) -> Unit,
     requestAdd: Boolean = false, onAddOpened: () -> Unit = {},
+    requestPayment: Boolean = false,
 ) {
     val context = LocalContext.current
     val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
@@ -56,6 +57,13 @@ fun LoansScreen(
     var add by remember { mutableStateOf(false) }
     LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
+    var pickPayment by remember { mutableStateOf(false) }
+    LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
+    if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
+        loans.filter { row -> row.principalMinor > payments.filter { it.loanId == row.id }.sumOf { it.amountMinor } }
+            .map { row -> row.person to { pay = row; pickPayment = false } },
+        { pickPayment = false })
+
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }

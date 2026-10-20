@@ -36,7 +36,7 @@ fun LedgerEntrySheet(
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
     val latestDismiss = rememberUpdatedState(onDismissRequest)
-    val dismissSafely = {
+    val dismissSafely: () -> Unit = {
         if (latestKeyboardVisible.value) keyboard?.hide() else latestDismiss.value()
     }
     val confirmChange: (SheetValue) -> Boolean = remember {

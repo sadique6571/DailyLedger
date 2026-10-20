@@ -22,6 +22,11 @@ internal val quickEntryActions = listOf(
     QuickEntryAction("kameti", "Personal kameti", Icons.Rounded.Groups),
     QuickEntryAction("collection", "Collection kameti", Icons.Rounded.GroupAdd),
     QuickEntryAction("ai", "AI auto fill", Icons.Rounded.AutoAwesome),
+    QuickEntryAction("loan-payment", "Loan repayment", Icons.Rounded.Payment),
+    QuickEntryAction("credit-payment", "Udhar payment", Icons.Rounded.Payments),
+    QuickEntryAction("kameti-paid", "Kameti installment", Icons.Rounded.EventAvailable),
+    QuickEntryAction("kameti-receive", "Kameti receiving", Icons.Rounded.AccountBalanceWallet),
+    QuickEntryAction("kameti-member", "Kameti member / turn", Icons.Rounded.PersonAdd),
     QuickEntryAction("detailed", "Detailed entry", Icons.Rounded.EditNote),
     QuickEntryAction("budget", "Category budget", Icons.Rounded.PieChart),
     QuickEntryAction("reminder", "Bill / reminder", Icons.Rounded.NotificationsActive),
@@ -58,4 +63,16 @@ internal fun QuickEntryMenu(onDismiss: () -> Unit, onSelect: (String) -> Unit) {
             }
         }
     }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+}
+
+@Composable
+internal fun EntryRecordPicker(title: String, choices: List<Pair<String, () -> Unit>>, dismiss: () -> Unit) {
+    LedgerEntrySheet(onDismissRequest = dismiss, title = { Text(title) }, text = {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (choices.isEmpty()) Text("No eligible records. Add a record first.")
+            choices.forEach { (label, select) ->
+                FilledTonalButton(onClick = select, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }

@@ -351,8 +351,9 @@ fun DailyLedgerApp(
             "saving" -> addSaving = true
             "ai" -> open(AUTO_FILL)
             "credit" -> { addCreditRequested = true; open(7) }
-            "loan" -> { entryRequest = action; open(2) }
-            "kameti", "collection" -> { entryRequest = action; open(3) }
+            "loan", "loan-payment" -> { entryRequest = action; open(2) }
+            "credit-payment" -> { entryRequest = action; open(7) }
+            "kameti", "collection", "kameti-paid", "kameti-receive", "kameti-member" -> { entryRequest = action; open(3) }
             "budget" -> { entryRequest = action; open(BUDGETS) }
             "reminder" -> { entryRequest = action; open(BILLS) }
             else -> { entryRequest = action; open(NavigationHistory.FINANCE_TOOLS) }
@@ -557,6 +558,7 @@ fun DailyLedgerApp(
                 2 -> LoansScreen(
                     loans = loans,
                     requestAdd = entryRequest == "loan", onAddOpened = { entryRequest = null },
+                    requestPayment = entryRequest == "loan-payment",
                     payments = lp,
                     repo = vm.repo,
                     onAdd = { d, p, a, due, n, phone, wa -> vm.launch { saveLoan(d, p, a, due, n, phone, wa) } },
@@ -608,7 +610,8 @@ fun DailyLedgerApp(
                 }
                 7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
-                    requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
+                    requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false },
+                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null })
                 BUDGETS -> BudgetScreen(user.id, vm.planner, tx, requestAdd = entryRequest == "budget", onAddOpened = { entryRequest = null })
                 BILLS -> BillsScreen(vm, requestAdd = entryRequest == "reminder", onAddOpened = { entryRequest = null })
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)

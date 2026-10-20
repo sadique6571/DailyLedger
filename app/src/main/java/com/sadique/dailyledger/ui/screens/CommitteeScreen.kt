@@ -65,10 +65,12 @@ fun CommitteeScreen(
     var organizerMode by remember { mutableStateOf(false) }
     var add by remember { mutableStateOf(false) }
     var addCollection by remember { mutableStateOf(false) }
+    var pickEntry by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(entryRequest) {
         when (entryRequest) {
             "kameti" -> { organizerMode = false; add = true; onEntryOpened() }
             "collection" -> { organizerMode = true; addCollection = true; onEntryOpened() }
+            "kameti-paid", "kameti-receive", "kameti-member" -> { organizerMode = false; pickEntry = entryRequest; onEntryOpened() }
         }
     }
     if (organizerMode) {
@@ -91,6 +93,19 @@ fun CommitteeScreen(
     var addMemberTo by remember { mutableStateOf<CommitteeEntity?>(null) }
     var markMemberReceived by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
     var receivePersonalMember by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
+    pickEntry?.let { action ->
+        val choices: List<Pair<String, () -> Unit>> = when (action) {
+            "kameti-paid" -> committees.flatMap { c ->
+                (1..c.totalInstallments).filter { n -> payments.none { it.committeeId == c.id && it.installmentNumber == n } }
+                    .map { n -> "${c.name} • #$n • ${scheduledMonth(c, n)}" to { paying = c to n; pickEntry = null } }
+            }
+            "kameti-receive" -> committees.filter { committeeBalance(it, receipts).remaining > 0 }
+                .map { c -> c.name to { receivingId = c.id; pickEntry = null } }
+            else -> committees.map { c -> c.name to { addMemberTo = c; pickEntry = null } }
+        }
+        com.sadique.dailyledger.ui.EntryRecordPicker("Choose kameti", choices, { pickEntry = null })
+    }
+
 
     Scaffold(
         floatingActionButton = {
