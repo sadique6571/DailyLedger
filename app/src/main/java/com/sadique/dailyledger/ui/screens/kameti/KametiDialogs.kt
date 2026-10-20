@@ -128,7 +128,7 @@ internal fun PersonalMemberBatchDialog(
     val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) &&
         (isMe || name.isNotBlank())
     LedgerEntrySheet(
-        onDismissRequest = { if (!saving) dismiss() },
+        canDismiss = !saving, onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / my turns") },
         text = {
             if (saving) Text("Saving all entries…")

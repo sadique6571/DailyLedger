@@ -66,7 +66,7 @@ class EntrySheetTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             var value by remember { mutableStateOf("") }
             if (!closed) LedgerEntrySheet(
-                onDismissRequest = { if (!busy) closed = true },
+                onDismissRequest = { if (!busy) closed = true }, canDismiss = !busy,
                 title = { Text("Entry") },
                 text = {
                     val bottom = WindowInsets.ime.getBottom(LocalDensity.current)

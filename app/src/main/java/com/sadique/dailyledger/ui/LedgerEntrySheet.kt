@@ -29,22 +29,25 @@ fun LedgerEntrySheet(
     dismissButton: (@Composable () -> Unit)? = null,
     properties: DialogProperties = DialogProperties(),
     scrollBody: Boolean = true,
+    canDismiss: Boolean = true,
 ) {
     // The callback identity must not change while typing: it is a sheet-state key.
-    // Route every close through the form's existing busy/validation guard.
+    // Validation only approves/vetoes a transition; dismissal belongs to the
+    // actual close event, never to an anchor/layout validation during typing.
     val keyboard = LocalSoftwareKeyboardController.current
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
+    val latestCanDismiss = rememberUpdatedState(canDismiss)
     val latestDismiss = rememberUpdatedState(onDismissRequest)
     val dismissSafely: () -> Unit = {
-        if (latestKeyboardVisible.value) keyboard?.hide() else latestDismiss.value()
+        if (latestKeyboardVisible.value) keyboard?.hide() else if (latestCanDismiss.value) latestDismiss.value()
     }
     val confirmChange: (SheetValue) -> Boolean = remember {
         { target ->
-            if (target == SheetValue.Hidden) {
-                if (latestKeyboardVisible.value) keyboard?.hide() else latestDismiss.value()
+            if (target == SheetValue.Hidden && latestKeyboardVisible.value) {
+                keyboard?.hide()
                 false
-            } else true
+            } else target != SheetValue.Hidden || latestCanDismiss.value
         }
     }
     val state = rememberModalBottomSheetState(

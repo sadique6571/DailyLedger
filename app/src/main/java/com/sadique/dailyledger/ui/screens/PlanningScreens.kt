@@ -181,7 +181,7 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    LedgerEntrySheet(onDismissRequest = { if (!busy) dismiss() }, title = { Text("Review recurring entry") }, text = {
+    LedgerEntrySheet(canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() }, title = { Text("Review recurring entry") }, text = {
         Column(Modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(bill.type)
             CategoryDropdown(bill.type, category, { category = it }, enabled = !busy)

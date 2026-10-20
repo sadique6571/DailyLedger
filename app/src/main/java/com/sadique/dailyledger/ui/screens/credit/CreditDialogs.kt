@@ -55,7 +55,7 @@ internal fun CreditEntryDialog(
     var error by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     LedgerEntrySheet(
-        onDismissRequest = { if (!busy) dismiss() },
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(0.96f).testTag("udhar-manual-entry"),
         title = { Text(if (initial == null) "Add udhar saman" else "Review udhar entry") },
@@ -71,7 +71,7 @@ internal fun CreditEntryDialog(
                     label = { Text("Shop / person") }, singleLine = true)
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag("udhar-category"))
-                OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth().testTag("udhar-amount"),
                     label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true)
                 LedgerDateField(date, { date = it }, label = "Purchase date")
@@ -127,7 +127,7 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
     var batchId by remember { mutableStateOf(UUID.randomUUID().toString()) }
     val scope = rememberCoroutineScope()
     LedgerEntrySheet(scrollBody = false,
-        onDismissRequest = { if (!busy) dismiss() },
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         title = { Text("AI Udhar Add") },
         text = {
             LazyColumn(Modifier.testTag("credit-ai-list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -199,7 +199,7 @@ internal fun CreditPaymentDialog(
     var error by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     LedgerEntrySheet(
-        onDismissRequest = { if (!busy) dismiss() },
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(0.96f),
         title = { Text("Record udhar payment") },

@@ -44,7 +44,7 @@ import java.math.RoundingMode
 }
 @Composable internal fun FinanceFormDialog(title:String,dismiss:()->Unit,save:suspend()->Unit,enabled:Boolean=true,button:String="Save",content:@Composable ColumnScope.(Boolean)->Unit) {
     var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
-    LedgerEntrySheet(onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier,title={Text(title)},
+    LedgerEntrySheet(canDismiss = !busy, onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier,title={Text(title)},
         text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(10.dp)){
             error?.let{Text(it,color=MaterialTheme.colorScheme.error)};content(busy)
         }},confirmButton={Button(enabled=enabled&&!busy,onClick={scope.launch{busy=true;error=null;try{save();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}){Text(if(busy)"Saving…" else button)}},

@@ -81,7 +81,7 @@ internal fun OrganizerMemberDialog(
         virtualRoster.sumOf { it.halfUnits } + units <= circle.totalSlots * 2 &&
         parsedTurn != null && (parsedTurn == 0 || parsedTurn in available)
     LedgerEntrySheet(
-        onDismissRequest = { if (!saving) dismiss() },
+        canDismiss = !saving, onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / turns") },
         text = {
             if (saving) Text("Saving all entries…")
