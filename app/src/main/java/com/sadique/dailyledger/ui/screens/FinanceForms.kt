@@ -27,7 +27,10 @@ import java.math.RoundingMode
     var expanded by remember { mutableStateOf(false) }
     val inline = LocalEntrySheet.current
     Column {
-        OutlinedButton(onClick={expanded=!expanded},enabled=enabled,modifier=Modifier.fillMaxWidth()){Text("$label: $value")}
+        OutlinedButton(onClick={expanded=!expanded},enabled=enabled,modifier=Modifier.fillMaxWidth(),
+            shape=LedgerTokens.ShapeSmall,
+            colors=ButtonDefaults.outlinedButtonColors(containerColor=MaterialTheme.colorScheme.primaryContainer.copy(alpha=.45f)),
+            border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.primary.copy(alpha=.55f))){Text("$label: $value")}
         if (inline && expanded) {
             Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow) {

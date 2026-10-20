@@ -1,5 +1,6 @@
 package com.sadique.dailyledger.ui
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,7 +31,7 @@ fun LedgerTextField(
 ) {
     val palette = MaterialTheme.colorScheme
     OutlinedTextField(
-        value = value, onValueChange = onValueChange, modifier = modifier,
+        value = value, onValueChange = onValueChange, modifier = if (LocalEntrySheet.current) modifier.fillMaxWidth() else modifier,
         enabled = enabled, readOnly = readOnly, label = label, placeholder = placeholder,
         leadingIcon = leadingIcon, trailingIcon = trailingIcon, supportingText = supportingText,
         isError = isError, visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,

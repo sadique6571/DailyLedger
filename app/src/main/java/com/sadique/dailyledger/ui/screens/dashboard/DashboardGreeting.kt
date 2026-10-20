@@ -37,7 +37,7 @@ internal fun DashboardGreetingSection(
             overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("greeting-name"))
         }
         if (weatherEnabled && weatherCity.isNotBlank()) {
-            Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface.copy(alpha = .86f)) {
+            Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.tertiaryContainer) {
                 Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(when {
@@ -48,8 +48,8 @@ internal fun DashboardGreetingSection(
                         hour !in 6..18 -> "🌙"; else -> "☀️"
                     }, fontSize = 15.sp)
                     Text(listOf(weatherCity, weatherTemperature, weatherCondition).filter { it.isNotBlank() }.joinToString(" • "),
-                        fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier)
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier)
                 }
             }
         }

@@ -46,7 +46,8 @@ import kotlin.coroutines.cancellation.CancellationException
 fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                    generate: suspend (String) -> AiDraftResult, save: suspend (List<TransactionDraft>, String) -> Unit,
                    onSaved: () -> Unit = {},
-                   onLearnCategory: suspend (String, String, String) -> String? = { _, _, _ -> null }) {
+                   onLearnCategory: suspend (String, String, String) -> String? = { _, _, _ -> null },
+    embedded: Boolean = false, onBusyChanged: (Boolean) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -76,7 +77,8 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
 
 
     LaunchedEffect(entries.isNotEmpty()) { if (entries.isNotEmpty()) listState.animateScrollToItem(2) }
-    BackHandler { if (!busy) onBack() }
+    LaunchedEffect(busy) { onBusyChanged(busy) }
+    BackHandler(enabled = !embedded) { if (!busy) onBack() }
 
     fun prepare() {
         if (busy || input.isBlank() || entries.isNotEmpty()) return
@@ -97,8 +99,8 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(if (embedded) Modifier.fillMaxSize() else Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (!embedded) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack, enabled = !busy) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Daily Ledger", fontSize = 21.sp, fontWeight = FontWeight.Bold)
@@ -106,7 +108,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                 }
                 Icon(Icons.Rounded.AutoAwesome, null, Modifier.padding(12.dp).size(24.dp), tint = LedgerColors.Purple)
             }
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().imePadding().testTag("autofill-list"),
+            LazyColumn(state = listState, modifier = (if (embedded) Modifier.fillMaxSize() else Modifier.fillMaxSize().imePadding()).testTag("autofill-list"),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 enteringItem(key = "mode") {
                     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {

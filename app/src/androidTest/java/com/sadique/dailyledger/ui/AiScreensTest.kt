@@ -44,6 +44,10 @@ import java.time.LocalDate
    }
   } }
   compose.onNodeWithTag("chart-total").assertExists()
+  val chartBounds = compose.onNodeWithTag("chart-total").fetchSemanticsNode().boundsInRoot
+  val legendBounds = compose.onNodeWithTag("chart-legend").fetchSemanticsNode().boundsInRoot
+  assertTrue(legendBounds.top >= chartBounds.bottom)
+  assertEquals(chartBounds.center.x, legendBounds.center.x, 1f)
   compose.onNodeWithTag("donut-context-tip").assertDoesNotExist()
   compose.onNodeWithTag("chart-category-Category 3").assertExists()
   compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()

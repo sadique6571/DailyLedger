@@ -15,26 +15,52 @@ import org.junit.Test
 class EntrySheetTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun plusMenuShowsLabelsAndOpensSelectedEntrySheet() {
-        var selected by mutableStateOf("")
-        var menu by mutableStateOf(false)
+    @Test fun plusShowsOnlyFiveShortcutsAndRetractsAtTheSamePosition() {
+        var selected = ""
+        compose.setContent { DailyLedgerTheme("LIGHT") { QuickEntryDial { selected = it } } }
+        val toggle = compose.onNodeWithTag("floating-add-expense")
+        val before = toggle.fetchSemanticsNode().boundsInRoot
+        toggle.performClick()
+        quickEntryActions.forEach { compose.onNodeWithTag("quick-entry-${it.id}").assertIsDisplayed() }
+        compose.onNodeWithTag("quick-entry-saving").assertDoesNotExist()
+        compose.onNodeWithTag("quick-entry-budget").assertDoesNotExist()
+        assertEquals(5, quickEntryActions.size)
+        assertEquals(before, toggle.fetchSemanticsNode().boundsInRoot)
+        compose.waitForIdle()
+        val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-five-action-dial.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(shot).use { it.readBytes() }
+        toggle.performClick()
+        compose.onNodeWithTag("quick-entry-ai").assertDoesNotExist()
+        toggle.performClick()
+        compose.onNodeWithTag("quick-entry-salary").performClick()
+        compose.runOnIdle { assertEquals("salary", selected) }
+    }
+
+    @Test fun aiEntryUsesSheetAndKeyboardBackRetainsDraft() {
+        var imeBottom = 0
         compose.setContent { DailyLedgerTheme("LIGHT") {
-            ExpenseFloatingButton { menu = true }
-            if (menu) QuickEntryMenu({ menu = false }) { selected = it; menu = false }
-            if (selected == "saving") SavingDialog({}, save = { _, _, _, _ -> })
+            LedgerEntrySheet(onDismissRequest = {}, title = { Text("AI Auto Fill") }, scrollBody = false,
+                text = {
+                    val bottom = WindowInsets.ime.getBottom(LocalDensity.current)
+                    SideEffect { imeBottom = bottom }
+                    AutoFillScreen(true, {}, {},
+                        { com.sadique.dailyledger.ai.AiDraftResult("Ready", emptyList()) },
+                        { _, _ -> }, embedded = true)
+                }, confirmButton = {})
         } }
-        compose.onNodeWithTag("floating-add-expense").performClick()
-        compose.onNodeWithTag("quick-entry-expense").assertTextContains("Expense")
-        compose.onNodeWithTag("quick-entry-salary").assertTextContains("Salary")
-        compose.onNodeWithTag("quick-entry-saving").performClick()
-        compose.onNodeWithText("Add saving").assertIsDisplayed()
-        compose.onNodeWithText("Amount PKR").performTextInput("250")
+        compose.onNodeWithTag("autofill-list").performScrollToKey("input")
+        compose.onNodeWithTag("autofill-input").performScrollTo().performTextInput("Petrol 1500")
+        compose.waitUntil(5000) { imeBottom > 0 }
         val fd = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
             .uiAutomation.executeShellCommand("input keyevent 4")
         android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
-        compose.waitForIdle()
+        compose.waitUntil(5000) { imeBottom == 0 }
         compose.onNodeWithTag("ledger-entry-sheet").assertIsDisplayed()
-        compose.onNodeWithText("Amount PKR").assertTextContains("250")
+        compose.onNodeWithTag("autofill-input").assertTextContains("Petrol 1500")
+        val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-ai-entry-sheet.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(shot).use { it.readBytes() }
     }
 
     @Test fun savingsOpensAsSheetAndSavesWithoutChangingAmount() {

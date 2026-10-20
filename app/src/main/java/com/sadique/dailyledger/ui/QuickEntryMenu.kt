@@ -1,68 +1,80 @@
 package com.sadique.dailyledger.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 internal data class QuickEntryAction(val id: String, val label: String, val icon: ImageVector)
 internal val quickEntryActions = listOf(
+    QuickEntryAction("ai", "AI", Icons.Rounded.AutoAwesome),
     QuickEntryAction("expense", "Expense", Icons.Rounded.ShoppingCart),
     QuickEntryAction("salary", "Salary", Icons.Rounded.Payments),
-    QuickEntryAction("income", "Other income", Icons.Rounded.AccountBalanceWallet),
-    QuickEntryAction("saving", "Saving", Icons.Rounded.AccountBalanceWallet),
-    QuickEntryAction("credit", "Udhar purchase", Icons.Rounded.Storefront),
-    QuickEntryAction("loan", "Loan / lent money", Icons.Rounded.Handshake),
-    QuickEntryAction("kameti", "Personal kameti", Icons.Rounded.Groups),
-    QuickEntryAction("collection", "Collection kameti", Icons.Rounded.GroupAdd),
-    QuickEntryAction("ai", "AI auto fill", Icons.Rounded.AutoAwesome),
-    QuickEntryAction("loan-payment", "Loan repayment", Icons.Rounded.Payment),
-    QuickEntryAction("credit-payment", "Udhar payment", Icons.Rounded.Payments),
-    QuickEntryAction("kameti-paid", "Kameti installment", Icons.Rounded.EventAvailable),
-    QuickEntryAction("kameti-receive", "Kameti receiving", Icons.Rounded.AccountBalanceWallet),
-    QuickEntryAction("kameti-member", "Kameti member / turn", Icons.Rounded.PersonAdd),
-    QuickEntryAction("detailed", "Detailed entry", Icons.Rounded.EditNote),
-    QuickEntryAction("budget", "Category budget", Icons.Rounded.PieChart),
-    QuickEntryAction("reminder", "Bill / reminder", Icons.Rounded.NotificationsActive),
-    QuickEntryAction("SPLIT", "Split a bill", Icons.Rounded.CallSplit),
-    QuickEntryAction("ACCOUNT", "Account opening balance", Icons.Rounded.AccountBalance),
-    QuickEntryAction("TRANSFER", "Account transfer", Icons.Rounded.SwapHoriz),
-    QuickEntryAction("ADJUSTMENT", "Balance adjustment", Icons.Rounded.Tune),
-    QuickEntryAction("GOAL", "Saving goal", Icons.Rounded.Flag),
-    QuickEntryAction("INSTALLMENT", "Installment purchase", Icons.Rounded.CalendarMonth),
-    QuickEntryAction("REIMBURSEMENT", "Pay on someone's behalf", Icons.Rounded.People),
-    QuickEntryAction("SHOPPING", "Shopping item", Icons.Rounded.ShoppingBag),
-    QuickEntryAction("PLANNED", "Planned payment", Icons.Rounded.Event),
-    QuickEntryAction("ALLOCATION", "Salary allocation", Icons.Rounded.AccountTree),
-    QuickEntryAction("SHORTCUT", "Custom shortcut", Icons.Rounded.Bolt),
+    QuickEntryAction("kameti", "Kameti", Icons.Rounded.Groups),
+    QuickEntryAction("credit", "Udhar", Icons.Rounded.Storefront),
 )
 
+/** Five labelled actions retract into the stationary plus/minus toggle. */
 @Composable
-internal fun QuickEntryMenu(onDismiss: () -> Unit, onSelect: (String) -> Unit) {
-    LedgerEntrySheet(onDismissRequest = onDismiss, title = { Text("Add entry") }, text = {
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            quickEntryActions.chunked(2).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { action ->
-                        FilledTonalButton(onClick = { onSelect(action.id) },
-                            modifier = Modifier.weight(1f).heightIn(min = 64.dp)
-                                .testTag("quick-entry-${action.id}"),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
-                            Icon(action.icon, null, Modifier.size(22.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(action.label, modifier = Modifier.weight(1f))
+internal fun QuickEntryDial(onSelect: (String) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val progress by animateFloatAsState(if (expanded) 1f else 0f, tween(280), label = "entry-toggle")
+    val ink = MaterialTheme.colorScheme.onPrimary
+    BackHandler(enabled = expanded) { expanded = false }
+    Row(Modifier.fillMaxWidth().widthIn(max = 440.dp).testTag("quick-entry-dial"),
+        verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.weight(1f)) {
+            AnimatedVisibility(expanded,
+                enter = slideInHorizontally(tween(280)) { it } + fadeIn(tween(220)),
+                exit = slideOutHorizontally(tween(240)) { it } + fadeOut(tween(180))) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    quickEntryActions.forEach { action ->
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            FilledIconButton(onClick = { expanded = false; onSelect(action.id) },
+                                modifier = Modifier.size(43.dp).testTag("quick-entry-${action.id}"),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
+                                Icon(action.icon, action.label, Modifier.size(23.dp))
+                            }
+                            Text(action.label, fontSize = 10.sp, maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
             }
         }
-    }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+        FloatingActionButton(onClick = { expanded = !expanded },
+            modifier = Modifier.size(58.dp).testTag("floating-add-expense").semantics {
+                contentDescription = if (expanded) "Close entry menu" else "Add entry"
+                stateDescription = if (expanded) "Expanded" else "Collapsed"
+            }, containerColor = MaterialTheme.colorScheme.primary, contentColor = ink) {
+            Canvas(Modifier.size(29.dp).graphicsLayer { rotationZ = 180f * progress }) {
+                val stroke = 3.dp.toPx()
+                drawLine(ink, Offset(0f,size.height/2), Offset(size.width,size.height/2), stroke, StrokeCap.Round)
+                drawLine(ink.copy(alpha = 1f-progress), Offset(size.width/2,0f), Offset(size.width/2,size.height), stroke, StrokeCap.Round)
+            }
+        }
+    }
 }
 
 @Composable

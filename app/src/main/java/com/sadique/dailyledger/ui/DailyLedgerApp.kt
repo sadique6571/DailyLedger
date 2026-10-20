@@ -324,41 +324,24 @@ fun DailyLedgerApp(
             dismissButton = { TextButton(onClick = { aiConsent = false }) { Text("Cancel") } },
         )
     }
-    if (tab == AUTO_FILL) {
-        AutoFillScreen(
-            enabled = aiEnabled,
-            onEnable = { aiConsent = true },
-            onBack = { goBack() },
-            generate = vm::autoFill,
+    var aiEntryOpen by remember { mutableStateOf(false) }
+    var aiEntryBusy by remember { mutableStateOf(false) }
+    var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
+    var entryRequest by remember { mutableStateOf<String?>(null) }
+    if (aiEntryOpen) LedgerEntrySheet(
+        onDismissRequest = { aiEntryOpen = false }, canDismiss = !aiEntryBusy,
+        title = { Text("AI Auto Fill") }, scrollBody = false,
+        text = { AutoFillScreen(
+            enabled = aiEnabled, onEnable = { aiConsent = true },
+            onBack = { aiEntryOpen = false }, generate = vm::autoFill,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
-            },
-            onSaved = { goBack() },
-            onLearnCategory = vm::rememberCategory,
-        )
-        return@CompositionLocalProvider
-    }
-    var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
-    var entryMenu by remember { mutableStateOf(false) }
-    var entryRequest by remember { mutableStateOf<String?>(null) }
-    if (entryMenu) QuickEntryMenu(onDismiss = { entryMenu = false }) { action ->
-        entryMenu = false
-        when (action) {
-            "expense" -> quickTransaction = EntryShortcut("EXPENSE")
-            "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
-            "income" -> quickTransaction = EntryShortcut("INCOME", "Other income")
-            "saving" -> addSaving = true
-            "ai" -> open(AUTO_FILL)
-            "credit" -> { addCreditRequested = true; open(7) }
-            "loan", "loan-payment" -> { entryRequest = action; open(2) }
-            "credit-payment" -> { entryRequest = action; open(7) }
-            "kameti", "collection", "kameti-paid", "kameti-receive", "kameti-member" -> { entryRequest = action; open(3) }
-            "budget" -> { entryRequest = action; open(BUDGETS) }
-            "reminder" -> { entryRequest = action; open(BILLS) }
-            else -> { entryRequest = action; open(NavigationHistory.FINANCE_TOOLS) }
-        }
-    }
+            }, onSaved = { aiEntryOpen = false }, onLearnCategory = vm::rememberCategory,
+            embedded = true, onBusyChanged = { aiEntryBusy = it },
+        ) }, confirmButton = {},
+        dismissButton = { TextButton(onClick = { aiEntryOpen = false }, enabled = !aiEntryBusy) { Text("Close") } },
+    )
     if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, vm::saveCreditDrafts)
     if (addSaving) SavingDialog(
         dismiss = { addSaving = false },
@@ -423,7 +406,7 @@ fun DailyLedgerApp(
             weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
             onBack = ::goBack,
-            onAutoFill = { open(AUTO_FILL) },
+            onAutoFill = { run { aiEntryOpen = true } },
             onOpenSavings = { open(SAVINGS) },
             entranceVisit = settingsEntranceVisit,
             onTheme = { scope.launch { settings.setTheme(it) } },
@@ -476,11 +459,19 @@ fun DailyLedgerApp(
                 onNavigateUp = ::goBack,
                 onSearch = { open(SEARCH) },
                 onReminders = { remindersOpen = true },
-                onAiEntry = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) },
+                onAiEntry = { if (tab == 7) creditAiOpen = true else run { aiEntryOpen = true } },
             )
         },
         floatingActionButton = {
-            ExpenseFloatingButton { entryMenu = true }
+            QuickEntryDial { action ->
+                when (action) {
+                    "ai" -> aiEntryOpen = true
+                    "expense" -> quickTransaction = EntryShortcut("EXPENSE")
+                    "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
+                    "kameti" -> { entryRequest = "kameti"; open(3) }
+                    "credit" -> { addCreditRequested = true; open(7) }
+                }
+            }
         },
         bottomBar = {
             AppBottomBar(
@@ -522,7 +513,7 @@ fun DailyLedgerApp(
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
                     creditPayments = creditPayments,
                     onOpenKameti = { open(3) },
-                    onAutoFill = { open(AUTO_FILL) },
+                    onAutoFill = { run { aiEntryOpen = true } },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
                     onExpenseHistory = { historyQuery = ""; historyFilter = "EXPENSE"; open(1) },
                     onStartNewMonth = vm::startNewMonth,
@@ -541,7 +532,7 @@ fun DailyLedgerApp(
                 1 -> TransactionsScreen(
                     items = tx.filterNot { it.privateEntry },
                     initialQuery = historyQuery, initialFilter = historyFilter,
-                    onAutoFill = { open(AUTO_FILL) },
+                    onAutoFill = { run { aiEntryOpen = true } },
                     onDetailedEntry = { detailedDraft=it },
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
