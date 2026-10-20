@@ -7,6 +7,10 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.geometry.Rect
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -71,6 +75,20 @@ fun CategoryDropdown(
     val categories = options.indexed.map { it.first }
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
+    val inlineView = remember { BringIntoViewRequester() }
+    var inlineHeight by remember { mutableIntStateOf(0) }
+    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
+    LaunchedEffect(inlineResults, expanded, keyboardVisible) {
+        if (inlineResults && expanded) {
+            // Wait for the keyboard layout once, then reveal the input and first
+            // result together. Do not repeat this for each query keystroke.
+            delay(300)
+            withFrameNanos { }
+            val firstRows = with(density) { 144.dp.toPx() }
+            inlineView.bringIntoView(Rect(0f, 0f, 1f,
+                if (inlineHeight > 0) minOf(firstRows, inlineHeight.toFloat()) else firstRows))
+        }
+    }
 
     // Dismissing the suggestions is not cancelling an edit. Keep the search draft
     // through focus changes, keyboard/back dismissal and lazy-list recreation.
@@ -97,7 +115,7 @@ fun CategoryDropdown(
             sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
             LazyColumn(resultsModifier.testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
                 sections.forEach { (group, rows) ->
-                    item(key = "heading-$group") {
+                    if (!inlineResults) item(key = "heading-$group") {
                         Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
                             style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
@@ -120,7 +138,8 @@ fun CategoryDropdown(
         // closed while the user is trying to continue typing.
         onExpandedChange = { if (enabled) expanded = true },
         modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().bringIntoViewRequester(inlineView)
+            .onSizeChanged { inlineHeight = it.height }) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
             onValueChange = {
@@ -152,7 +171,7 @@ fun CategoryDropdown(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                results(Modifier.fillMaxWidth().heightIn(max = 180.dp))
+                results(Modifier.fillMaxWidth().heightIn(max = 132.dp))
             }
         }
         }

@@ -25,8 +25,11 @@ class ExpenseSheetTest {
         compose.onNodeWithTag("category-results")
             .assert(hasAnyAncestor(hasTestTag("transaction-bottom-sheet")))
         compose.onNodeWithTag("category-floating-popup").assertDoesNotExist()
-        compose.onNode(hasText("Milk") and hasClickAction() and !hasSetTextAction())
-            .performScrollTo().assertIsDisplayed()
+        compose.waitUntil(5_000) {
+            runCatching { compose.onNode(hasText("Milk") and hasClickAction() and !hasSetTextAction())
+                .assertIsDisplayed() }.isSuccess
+        }
+        compose.onNodeWithTag("category-dropdown").assertIsDisplayed()
         compose.waitForIdle()
         val fd = InstrumentationRegistry.getInstrumentation().uiAutomation
             .executeShellCommand("screencap -p /data/local/tmp/dailyledger-inline-category-sheet.png")
