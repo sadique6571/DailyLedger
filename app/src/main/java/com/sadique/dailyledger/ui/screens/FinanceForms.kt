@@ -25,8 +25,21 @@ import java.math.RoundingMode
 
 @Composable internal fun FinanceSelect(label:String,value:String,options:List<String>,onSelect:(String)->Unit,enabled:Boolean=true) {
     var expanded by remember { mutableStateOf(false) }
-    Box { OutlinedButton(onClick={expanded=true},enabled=enabled,modifier=Modifier.fillMaxWidth()){Text("$label: $value")}
-        DropdownMenu(expanded,onDismissRequest={expanded=false}){options.forEach{option->DropdownMenuItem(text={Text(option)},onClick={onSelect(option);expanded=false})}}
+    val inline = LocalEntrySheet.current
+    Column {
+        OutlinedButton(onClick={expanded=!expanded},enabled=enabled,modifier=Modifier.fillMaxWidth()){Text("$label: $value")}
+        if (inline && expanded) {
+            Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState())) {
+                    options.forEach { option ->
+                        TextButton(onClick = { onSelect(option); expanded=false }, modifier = Modifier.fillMaxWidth()) { Text(option) }
+                    }
+                }
+            }
+        } else if (!inline) {
+            DropdownMenu(expanded,onDismissRequest={expanded=false}){options.forEach{option->DropdownMenuItem(text={Text(option)},onClick={onSelect(option);expanded=false})}}
+        }
     }
 }
 @Composable internal fun FinanceFormDialog(title:String,dismiss:()->Unit,save:suspend()->Unit,enabled:Boolean=true,button:String="Save",content:@Composable ColumnScope.(Boolean)->Unit) {

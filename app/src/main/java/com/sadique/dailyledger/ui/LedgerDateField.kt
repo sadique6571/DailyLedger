@@ -26,6 +26,8 @@ fun LedgerDateField(
     enabled: Boolean = true,
     calendarTag: String = "date-calendar-$label",
 ) {
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
     var calendarOpen by remember { mutableStateOf(false) }
     val invalid = !(optional && value.isBlank()) && !isValidDate(value)
     LedgerTextField(value, onValueChange, modifier.fillMaxWidth(), enabled = enabled,
@@ -33,7 +35,7 @@ fun LedgerDateField(
         placeholder = { Text("YYYY-MM-DD", translate = false) },
         supportingText = { Text(if (invalid) "Use a valid YYYY-MM-DD date" else if (optional) "Optional • YYYY-MM-DD" else "YYYY-MM-DD") },
         trailingIcon = {
-            IconButton(onClick = { calendarOpen = true }, enabled = enabled, modifier = Modifier.testTag(calendarTag)) {
+            IconButton(onClick = { focus.clearFocus(); keyboard?.hide(); calendarOpen = true }, enabled = enabled, modifier = Modifier.testTag(calendarTag)) {
                 Icon(Icons.Rounded.CalendarMonth, com.sadique.dailyledger.i18n.LocalStrings.current.text("Choose date from calendar"))
             }
         },
