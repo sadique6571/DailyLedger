@@ -56,6 +56,8 @@ class CompactChromeTest {
         compose.runOnIdle { mode.value = "DARK" }
         compose.onNodeWithTag("compact-app-header").assertIsDisplayed()
         compose.onNodeWithTag("global-ai").assertIsDisplayed()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.onNodeWithText("Remaining balance").assertIsDisplayed()
         shot("compact-home-dark")
     }
 
@@ -83,7 +85,8 @@ class CompactChromeTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             MoreScreen({}, {}, {}, {}, {}, {}, onReminders = { opened = true })
         } }
-        compose.onNodeWithText("Reminders").performScrollTo().performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Reminders"))
+        compose.onNodeWithText("Reminders").performClick()
         compose.runOnIdle { assertEquals(true, opened) }
     }
 
