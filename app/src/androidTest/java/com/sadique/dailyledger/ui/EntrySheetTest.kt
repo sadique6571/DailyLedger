@@ -17,7 +17,9 @@ class EntrySheetTest {
 
     @Test fun plusShowsOnlyFiveShortcutsAndRetractsAtTheSamePosition() {
         var selected = ""
-        compose.setContent { DailyLedgerTheme("LIGHT") { QuickEntryDial { selected = it } } }
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            androidx.compose.material3.Scaffold(floatingActionButton = { QuickEntryDial { selected = it } }) { _ -> }
+        } }
         val toggle = compose.onNodeWithTag("floating-add-expense")
         val before = toggle.fetchSemanticsNode().boundsInRoot
         toggle.performClick()

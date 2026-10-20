@@ -56,7 +56,7 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
                                 Icon(action.icon, action.label, Modifier.size(23.dp))
                             }
-                            Text(action.label, fontSize = 10.sp, maxLines = 1,
+                            Text(action.label, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1,
                                 color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
