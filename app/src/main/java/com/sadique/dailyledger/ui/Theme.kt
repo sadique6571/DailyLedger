@@ -196,7 +196,7 @@ fun DailyLedgerTheme(
         com.sadique.dailyledger.i18n.LocalStrings provides strings,
         androidx.compose.ui.platform.LocalLayoutDirection provides if (strings.urdu) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr) {
     MaterialTheme(colorScheme = readable,
-        shapes = Shapes(small = RoundedCornerShape(20.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(20.dp)),
+        shapes = Shapes(small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         typography = Typography(
             headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
             headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),
@@ -206,7 +206,10 @@ fun DailyLedgerTheme(
             titleSmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
             bodyLarge = TextStyle(fontFamily = if (strings.urdu) com.sadique.dailyledger.i18n.Nastaleeq else FontFamily.SansSerif, fontSize = if (strings.urdu) 16.sp else 14.sp, lineHeight = if (strings.urdu) 32.sp else 21.sp),
             bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, lineHeight = 19.sp),
-            bodySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp)
+            bodySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp),
+            labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = .1.sp),
+            labelMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = .3.sp),
+            labelSmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp, letterSpacing = .4.sp),
         ), content = content)
     }
 }

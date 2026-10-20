@@ -24,7 +24,8 @@ object SyncScheduler {
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
     }
     /** One delayed obligation per account. New edits never append an unbounded job chain. */
-    fun syncNow(context: Context, ownerId: String? = currentOwner(context)) = enqueue(context, ownerId, INTERVAL_HOURS * 60 * 60)
+    fun syncNow(context: Context, ownerId: String? = currentOwner(context)) = enqueue(context, ownerId, EDIT_DELAY_SECONDS)
+    internal const val EDIT_DELAY_SECONDS = 15L * 60L
     private fun enqueue(context: Context, ownerId: String?, delaySeconds: Long) {
         val owner = ownerId?.takeIf { it.isNotBlank() } ?: return
         WorkManager.getInstance(context).enqueueUniqueWork(workName(owner), ExistingWorkPolicy.KEEP,

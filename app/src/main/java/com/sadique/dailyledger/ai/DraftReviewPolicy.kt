@@ -16,7 +16,7 @@ object DraftReviewPolicy {
     fun issues(input: String, draft: TransactionDraft, cloud: Boolean = false, today: LocalDate = LocalDate.now()): List<String> {
         val dates = EntryDateParser.extract(EntryText.normalize(input), today)
         return buildList {
-            if (draft.category in setOf("Other", "Other income")) add("Category unclear — choose the correct category.")
+            if (draft.category.isBlank() || draft.category in setOf("Other", "Other income")) add("Category unclear — choose the correct category.")
             if (dates.any { it.yearOmitted }) add("Date was incomplete — confirm the assumed month/year.")
             if (Regex("(?<![\\p{L}])(?:kal|کل|parson|parso|پرسوں)(?![\\p{L}])", RegexOption.IGNORE_CASE).containsMatchIn(input))
                 add("Relative date — confirm whether you meant a past or future day.")

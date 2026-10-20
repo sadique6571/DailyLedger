@@ -83,7 +83,7 @@ fun MonthlyComparisonScreen(owner: String, transactions: List<TransactionEntity>
 private data class SearchRecord(val key: String, val ledger: String, val route: Int, val title: String, val date: String, val amount: Long, val note: String)
 @Composable
 fun GlobalSearchScreen(vm: MainViewModel, open: (Int) -> Unit) {
-    val tx by vm.transactions.collectAsState(); val loans by vm.loans.collectAsState(); val loanPayments by vm.loanPayments.collectAsState()
+    val allTx by vm.transactions.collectAsState(); val tx=allTx.filterNot { it.privateEntry }; val loans by vm.loans.collectAsState(); val loanPayments by vm.loanPayments.collectAsState()
     val savings by vm.savings.collectAsState(); val committees by vm.committees.collectAsState(); val cp by vm.committeePayments.collectAsState(); val cr by vm.committeeReceipts.collectAsState()
     val credits by vm.creditPurchases.collectAsState(); val creditPayments by vm.creditPayments.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }

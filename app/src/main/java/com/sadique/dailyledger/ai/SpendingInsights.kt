@@ -46,6 +46,7 @@ object SpendingInsights {
         val previous = month.minusMonths(1)
         val days = minOf(today.dayOfMonth, previous.lengthOfMonth())
         val own = transactions.filter { row ->
+            !row.privateEntry &&
             row.ownerId == owner && runCatching { LocalDate.parse(row.date) <= today }.getOrDefault(false)
         }
         val current = own.filter { row ->
@@ -67,12 +68,12 @@ object SpendingInsights {
         val categories = current
             .filter { it.type == "EXPENSE" }
             .groupBy { it.category.trim().ifBlank { "Other" } }
-            .map { (name, rows) -> name to rows.sumOf { it.amountMinor } }
+            .map { (name, rows) -> name to rows.sumOf { it.expenseEffect() } }
             .sortedByDescending { it.second }
 
         fun comparable(m: YearMonth) = own
             .filter { it.type == "EXPENSE" && it.date.startsWith("$m-") && LocalDate.parse(it.date).dayOfMonth <= days }
-            .sumOf { it.amountMinor }
+            .sumOf { it.expenseEffect() }
 
         val now = comparable(month)
         val old = comparable(previous)
@@ -144,7 +145,7 @@ object SpendingInsights {
             // Compare each category over the same elapsed calendar days, not a full previous month.
             fun comparableCategories(m: YearMonth) = own.filter {
                 it.type == "EXPENSE" && it.date.startsWith("$m-") && LocalDate.parse(it.date).dayOfMonth <= days
-            }.groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
+            }.groupBy { it.category }.mapValues { (_, rows) -> rows.sumOf { it.expenseEffect() } }
             val previousByCategory = comparableCategories(previous)
             val rise = comparableCategories(month).mapNotNull { (name, amount) ->
                 previousByCategory[name]?.takeIf { it > 0 && amount > it }?.let { Triple(name, amount - it, it) }

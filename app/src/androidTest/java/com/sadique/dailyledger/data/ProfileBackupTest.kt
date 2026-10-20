@@ -23,10 +23,10 @@ class ProfileBackupTest {
             source.updateProfile { settings }
             source.saveTransaction("EXPENSE", 10000, "Milk", "Keep", "2026-10-18")
             val json = source.exportJson()
-            assertEquals(9, JSONObject(json).getInt("version"))
+            assertEquals(11, JSONObject(json).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(json)
-            assertEquals(settings, restored.profileSnapshot())
+            assertEquals(settings, restored.profileSnapshot().copy(workspace=FinanceWorkspace()))
             assertEquals("2026-10-31", restored.profileSnapshot().planner.bills.single().nextDue().toString())
             assertEquals(1, db.ledgerDao().transactionsNow("restored").size)
             assertFalse(LedgerRepository(db, "other").profileSnapshot().hasContent)
@@ -41,15 +41,15 @@ class ProfileBackupTest {
             repo.saveTransaction("EXPENSE", 10000, "Milk", "Original", "2026-10-18")
             val json = repo.exportJson()
             val old = JSONObject(json).put("version", 8).apply { remove("profileSettings") }
-            repo.importJson(old.toString()); assertEquals(data, repo.profileSnapshot())
+            repo.importJson(old.toString()); assertEquals(data, repo.profileSnapshot().copy(workspace=FinanceWorkspace()))
             val bad = JSONObject(json)
             bad.getJSONObject("profileSettings").getJSONObject("planner").getJSONArray("budgets").getJSONObject(0).put("limit", -1)
             assertTrue(runCatching { repo.importJson(bad.toString()) }.isFailure)
-            assertEquals(data, repo.profileSnapshot())
+            assertEquals(data, repo.profileSnapshot().copy(workspace=FinanceWorkspace()))
             val invalidLedger = JSONObject(json).put("profileSettings", ProfileBackupData().json())
             invalidLedger.getJSONArray("transactions").getJSONObject(0).put("amountMinor", -1)
             assertTrue(runCatching { repo.importJson(invalidLedger.toString()) }.isFailure)
-            assertEquals(data, repo.profileSnapshot())
+            assertEquals(data, repo.profileSnapshot().copy(workspace=FinanceWorkspace()))
             assertEquals("Original", db.ledgerDao().transactionsNow("owner").single().note)
             repo.clearAllForOwner(); assertFalse(repo.profileSnapshot().hasContent)
         } finally { db.close() }
@@ -61,7 +61,7 @@ class ProfileBackupTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, 0).use {
             it.execSQL("DROP TABLE profile_backup"); it.version = 8
         }
-        val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_8_9).build()
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11).build()
         try {
             val old = LedgerRepository(db, "old"); val current = LedgerRepository(db, "new")
             old.updateProfile { plan() }

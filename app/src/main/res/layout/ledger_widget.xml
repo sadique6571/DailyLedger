@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="#102A34">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="DailyLedger" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+    <TextView android:id="@+id/widget_balance" android:maxLines="1" android:ellipsize="end" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Balance hidden" android:textColor="#7FFFE3" android:textSize="20sp" />
+    <Button android:id="@+id/widget_add" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="New expense" android:textAllCaps="false" />
+</LinearLayout>

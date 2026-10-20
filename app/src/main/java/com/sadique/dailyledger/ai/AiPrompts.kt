@@ -18,6 +18,8 @@ internal object AiPrompts {
             amount_pkr is a positive rupee decimal STRING with at most two decimal places, no commas, at most 10000000000.
             Salary/tankhwah is INCOME with category Salary. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.
+            Use Salan for purchased cooked curry; Packaged milk for Milk Pak/Milk Pack/Olpers (plain doodh stays Milk).
+            Chocolate, Toffee & candy, Papar, Biscuits, and Chips & nimko have separate categories; do not collapse them into Other or generic Snacks.
             Maximum ${AiProtocol.MAX_DRAFTS} drafts. Each category max 60 characters, note max 500, date YYYY-MM-DD.
             This feature cannot create savings, loans, kameti, transfers, edits or deletions.
             For ambiguous, unsupported or mixed requests, return no transactions and ask for clarification.

@@ -1,6 +1,5 @@
 package com.sadique.dailyledger.ui
 
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -36,7 +35,7 @@ fun LedgerTextField(
         leadingIcon = leadingIcon, trailingIcon = trailingIcon, supportingText = supportingText,
         isError = isError, visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
         singleLine = singleLine, maxLines = maxLines, minLines = minLines,
-        shape = RoundedCornerShape(LedgerDesignTokens.CardCorner),
+        shape = LedgerTokens.ShapeSmall,
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = lerp(palette.surface, palette.primaryContainer, .75f),
             unfocusedContainerColor = lerp(palette.surface, palette.primaryContainer, .45f),

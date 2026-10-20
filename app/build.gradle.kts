@@ -23,7 +23,7 @@ android {
         applicationId = "com.sadique.dailyledger"
         minSdk = 26
         targetSdk = 36
-        versionCode = 30
+        versionCode = 34
         versionName = "2.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
@@ -45,6 +45,9 @@ android {
             // Keep the existing certificate for in-place upgrades. See FIREBASE-AI-SETUP.md.
             signingConfig = signingConfigs.getByName("debug")
             isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -61,6 +64,8 @@ android {
 
 
     packaging {
+        // Compress native libraries in the download; Android extracts only the device ABI on install.
+        jniLibs.useLegacyPackaging = true
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 }
@@ -114,6 +119,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.6.0")
 
     implementation("androidx.biometric:biometric:1.1.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 

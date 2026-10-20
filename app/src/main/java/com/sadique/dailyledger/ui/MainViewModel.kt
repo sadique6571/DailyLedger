@@ -30,6 +30,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         LedgerRepository(AppDatabase.get(getApplication<Application>()), oldOwner) { CategoryLearningStore(getApplication<Application>(), oldOwner).snapshot() }.learningSnapshot()
         migrateOwner(oldOwner)
     }
+    val accountNames=repo.profileBackup.map { it.workspace.accounts }.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),listOf("Cash","Bank","Easypaisa","JazzCash"))
     val transactions=repo.transactions.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val creditPurchases=repo.creditPurchases.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
     val creditPayments=repo.creditPayments.distinctUntilChanged().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5_000),emptyList())
@@ -74,6 +75,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         // The database commit succeeded. A scheduler failure must not be presented as a failed save.
         // Pending status and the periodic worker retain the backup obligation.
         runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
+        runCatching { com.sadique.dailyledger.widget.LedgerWidget.refresh(getApplication<Application>()) }
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
@@ -84,10 +86,10 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val learning = repo.aiLearning.catch { e ->
         _learningError.value = e.message ?: "AI learning could not be read. Saved data was kept."
     }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.Eagerly, LearningSnapshot())
-    private val historyRules = transactions.map { CategoryLearning.fromHistory(it, ownerId) }
+    private val historyRules = transactions.map { CategoryLearning.fromHistory(it.filterNot { row -> row.privateEntry }, ownerId) }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val learnedCategories = combine(learning, historyRules) { explicit, history ->
-        explicit.rules + history.filter { rule ->
+    val learnedCategories = combine(learning, historyRules, transactions, repo.profileBackup) { explicit, history, rows, profile ->
+        publicLearningRules(explicit.rules,rows,profile.workspace.revisions) + history.filter { rule ->
             explicit.rules.none { it.type == rule.type && it.phrase == rule.phrase } && "${rule.type}:${CategoryLearning.normalize(rule.phrase)}" !in explicit.suppressed
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -119,6 +121,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             planner.markHandled(bill.id, due, alreadyLocked = true)
         }
         runCatching { SyncScheduler.syncNow(getApplication<Application>(), ownerId) }
+        runCatching { com.sadique.dailyledger.widget.LedgerWidget.refresh(getApplication<Application>()) }
     }
     private val manualInsights = ManualInsights(viewModelScope, aiPrefs.enabled, aiPrefs::cached, aiPrefs::save)
     val aiEnabled = manualInsights.enabled
@@ -151,7 +154,8 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         }
         val learned = repo.learningSnapshot()
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
-        val entries = result.entries.map { CategoryLearning.apply(it, learned.rules, history) }
+        val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
+        val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
         result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = offline == null) },
             message = result.message + if (learnedCount > 0) " $learnedCount categories matched your saved learning." else "")

@@ -11,9 +11,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -25,7 +23,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /** Theme-aware, softly raised money cards that fit in the two-column dashboard layout. */
 @Composable
@@ -50,8 +47,10 @@ fun SummaryCard(
         title.contains("udhar", true) -> scheme.secondary
         else -> scheme.secondary
     }
-    val shape = RoundedCornerShape(20.dp)
+    val shape = LedgerTokens.ShapeCard
     val cardFill = scheme.surface
+    val horizontal = if (compact) LedgerTokens.Space10 else LedgerTokens.Space12
+    val vertical = if (compact) LedgerTokens.Space10 else LedgerTokens.Space12
     Card(
         modifier = modifier.fillMaxWidth()
             .then(if (isKameti) Modifier.testTag("kameti-paid-card") else Modifier)
@@ -59,34 +58,33 @@ fun SummaryCard(
         shape = shape,
         border = BorderStroke(
             1.dp,
-            accent.copy(alpha = if (isKameti) .34f else if (dark) .42f else .28f),
+            accent.copy(alpha = if (isKameti) .3f else if (dark) .38f else .24f),
         ),
         colors = CardDefaults.cardColors(containerColor = cardFill),
-        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = LedgerTokens.Elevation2),
     ) {
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
                     Brush.verticalGradient(listOf(
-                        lerp(cardFill, accent, if (isKameti) .035f else .06f),
+                        lerp(cardFill, accent, if (isKameti) .03f else .05f),
                         cardFill,
                     )),
                     shape = shape,
                 )
-                .padding(horizontal = if (compact) 10.dp else 12.dp,
-                    vertical = if (compact) 9.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
+                .padding(horizontal = horizontal, vertical = vertical),
+            verticalArrangement = Arrangement.spacedBy(if (compact) LedgerTokens.Space4 else LedgerTokens.Space6),
         ) {
             GlowIcon(icon, accent, size = if (compact) 27.dp else 32.dp)
-            Text(title, style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+            Text(title, style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurfaceVariant, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             val hidden = LocalDisplayPreferences.current?.privateAmounts == true
-            Text(if (hidden) "Rs •••••" else money(amount), fontSize = if (compact) 14.sp else 16.sp,
+            Text(if (hidden) "Rs •••••" else money(amount), style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             detail?.let {
-                Text(it, fontSize = 10.sp, maxLines = 3,
-                    overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
+                Text(it, style = MaterialTheme.typography.labelSmall,
+                    maxLines = 3, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)
             }
         }
     }

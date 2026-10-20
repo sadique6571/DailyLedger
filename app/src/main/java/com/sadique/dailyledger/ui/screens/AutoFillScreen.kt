@@ -63,6 +63,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     var checked by remember { mutableStateOf(emptySet<String>()) }
     var confirmSave by remember { mutableStateOf(false) }
     fun learn(type: String, note: String, category: String) {
+        if(category.isBlank()) return
         busy = true
         scope.launch {
             try { message = onLearnCategory(type, note, category) ?: "Category correction learned and queued for backup." }
@@ -185,7 +186,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                                     }
                                 }
                                 CategoryDropdown(entry.type, entry.category, onSelect = { category ->
-                                    if (category != entry.category) {
+                                    if (category.isNotBlank() && category != entry.category) {
                                         learn(entry.type, entry.note, category)
                                     }
                                     entries = entries.mapIndexed { j, old -> if (j == i) old.copy(category = category) else old }
@@ -212,7 +213,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     Text("Expenses total: ${displayMoney(DraftReviewPolicy.total(entries, "EXPENSE"))}", fontWeight = FontWeight.SemiBold)
                     Text("Income total: ${displayMoney(DraftReviewPolicy.total(entries, "INCOME"))}", fontWeight = FontWeight.SemiBold)
                     GradientButton("Review & Save (${entries.size})", onClick = { confirmSave = true },
-                        modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy)
+                        modifier = Modifier.fillMaxWidth().testTag("autofill-save"), enabled = !busy && entries.all { it.category.isNotBlank() })
                     TextButton(onClick = { entries = emptyList(); message = "Drafts discarded."; batch = UUID.randomUUID().toString() }, enabled = !busy) { Text("Discard drafts") }
                 }
                 enteringItem(key = "categories") {

@@ -22,7 +22,7 @@ class AiLearningBackupTest {
             source.updateLearning { it.forget("EXPENSE", "chai").dismiss(SpendingTip("Food", "Try reducing optional meals by 100")) }
             val snapshot = source.learningSnapshot()
             val before = source.exportJson()
-            assertEquals(9, JSONObject(before).getInt("version"))
+            assertEquals(11, JSONObject(before).getInt("version"))
             val restored = LedgerRepository(db, "restored")
             restored.importJson(before)
             assertEquals(snapshot, restored.learningSnapshot())
@@ -108,7 +108,7 @@ class AiLearningBackupTest {
             old.execSQL("DROP INDEX index_transactions_owner_date_created")
             old.version = 7
         }
-        val upgraded = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9).build()
+        val upgraded = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11).build()
         try {
             assertEquals("Keep", upgraded.ledgerDao().transactionsNow("owner").single().note)
             assertFalse(LedgerRepository(upgraded, "owner").learningSnapshot().hasContent)

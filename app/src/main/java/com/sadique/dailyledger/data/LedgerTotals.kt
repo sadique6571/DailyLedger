@@ -34,7 +34,7 @@ fun ledgerCycleSummary(
     val currentTransactions = transactions.filter { it.createdAt in cycle.startAt..now }
     return SalarySummary(
         salary = currentTransactions.filter { it.isSalary() }.sumOf { it.amountMinor },
-        expenses = currentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
+        expenses = currentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.expenseEffect() },
         otherIncome = currentTransactions.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
         committeeContributions = committeePayments.filter {
             it.paidAt in cycle.startAt..now && it.chargesSalaryBalance()
@@ -59,7 +59,7 @@ fun monthlySalarySummary(
     val current = transactions.filter { it.date.startsWith("$month-") }
     return SalarySummary(
         salary = current.filter { it.isSalary() }.sumOf { it.amountMinor },
-        expenses = current.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
+        expenses = current.filter { it.type == "EXPENSE" }.sumOf { it.expenseEffect() },
         otherIncome = current.filter { it.type == "INCOME" && !it.isSalary() }.sumOf { it.amountMinor },
         committeeContributions = committeePayments.filter { it.month == month }.sumOf { it.amountMinor },
         savingsContributions = savings.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },

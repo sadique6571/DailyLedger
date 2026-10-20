@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Forbids all cleartext HTTP traffic. Daily Ledger only talks to Google
+     APIs (Drive, Firebase) over HTTPS; minSdk 26 devices would otherwise
+     still allow cleartext by platform default. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

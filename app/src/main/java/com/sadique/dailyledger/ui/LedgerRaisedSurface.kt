@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,25 +18,25 @@ import androidx.compose.ui.unit.dp
 /** Shared raised edge, soft shadow and highlight for all rectangular cards and nested boxes. */
 @Composable
 fun LedgerSurface(
-    modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(20.dp),
+    modifier: Modifier = Modifier, shape: Shape = LedgerTokens.ShapeCard,
     color: Color = MaterialTheme.colorScheme.surface, contentColor: Color = contentColorFor(color),
     tonalElevation: Dp = 0.dp, shadowElevation: Dp = 2.dp, border: BorderStroke? = null,
     content: @Composable () -> Unit,
 ) {
     val circular = shape == CircleShape
-    val edge = MaterialTheme.colorScheme.primary.copy(alpha = if (ledgerIsDark()) .28f else .18f)
+    val edge = MaterialTheme.colorScheme.primary.copy(alpha = if (ledgerIsDark()) .24f else .15f)
     androidx.compose.material3.Surface(
         modifier = modifier,
-        shape = if (circular) CircleShape else RoundedCornerShape(LedgerDesignTokens.CardCorner),
+        shape = if (circular) CircleShape else LedgerTokens.ShapeCard,
         color = color.compositeOver(MaterialTheme.colorScheme.surface), contentColor = contentColor, tonalElevation = 0.dp,
         shadowElevation = if (circular) 0.dp else 2.dp,
-        border = if (circular) border else BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = if (ledgerIsDark()) .14f else .85f), edge, edge))), content = content,
+        border = if (circular) border else BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = if (ledgerIsDark()) .12f else .8f), edge, edge))), content = content,
     )
 }
 
 @Composable
 fun LedgerRaisedCard(
-    modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(20.dp),
+    modifier: Modifier = Modifier, shape: Shape = LedgerTokens.ShapeCard,
     colors: CardColors = CardDefaults.cardColors(), elevation: CardElevation = CardDefaults.cardElevation(),
     border: BorderStroke? = null, onClick: (() -> Unit)? = null, enabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,

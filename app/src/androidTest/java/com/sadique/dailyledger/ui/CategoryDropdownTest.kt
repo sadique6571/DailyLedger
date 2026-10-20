@@ -51,4 +51,25 @@ class CategoryDropdownTest {
         assertEquals("Onions", picked)
         compose.onNodeWithText("Selected: Onions").assertIsDisplayed()
     }
+
+    @Test fun clearingOtherKeepsItEmptyAndSearchingDoesNotRestoreOldSelection() {
+        var chosen="Other"
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            var selected by remember { mutableStateOf("Other") }
+            Column { CategoryDropdown("EXPENSE",selected,{selected=it;chosen=it}); androidx.compose.material3.TextField("",{},label={Text("Other field")}) }
+        } }
+        compose.onNodeWithTag("category-dropdown").performClick().performTextReplacement("")
+        compose.runOnIdle { assertEquals("",chosen) }
+        compose.onNodeWithText("Other field").performClick()
+        compose.onNodeWithTag("category-dropdown").assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.EditableText,androidx.compose.ui.text.AnnotatedString("")))
+        compose.onNodeWithTag("category-dropdown").performClick().performTextInput("milk pack")
+        compose.onNodeWithText("Packaged milk").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("Packaged milk",chosen) }
+        compose.onNodeWithTag("category-dropdown").performClick().performTextReplacement("papar")
+        compose.runOnIdle { assertEquals("",chosen) }
+        compose.onNodeWithText("Papar").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("Papar",chosen) }
+        compose.onNodeWithTag("category-clear").performClick()
+        compose.runOnIdle { assertEquals("",chosen) }
+    }
 }

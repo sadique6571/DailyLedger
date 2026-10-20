@@ -180,4 +180,19 @@ interface LedgerDao {
     @Query("UPDATE committee_receipts SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateCommitteeReceipts(oldOwner: String, newOwner: String)
     @Query("UPDATE committee_members SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateCommitteeMembers(oldOwner: String, newOwner: String)
     @Query("UPDATE savings SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateSavings(oldOwner: String, newOwner: String)
+
+    @Query("SELECT * FROM payment_proofs WHERE ownerId=:owner AND paymentId=:paymentId ORDER BY createdAt DESC")
+    fun observePaymentProofs(owner: String, paymentId: String): Flow<List<PaymentProofEntity>>
+    @Query("SELECT * FROM payment_proofs WHERE ownerId=:owner ORDER BY id") suspend fun paymentProofsNow(owner: String): List<PaymentProofEntity>
+    @Query("SELECT SUM(sizeBytes) FROM payment_proofs WHERE ownerId=:owner") suspend fun proofBytes(owner: String): Long?
+    @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertPaymentProofs(items: List<PaymentProofEntity>)
+    @Query("DELETE FROM payment_proofs WHERE ownerId=:owner AND id=:id") suspend fun deletePaymentProof(owner: String,id: String)
+    @Query("DELETE FROM payment_proofs WHERE ownerId=:owner") suspend fun clearPaymentProofs(owner: String)
+    @Query("UPDATE payment_proofs SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migratePaymentProofs(oldOwner: String,newOwner: String)
+
+    @Query("SELECT * FROM payment_proof_chunks WHERE ownerId=:owner AND proofId=:id ORDER BY part") suspend fun proofChunks(owner:String,id:String):List<PaymentProofChunkEntity>
+    @Insert(onConflict=OnConflictStrategy.ABORT) suspend fun insertProofChunks(items:List<PaymentProofChunkEntity>)
+    @Query("DELETE FROM payment_proof_chunks WHERE ownerId=:owner AND proofId=:id") suspend fun deleteProofChunks(owner:String,id:String)
+    @Query("DELETE FROM payment_proof_chunks WHERE ownerId=:owner") suspend fun clearProofChunks(owner:String)
+    @Query("UPDATE payment_proof_chunks SET ownerId=:newOwner WHERE ownerId=:oldOwner") suspend fun migrateProofChunks(oldOwner:String,newOwner:String)
 }

@@ -16,10 +16,11 @@ data class ProfileBackupEntity(@PrimaryKey val ownerId: String, val payload: Str
 
 data class ProfileBackupData(
     val planner: PlannerData = PlannerData(), val salaryDay: Int? = null,
-    val reference: String? = null, val expected: String? = null, val lastRecorded: String? = null,
+    val reference: String? = null, val expected: String? = null, val lastRecorded: String? = null, val workspace: FinanceWorkspace = FinanceWorkspace(),
 ) {
-    val hasContent get() = planner.budgets.isNotEmpty() || planner.bills.isNotEmpty() || salaryDay != null || reference != null || expected != null
+    val hasContent get() = workspace.hasContent || planner.budgets.isNotEmpty() || planner.bills.isNotEmpty() || salaryDay != null || reference != null || expected != null
     fun validated(): ProfileBackupData {
+        workspace.validated()
         require(salaryDay == null || salaryDay in 1..31)
         listOfNotNull(reference, expected, lastRecorded).forEach { LocalDate.parse(it) }
         require(planner.budgets.size <= 300 && planner.bills.size <= 100)
@@ -35,7 +36,7 @@ data class ProfileBackupData(
         }
         return this
     }
-    fun json(): JSONObject = JSONObject().put("version", 1).put("planner", plannerJson(planner))
+    fun json(): JSONObject = JSONObject().put("version", 2).put("workspace", workspace.json()).put("planner", plannerJson(planner))
         .put("salaryDay", salaryDay ?: JSONObject.NULL).put("reference", reference ?: JSONObject.NULL)
         .put("expected", expected ?: JSONObject.NULL).put("lastRecorded", lastRecorded ?: JSONObject.NULL)
     companion object {
@@ -55,9 +56,9 @@ data class ProfileBackupData(
             return PlannerData(budgets, bills).also { ProfileBackupData(planner = it).validated() }
         }
         fun decode(root: JSONObject): ProfileBackupData {
-            require(root.getInt("version") == 1)
+            require(root.getInt("version") in 1..2)
             fun date(key: String) = if (root.isNull(key)) null else root.getString(key)
-            return ProfileBackupData(plannerDecode(root.getJSONObject("planner")), if(root.isNull("salaryDay")) null else root.getInt("salaryDay"), date("reference"), date("expected"), date("lastRecorded")).validated()
+            return ProfileBackupData(plannerDecode(root.getJSONObject("planner")), if(root.isNull("salaryDay")) null else root.getInt("salaryDay"), date("reference"), date("expected"), date("lastRecorded"), if(root.getInt("version") >= 2) FinanceWorkspace.decode(root.getJSONObject("workspace")) else FinanceWorkspace()).validated()
         }
         fun legacy(context: Context?, owner: String): ProfileBackupData {
             if (context == null) return ProfileBackupData()

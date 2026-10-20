@@ -16,6 +16,12 @@ data class TransactionEntity(
     val date: String,
     val createdAt: Long,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "'Cash'") val account: String = "Cash",
+    @ColumnInfo(defaultValue = "''") val quantity: String = "",
+    @ColumnInfo(defaultValue = "''") val unit: String = "",
+    @ColumnInfo(defaultValue = "0") val unitPriceMinor: Long = 0,
+    @ColumnInfo(defaultValue = "''") val refundOf: String = "",
+    @ColumnInfo(defaultValue = "0") val privateEntry: Boolean = false,
 )
 
 @Entity(tableName = "loans", indices = [Index("ownerId")])
@@ -178,3 +184,19 @@ data class LedgerArchiveEntity(
     val closingBalanceMinor: Long,
     val archivedAt: Long,
 )
+
+/** Complete proof content stays inside the encrypted database and account backup. */
+@Entity(tableName = "payment_proofs", indices = [Index("ownerId"), Index("paymentId")])
+data class PaymentProofEntity(
+    @PrimaryKey val id: String,
+    val ownerId: String,
+    val paymentId: String,
+    val kind: String,
+    val mimeType: String,
+    val data: String,
+    val sizeBytes: Long,
+    val createdAt: Long,
+)
+
+@Entity(tableName="payment_proof_chunks", primaryKeys=["proofId","part"], indices=[Index("ownerId")])
+data class PaymentProofChunkEntity(val proofId:String,val part:Int,val ownerId:String,val data:String)

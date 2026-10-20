@@ -50,6 +50,7 @@ import com.sadique.dailyledger.ui.CardEntrance
 import com.sadique.dailyledger.ui.LedgerLogo
 import com.sadique.dailyledger.ui.screens.LockedScreen
 import com.sadique.dailyledger.ui.screens.LoginScreen
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -83,14 +84,24 @@ class MainActivity : FragmentActivity() {
             // null until DataStore has produced its first snapshot -> avoids flashing the login/unlocked UI.
             val loaded by settings.all.collectAsStateWithLifecycle(null)
             val current = loaded
+            LaunchedEffect(current?.user?.id, current?.biometric) { com.sadique.dailyledger.widget.LedgerWidget.refresh(applicationContext) }
             var unlocked by remember { mutableStateOf(false) }
             LaunchedEffect(current != null) {
                 if (current != null) unlocked = !current.biometric
             }
 
             val displayPrefs = remember { com.sadique.dailyledger.ui.DisplayPreferences(applicationContext) }
-            DisposableEffect(displayPrefs.secureScreens) {
-                if (displayPrefs.secureScreens) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            val privatePresent by androidx.compose.runtime.produceState(false, current?.user?.id, sessionReady) {
+                val owner=current?.user?.id
+                if(owner!=null && sessionReady) {
+                    try { AppDatabase.get(applicationContext).ledgerDao().observeTransactions(owner).collect { rows -> value=rows.any { it.privateEntry } } }
+                    catch(e: CancellationException){throw e}
+                    catch(_:Exception){value=true}
+                } else value=false
+            }
+            val sensitiveEditors by com.sadique.dailyledger.security.SensitiveEditors.active.collectAsStateWithLifecycle()
+            DisposableEffect(displayPrefs.secureScreens,privatePresent,sensitiveEditors) {
+                if (displayPrefs.secureScreens || privatePresent || sensitiveEditors>0) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             }

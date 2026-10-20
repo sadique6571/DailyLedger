@@ -20,8 +20,8 @@ object ReportQueries {
     }
     fun month(owner: String, month: YearMonth, transactions: List<TransactionEntity>, savings: List<SavingEntity>): MonthReport {
         val rows = transactions.filter { it.ownerId == owner && it.date.startsWith("$month-") }
-        return MonthReport(rows.filter { it.type == "INCOME" }.sumOf { it.amountMinor }, rows.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor },
+        return MonthReport(rows.filter { it.type == "INCOME" }.sumOf { it.amountMinor }, rows.filter { it.type == "EXPENSE" }.sumOf { it.expenseEffect() },
             savings.filter { it.ownerId == owner && it.date.startsWith("$month-") }.sumOf { it.amountMinor },
-            rows.filter { it.type == "EXPENSE" }.groupBy { it.category }.mapValues { (_, values) -> values.sumOf { it.amountMinor } })
+            rows.filter { it.type == "EXPENSE" }.groupBy { it.category }.mapValues { (_, values) -> values.sumOf { it.expenseEffect() } })
     }
 }

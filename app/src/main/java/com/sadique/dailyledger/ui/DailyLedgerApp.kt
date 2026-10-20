@@ -78,6 +78,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sadique.dailyledger.ai.SpendingInsights
 import com.sadique.dailyledger.auth.AccountManager
 import com.sadique.dailyledger.auth.UserProfile
+import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
 import com.sadique.dailyledger.sync.DriveAuth
@@ -160,6 +161,8 @@ fun DailyLedgerApp(
         save = { it.entries }, restore = { NavigationHistory(it) }
     )) { mutableStateOf(NavigationHistory()) }
     val tab = navigation.current
+    var detailedDraft by remember { mutableStateOf<TransactionEntity?>(null) }
+    val accountNames by vm.accountNames.collectAsState()
     val tx by vm.transactions.collectAsState()
     val loans by vm.loans.collectAsState()
     val credits by vm.creditPurchases.collectAsState()
@@ -189,10 +192,10 @@ fun DailyLedgerApp(
     val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
     LaunchedEffect(user.id, tx, categoryStrings) {
         categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx, categoryStrings::text)
+            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text)
         }
     }
-    CompositionLocalProvider(LocalCategoryHistory provides tx, LocalCategoryOptions provides categoryOptions.value) {
+    CompositionLocalProvider(LocalCategoryHistory provides tx.filterNot { it.privateEntry }, LocalCategoryOptions provides categoryOptions.value) {
     val settingsOpen = tab == SETTINGS
     val settingsReturn = navigation.parent == SETTINGS
     val settingsState = rememberSaveableStateHolder()
@@ -228,7 +231,7 @@ fun DailyLedgerApp(
     val snapshotState = remember(user.id) { mutableStateOf(SpendingInsights.calculate(user.id, emptyList(), today)) }
     LaunchedEffect(tx, savings, loans, lp, cp, creditPayments, ledgerCycle, user.id, today, planning, vm.salarySchedule.day, vm.salarySchedule.calendar) {
         snapshotState.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            SpendingInsights.calculate(user.id, tx, savings = savings, loans = loans, loanPayments = lp,
+            SpendingInsights.calculate(user.id, tx.filterNot { it.privateEntry }, savings = savings, loans = loans, loanPayments = lp,
                 committeePayments = cp, ledgerCycle = ledgerCycle, creditPayments = creditPayments, today = today, planning = planning,
                 salaryDay = vm.salarySchedule.day, plannedSalaryDate = vm.salarySchedule.calendar.expected,
                 salaryRecordedWhenPlanned = vm.salarySchedule.calendar.lastRecorded)
@@ -440,45 +443,28 @@ fun DailyLedgerApp(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            LedgerBackdrop {
-                LedgerBrandHeader(
-                    subtitle = when (tab) {
-                        1 -> "All your transactions"; 2 -> "Borrowed & lent"; 3 -> "Your kameti, organized"
-                        4 -> "For a brighter tomorrow"; 5 -> "Understand your spending"; 6 -> "Everything in one place"; 7 -> "Udhar Saman"
-                        in BUDGETS..LEARNING -> NavigationHistory.label(tab)
-                        else -> "Your money, a brighter tomorrow"
-                    }, modifier = Modifier.statusBarsPadding(),
-                ) {
-                    if (navigation.entries.size > 2 || tab in BUDGETS..LEARNING) IconButton(onClick = ::goBack, modifier = Modifier.testTag(if (settingsReturn) "return-to-settings" else "navigate-up")) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to ${NavigationHistory.label(navigation.parent)}")
-                    }
-                    IconButton(onClick = { open(SEARCH) }) { Icon(Icons.Rounded.Search, "Search transactions", Modifier.size(23.dp)) }
-                    IconButton(onClick = { remindersOpen = true }) {
-                        Icon(Icons.Rounded.NotificationsNone, "Reminders", Modifier.size(23.dp))
-                    }
-                    TextButton(onClick = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) }, modifier = Modifier.testTag("global-ai"), contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.AutoAwesome, "AI Auto Fill", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(3.dp))
-                        Text("AI Entry", fontSize = 11.sp)
-                    }
-                }
-            }
+            AppTopBar(
+                tab = tab,
+                subtitle = when (tab) {
+                    1 -> "All your transactions"; 2 -> "Borrowed & lent"; 3 -> "Your kameti, organized"
+                    4 -> "For a brighter tomorrow"; 5 -> "Understand your spending"; 6 -> "Everything in one place"; 7 -> "Udhar Saman"
+                    in BUDGETS..NavigationHistory.FINANCE_TOOLS -> NavigationHistory.label(tab)
+                    else -> "Your money, a brighter tomorrow"
+                },
+                showNavigateUp = navigation.entries.size > 2 || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS,
+                navigateUpLabel = "Back to ${NavigationHistory.label(navigation.parent)}",
+                navigateUpTestTag = if (settingsReturn) "return-to-settings" else "navigate-up",
+                onNavigateUp = ::goBack,
+                onSearch = { open(SEARCH) },
+                onReminders = { remindersOpen = true },
+                onAiEntry = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) },
+            )
         },
         bottomBar = {
-            Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
-            NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
-                tabs.forEachIndexed { i, t ->
-                    val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..LEARNING; else -> false }
-                    NavigationBarItem(selected = selected,
-                        onClick = { navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
-                        icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
-                        label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
-                            indicatorColor = Color.Transparent, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant))
-                }
-            }
-            }
+            AppBottomBar(
+                tab = tab,
+                onSelectTab = { i -> navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
+            )
         },
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
@@ -531,9 +517,10 @@ fun DailyLedgerApp(
                     onOpenPlanning = { open(if (PlannerMath.due(planning.bills, today).isNotEmpty()) BILLS else BUDGETS) },
                 )
                 1 -> TransactionsScreen(
-                    items = tx,
+                    items = tx.filterNot { it.privateEntry },
                     initialQuery = historyQuery, initialFilter = historyFilter,
                     onAutoFill = { open(AUTO_FILL) },
+                    onDetailedEntry = { detailedDraft=it },
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
@@ -549,6 +536,7 @@ fun DailyLedgerApp(
                 2 -> LoansScreen(
                     loans = loans,
                     payments = lp,
+                    repo = vm.repo,
                     onAdd = { d, p, a, due, n, phone, wa -> vm.launch { saveLoan(d, p, a, due, n, phone, wa) } },
                     onPayment = { id, a, d, n, method -> vm.launch { addLoanPayment(id, a, d, n, method) } },
                     onDelete = { x -> vm.launch { deleteLoan(x) } },
@@ -558,6 +546,7 @@ fun DailyLedgerApp(
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
+                    repo = vm.repo,
                     organizerCircles = organizerCircles,
                     organizerMembers = organizerMembers,
                     organizerCollections = organizerCollections,
@@ -594,7 +583,7 @@ fun DailyLedgerApp(
                             busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) }, onDismissTip = ::dismissTip, dismissedTipKeys = dismissedTips)
                     }
                 }
-                7 -> CreditScreen(credits, creditPayments, vm::saveCreditDrafts, vm::saveCreditPayment,
+                7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
                 BUDGETS -> BudgetScreen(user.id, vm.planner, tx)
@@ -602,6 +591,7 @@ fun DailyLedgerApp(
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
                 COMPARISON -> MonthlyComparisonScreen(user.id, tx, savings)
                 SEARCH -> GlobalSearchScreen(vm, ::open)
+                NavigationHistory.FINANCE_TOOLS -> com.sadique.dailyledger.ui.screens.FinanceToolsScreen(vm)
                 LEARNING -> LearningScreen(vm)
                 else -> MoreScreen(
                     onTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
@@ -616,15 +606,31 @@ fun DailyLedgerApp(
                     onCalendar = { open(CALENDAR) },
                     onComparison = { open(COMPARISON) },
                     onSearch = { open(SEARCH) },
+                    onFinanceTools = { open(NavigationHistory.FINANCE_TOOLS) },
                 )
             }
         }
     }
     }
+    LaunchedEffect(user.id) {
+        val activity=context as? android.app.Activity
+        if(activity?.intent?.getStringExtra("ledger_action")=="expense") {
+            activity.intent.removeExtra("ledger_action")
+            quickTransaction=EntryShortcut("EXPENSE")
+        }
+        com.sadique.dailyledger.widget.LedgerWidget.refresh(context)
+    }
+    detailedDraft?.let { draft ->
+        com.sadique.dailyledger.ui.screens.FinanceEntryEditor(user.id,accountNames,
+            draft.takeIf { it.id.isNotBlank() },draft.takeIf { it.id.isBlank() },false,{detailedDraft=null}) { row ->
+            vm.saveChange { saveTransactionRow(row,draft.takeIf { it.id.isNotBlank() }?.updatedAt) }
+        }
+    }
     quickTransaction?.let { entry ->
         TransactionDialog(
             null,
             dismiss = { quickTransaction = null },
+            onAdvanced = { detailedDraft=it;quickTransaction=null },
             initialType = entry.type,
             initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
