@@ -1,3 +1,7 @@
+## Compact UI — 2.0.0 build 35
+
+Preview-inspired compact header with Search/AI actions, greeting emojis and weather chip; teal Light/Aqua and navy Dark colours; selected navigation pills. Existing card treatment is retained. AI insight cards stay at the dashboard end and no longer show “Not useful”; online refresh stays manual. Reminders remain available from More. Backup timing, data, encryption, AI logic and signing are unchanged. See [build 35](docs/BUILD_35.md).
+
 ## Category typing fix — 2.0.0 build 34
 
 Unfinished category searches stay visible when the suggestions close, focus moves, the keyboard/back button is used, or the field's saved state is restored. Select a result or explicitly add a custom category before saving; manual entries no longer silently replace an unfinished search with Other. The shared fix covers manual/edit forms and AI review. See [build 34](docs/BUILD_34.md).

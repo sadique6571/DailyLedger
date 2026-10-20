@@ -607,6 +607,7 @@ fun DailyLedgerApp(
                     onComparison = { open(COMPARISON) },
                     onSearch = { open(SEARCH) },
                     onFinanceTools = { open(NavigationHistory.FINANCE_TOOLS) },
+                    onReminders = { remindersOpen = true },
                 )
             }
         }

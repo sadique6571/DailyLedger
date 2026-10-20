@@ -51,7 +51,7 @@ internal fun DashboardBalanceCard(
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
         Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(LedgerTokens.Space16)) {
-            WalletArtwork(Modifier.align(Alignment.TopEnd).size(90.dp))
+            WalletArtwork(Modifier.align(Alignment.TopEnd).size(60.dp))
             Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Remaining balance", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -59,9 +59,9 @@ internal fun DashboardBalanceCard(
                         Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                     }
                 }
-                Text(money(summary.remaining), color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold,
+                Text(money(summary.remaining), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
-                Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = LedgerTokens.Space8))
+                Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = LedgerTokens.Space4))
                 // Keep the percentage outside the track: an overlaid chip clips in
                 // Urdu RTL and with large system text on narrower devices.
                 Row(
@@ -147,7 +147,7 @@ internal fun DashboardBalanceCard(
                 }
                 if (guide.lowBalance) {
                     Surface(color = Color(0xFFFFE5E8), shape = LedgerTokens.ShapeSmall, modifier = Modifier.fillMaxWidth().padding(top = LedgerTokens.Space4).testTag("low-balance-notice")) {
-                        Row(Modifier.padding(LedgerTokens.Space10), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space8)) {
+                        Row(Modifier.padding(LedgerTokens.Space10), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space4)) {
                             Icon(Icons.Rounded.WarningAmber, null, Modifier.size(21.dp), tint = Color(0xFFAA1739))
                             Text(if (summary.remaining <= 0) "Balance used up. Review essentials before further spending."
                                 else "Low remaining balance · 10% or less left. Keep essentials first.",

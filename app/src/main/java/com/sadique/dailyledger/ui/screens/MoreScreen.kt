@@ -25,7 +25,7 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState(),
-    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}) {
+    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}, onReminders: (() -> Unit)? = null) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {
@@ -43,7 +43,7 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Triple("Kameti calendar", "Paid, pending and expected receiving", Icons.Rounded.CalendarMonth) to onCalendar,
                 Triple("Monthly comparison", "Compare income, expenses and categories", Icons.Rounded.CompareArrows) to onComparison,
                 Triple("Search all ledgers", "Find records across your money spaces", Icons.Rounded.Search) to onSearch,
-            )
+            ) + listOfNotNull(onReminders?.let { Triple("Reminders", "Review your pending reminders", Icons.Rounded.NotificationsNone) to it })
             rows.forEachIndexed { i, (entry, action) -> enteringItem(index = i) {
                 val color = listOf(LedgerColors.Blue, LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Green, LedgerColors.Teal)[i % 6]
                 LedgerCard(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${entry.first}", onClick = action)) {

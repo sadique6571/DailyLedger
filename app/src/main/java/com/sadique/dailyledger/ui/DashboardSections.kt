@@ -13,7 +13,9 @@ class DashboardSections {
     }
     fun render(scope: LazyListScope, order: List<String>) {
         val ranking = order.withIndex().associate { it.value to it.index }
-        sections.sortedBy { ranking[it.key] ?: Int.MAX_VALUE }.forEach { section ->
+        // Insights remain after all money/history cards, including for legacy orders.
+        sections.sortedWith(compareBy<Section> { it.key == "insights" }
+            .thenBy { ranking[it.key] ?: Int.MAX_VALUE }).forEach { section ->
             scope.enteringItem(key = section.key, index = section.index, content = section.content)
         }
     }

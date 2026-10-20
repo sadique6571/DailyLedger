@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -53,8 +54,16 @@ object LedgerColors {
 @Composable
 fun LedgerBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val dark = ledgerIsDark()
-    Box(modifier.background(Brush.verticalGradient(if (dark) listOf(Color(0xFF102C43), MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background)
-        else listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f), MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background), endY = 1500f)), content = content)
+    val scheme = MaterialTheme.colorScheme
+    Box(modifier.drawBehind {
+        drawRect(Brush.verticalGradient(listOf(
+            if (dark) Color(0xFF102C3D) else scheme.primaryContainer.copy(alpha = .55f),
+            scheme.background, scheme.background), endY = 520.dp.toPx()))
+        val center = Offset(size.width, 0f)
+        val radius = 200.dp.toPx()
+        drawCircle(Brush.radialGradient(listOf(scheme.primary.copy(alpha = if (dark) .10f else .09f),
+            Color.Transparent), center = center, radius = radius), radius, center)
+    }, content = content)
 }
 
 @Composable

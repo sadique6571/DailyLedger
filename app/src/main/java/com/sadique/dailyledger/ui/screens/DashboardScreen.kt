@@ -86,7 +86,7 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 12.dp else 16.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 10.dp else 12.dp)) {
             val sections = DashboardSections()
             with(sections) {
             enteringItem(key = "greeting", index = 0) {
