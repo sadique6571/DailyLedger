@@ -174,7 +174,7 @@ internal fun DashboardSalaryDialogs(
             onDismissRequest = { showArchives = false },
             title = { Text("Archived periods") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
                     ledgerArchives.forEach { archive ->
                         LedgerCard(Modifier.fillMaxWidth()) {
                             Text(archive.label, fontWeight = FontWeight.SemiBold)
