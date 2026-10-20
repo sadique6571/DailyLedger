@@ -14,6 +14,35 @@ import org.junit.Test
 class ExpenseSheetTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun typingDoesNotReplaySheetEntrance() {
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialCategory = "Milk")
+        } }
+        val amount = compose.onNodeWithText("Amount PKR")
+        amount.performClick()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.waitForIdle()
+        val sheet = compose.onNodeWithTag("transaction-bottom-sheet")
+        val top = sheet.fetchSemanticsNode().boundsInRoot.top
+        compose.mainClock.autoAdvance = false
+        try {
+            listOf("1", "2", "3", "4").forEach { digit ->
+                amount.performTextInput(digit)
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+                assertEquals("Typing must not reset the sheet's position", top,
+                    sheet.fetchSemanticsNode().boundsInRoot.top, 1f)
+                compose.mainClock.advanceTimeBy(100)
+                assertEquals("The sheet must stay still between keystrokes", top,
+                    sheet.fetchSemanticsNode().boundsInRoot.top, 1f)
+            }
+        } finally { compose.mainClock.autoAdvance = true }
+        amount.assertTextContains("1234")
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Keep editing").performClick()
+        amount.assertTextContains("1234")
+    }
+
     @Test fun floatingButtonOpensBottomSheetAndSavesSelectedDateAndAmount() {
         var saved = ""
         compose.setContent { DailyLedgerTheme("LIGHT") {

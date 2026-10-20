@@ -1,3 +1,7 @@
+## Build 37 — stable entry sheet
+
+Fixes the bottom entry sheet replaying its opening animation during typing. The sheet retains one state instance while its discard check reads the latest draft. The Build 36 layout and floating expense button remain in place.
+
 ## Build 36 — preview layout and bottom entry sheet
 
 The dashboard now uses a compact balance section, greeting/weather side by side, and Salary/Expense tiles in one row. Other income and savings stay available in their money sections. A floating **+** button above navigation opens expense entry from the main screens. Expense, income and transaction editing use a bottom sheet with a pinned Save button, scrollable fields, date/category validation and unsaved-change protection. AI insights stay last, without Not useful actions. See [Build 36](docs/BUILD_36.md).

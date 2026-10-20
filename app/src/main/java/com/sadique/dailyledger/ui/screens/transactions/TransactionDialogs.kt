@@ -59,12 +59,24 @@ fun TransactionDialog(
         confirmButton = { TextButton(onClick = { discardWarning = false; dismiss() }) { Text("Discard") } },
         dismissButton = { TextButton(onClick = { discardWarning = false }) { Text("Keep editing") } },
     )
+    // Sheet state keys include confirmValueChange. Keep its identity stable while
+    // reading current draft state; a new callback on each keystroke recreates the
+    // sheet at Hidden and replays its opening animation.
+    val latestDirty = rememberUpdatedState(dirty)
+    val confirmSheetChange: (SheetValue) -> Boolean = remember {
+        { target ->
+            if (target == SheetValue.Hidden && latestDirty.value) {
+                discardWarning = true
+                false
+            } else true
+        }
+    }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true, confirmValueChange = confirmSheetChange,
+    )
     ModalBottomSheet(
         onDismissRequest = safeDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
-            confirmValueChange = { target ->
-                if (target == SheetValue.Hidden && dirty) { discardWarning = true; false } else true
-            }),
+        sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.testTag("transaction-bottom-sheet"),
