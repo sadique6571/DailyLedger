@@ -1,3 +1,7 @@
+## Build 38 — inline category search in entry sheets
+
+Category results in the bottom entry sheet now stay below the search field inside the form instead of using a popup that moves above the keyboard. The same catalog, custom categories, search draft and validation are retained.
+
 ## Build 37 — stable entry sheet
 
 Fixes the bottom entry sheet replaying its opening animation during typing. The sheet retains one state instance while its discard check reads the latest draft. The Build 36 layout and floating expense button remain in place.

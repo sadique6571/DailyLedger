@@ -108,7 +108,7 @@ fun TransactionDialog(
                 onAdvanced?.let { action -> TextButton(onClick = {
                     action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
                 }) { Text("Quantity, account & privacy options") } }
-                CategoryDropdown(type, cat, { cat = it })
+                CategoryDropdown(type, cat, { cat = it }, inlineResults = true)
                 onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
                 OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
                 Text("Quick notes", style = MaterialTheme.typography.labelMedium)

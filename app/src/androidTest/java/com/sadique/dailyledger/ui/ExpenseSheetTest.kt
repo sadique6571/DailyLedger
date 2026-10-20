@@ -14,6 +14,30 @@ import org.junit.Test
 class ExpenseSheetTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun categorySearchStaysInsideEntrySheetAndSelectionSaves() {
+        var savedCategory = ""
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            TransactionDialog(null, {}, { _, _, category, _, _ -> savedCategory = category },
+                initialAmount = "100")
+        } }
+        compose.onNodeWithTag("category-dropdown").performScrollTo().performClick()
+        compose.onNodeWithTag("category-dropdown").performTextReplacement("Milk")
+        compose.onNodeWithTag("category-results")
+            .assert(hasAnyAncestor(hasTestTag("transaction-bottom-sheet")))
+        compose.onNodeWithTag("category-floating-popup").assertDoesNotExist()
+        compose.onNode(hasText("Milk") and hasClickAction() and !hasSetTextAction())
+            .performScrollTo().assertIsDisplayed()
+        compose.waitForIdle()
+        val fd = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-inline-category-sheet.png")
+        ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        compose.onNode(hasText("Milk") and hasClickAction() and !hasSetTextAction()).performClick()
+        compose.onNodeWithTag("category-results").assertDoesNotExist()
+        compose.onNodeWithTag("category-dropdown").assertTextContains("Milk")
+        compose.onNodeWithTag("transaction-save").performClick()
+        compose.runOnIdle { assertEquals("Milk", savedCategory) }
+    }
+
     @Test fun typingDoesNotReplaySheetEntrance() {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialCategory = "Milk")
