@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerDateField
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -73,7 +75,7 @@ fun SavingDialog(dismiss: () -> Unit, onHistory: (() -> Unit)? = null, save: (St
     var amount by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(LedgerRepository.today()) }
     var note by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Add saving") }, text = {
+    LedgerEntrySheet(onDismissRequest = dismiss, title = { Text("Add saving") }, text = {
         Column {
             Row {
                 FilterChip(kind == "DIRECT", { kind = "DIRECT" }, { Text("Direct") })

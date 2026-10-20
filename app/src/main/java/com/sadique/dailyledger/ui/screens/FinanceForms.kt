@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,8 +31,8 @@ import java.math.RoundingMode
 }
 @Composable internal fun FinanceFormDialog(title:String,dismiss:()->Unit,save:suspend()->Unit,enabled:Boolean=true,button:String="Save",content:@Composable ColumnScope.(Boolean)->Unit) {
     var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
-    AlertDialog(onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier.fillMaxWidth(.96f),title={Text(title)},
-        text={Column(Modifier.heightIn(max=500.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LedgerEntrySheet(onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier,title={Text(title)},
+        text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(10.dp)){
             error?.let{Text(it,color=MaterialTheme.colorScheme.error)};content(busy)
         }},confirmButton={Button(enabled=enabled&&!busy,onClick={scope.launch{busy=true;error=null;try{save();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}){Text(if(busy)"Saving…" else button)}},
         dismissButton={TextButton(onClick=dismiss,enabled=!busy){Text("Cancel")}})

@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerDateField
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -38,8 +40,8 @@ internal fun OrganizerCircleDialog(dismiss: () -> Unit, save: (String, Long, Int
     val minor = parseMinor(amount)
     val n = slots.toIntOrNull()
     val valid = name.isNotBlank() && minor != null && minor > 0 && minor % 2L == 0L && n != null && n in 2..120 && runCatching { YearMonth.parse(start) }.isSuccess
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Create collection Kameti") },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LedgerEntrySheet(onDismissRequest = dismiss, title = { Text("Create collection Kameti") },
+        text = { Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(name, { name = it }, label = { Text("Kameti / place name") })
             OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per full share") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
             OutlinedTextField(slots, { slots = it }, label = { Text("Full-share turns") }, supportingText = { Text("For example, 20 turns.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
@@ -78,12 +80,12 @@ internal fun OrganizerMemberDialog(
     val currentValid = name.isNotBlank() &&
         virtualRoster.sumOf { it.halfUnits } + units <= circle.totalSlots * 2 &&
         parsedTurn != null && (parsedTurn == 0 || parsedTurn in available)
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / turns") },
         text = {
             if (saving) Text("Saving all entries…")
-            else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            else Column(Modifier, verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
                 Text("Add each member and each share as a separate row. The same person can have 2 or 3 turns in different months.")
                 Text("Full monthly: ${rowMoney(circle.fullMonthlyMinor)} • Half monthly: ${rowMoney(circle.fullMonthlyMinor / 2)}")
@@ -150,8 +152,8 @@ internal fun OrganizerDrawDialog(member: OrganizerMemberEntity, circle: Organize
     val choices = availableDraws(roster, member, circle.totalSlots)
     var proposed by remember(member.id) { mutableIntStateOf(0) }
     var method by remember(member.id) { mutableStateOf("MANUAL") }
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Turn / parchi number") },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LedgerEntrySheet(onDismissRequest = dismiss, title = { Text("Turn / parchi number") },
+        text = { Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${member.name} • ${shareLabel(member.halfUnits)} share", translate = false)
             Text("Random draws only from slots with free capacity. A half can share a number with another half.")
             Button(onClick = { proposed = choices.randomOrNull() ?: 0; method = "RANDOM" }, enabled = choices.isNotEmpty()) { Text("Random pick") }
@@ -179,9 +181,9 @@ internal fun OrganizerPaymentDialog(member: OrganizerMemberEntity, circle: Organ
     var method by remember { mutableStateOf("Cash") }
     val minor = parseMinor(amount)
     val valid = minor != null && minor in 1..remaining && runCatching { LocalDate.parse(date) }.isSuccess
-    AlertDialog(onDismissRequest = dismiss,
+    LedgerEntrySheet(onDismissRequest = dismiss,
         title = { Text(if (payout) "Pay member's Kameti turn" else "Collect member installment") },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        text = { Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(member.name, translate = false)
             Text(if (payout) "Turn #${member.turnNumber} • Member payout due ${rowMoney(remaining)}" else "$month • Due ${rowMoney(remaining)}")
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
@@ -202,8 +204,8 @@ internal fun OrganizerContactDialog(member: OrganizerMemberEntity, dismiss: () -
     var name by remember(member.id) { mutableStateOf(member.name) }
     var phone by remember(member.id) { mutableStateOf(member.phone) }
     var wa by remember(member.id) { mutableStateOf(member.whatsapp) }
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Edit member contact") },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LedgerEntrySheet(onDismissRequest = dismiss, title = { Text("Edit member contact") },
+        text = { Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ContactPickerButton { picked, number -> name = picked; phone = number; if (wa.isBlank()) wa = number }
             OutlinedTextField(name, { name = it }, label = { Text("Name") })
             OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))

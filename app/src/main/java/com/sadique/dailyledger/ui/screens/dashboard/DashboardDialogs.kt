@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -78,7 +80,7 @@ internal fun DashboardSalaryDialogs(
     var confirmArchive by remember { mutableStateOf(false) }
 
     if (dialogOpen) {
-        AlertDialog(
+        LedgerEntrySheet(
             onDismissRequest = onCloseDialog,
             modifier = Modifier.testTag("salary-actions-dialog"),
             title = { Text("Salary Received & Cycle Options") },
@@ -172,7 +174,7 @@ internal fun DashboardSalaryDialogs(
             onDismissRequest = { showArchives = false },
             title = { Text("Archived periods") },
             text = {
-                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
                     ledgerArchives.forEach { archive ->
                         LedgerCard(Modifier.fillMaxWidth()) {
                             Text(archive.label, fontWeight = FontWeight.SemiBold)

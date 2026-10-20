@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -15,9 +17,9 @@ import com.sadique.dailyledger.data.CategoryCatalog
 @Composable fun CategoryPicker(type:String,onSelect:(String)->Unit,onDismiss:()->Unit,allowCustom:Boolean=true){
     val context=LocalContext.current;val all=remember{CategoryCatalog.load(context)};var query by remember{mutableStateOf("")}
     val filtered=all.filter{it.type==type&&(query.isBlank()||it.label.contains(query,true)||it.group.contains(query,true)||it.aliases.any{a->a.contains(query,true)})}
-    AlertDialog(onDismissRequest=onDismiss,title={Text("Choose category")},text={Column{
+    LedgerEntrySheet(scrollBody = false, onDismissRequest=onDismiss,title={Text("Choose category")},text={Column{
         OutlinedTextField(query,{query=it},label={Text("Search categories")},singleLine=true)
-        LazyColumn(Modifier.heightIn(max=350.dp)){
+        LazyColumn(Modifier){
             filtered.groupBy{it.group}.forEach{(group,rows)->
                 item{Text(group,Modifier.padding(top=12.dp),style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.primary)}
                 items(rows,key={it.label}){r->

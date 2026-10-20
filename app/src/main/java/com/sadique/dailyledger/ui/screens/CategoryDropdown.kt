@@ -59,7 +59,7 @@ fun CategoryDropdown(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     allowCustom: Boolean = true,
-    inlineResults: Boolean = false,
+    inlineResults: Boolean = com.sadique.dailyledger.ui.LocalEntrySheet.current,
 ) {
     val strings = com.sadique.dailyledger.i18n.LocalStrings.current
     val context = LocalContext.current

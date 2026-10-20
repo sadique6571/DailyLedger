@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import androidx.compose.ui.Alignment
 
 import com.sadique.dailyledger.ui.LedgerDateField
@@ -33,11 +35,11 @@ internal fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance
     var method by remember { mutableStateOf("Cash") }
     val parsed = parseMinor(amount)
     val validAmount = parsed != null && parsed > 0 && parsed <= balance.remaining
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text(turnLabel?.let { "Receive • $it" } ?: "Receive • ${committee.name}") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Remaining: ${visibleMoney(balance.remaining)}")
                 OutlinedTextField(amount, { amount = it }, label = { Text("Received amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, isError = !validAmount)
                 LedgerDateField(date, { date = it }, label = "Entry date")
@@ -70,11 +72,11 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
     val combined = runCatching { if (s != null && a != null && (s % 2 == 0 || a % 2L == 0L)) Math.addExact(Math.multiplyExact(a, (s / 2).toLong()), if (s % 2 == 1) a / 2L else 0L) else null }.getOrNull()
     val expected = runCatching { Math.multiplyExact(combined ?: 0L, (t ?: 0).toLong()) }.getOrNull()
     val valid = a != null && a > 0 && t != null && t > 0 && s != null && s > 0 && s <= t * 2 && expected != null && expected > 0 && isValidMonth(start) && (payout.isBlank() || (p != null && p in 1..t))
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text("New kameti") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Name / place") })
                 OutlinedTextField(shares, { shares = it }, label = { Text("My total shares (0.5, 1, 1.5, 2…)") }, supportingText = { Text("For 1.5: create a full turn and a half turn separately after saving.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per kameti") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
@@ -125,12 +127,12 @@ internal fun PersonalMemberBatchDialog(
     val canAddMyTurn = myUsedUnits + halfUnits <= committee.sharesHalfUnits
     val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) &&
         (isMe || name.isNotBlank())
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / my turns") },
         text = {
             if (saving) Text("Saving all entries…")
-            else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            else Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
                 Text("Use a separate row for every turn. If you own 2 shares, add two full turns; for 3 shares, add three. Every turn displays its calculated month.")
                 Text("My shares assigned: ${myUsedUnits / 2.0} / ${committee.sharesHalfUnits / 2.0}")
@@ -198,7 +200,7 @@ internal fun PersonalMemberBatchDialog(
 @Composable
 internal fun MethodDialog(title: String, dismiss: () -> Unit, impact: String = "", save: (String) -> Unit) {
     var method by remember { mutableStateOf("Cash") }
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text(title) },
         text = {
@@ -222,7 +224,7 @@ internal fun MarkMemberReceivedDialog(
     onConfirm: (String) -> Unit,
 ) {
     var date by remember(member.id) { mutableStateOf(LedgerRepository.today()) }
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = onDismiss,
         title = { Text("Mark ${member.name} received?") },
         text = {
