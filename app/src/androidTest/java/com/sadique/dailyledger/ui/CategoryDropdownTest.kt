@@ -33,7 +33,11 @@ class CategoryDropdownTest {
         compose.onNodeWithTag("category-dropdown").performTextInput("piyaz")
         compose.onNodeWithText("Onions").performScrollTo().performClick()
         compose.onNodeWithTag("udhar-manual-entry").assertExists()
+        compose.onNodeWithTag("category-dropdown").assertTextContains("Onions")
+        compose.onNodeWithTag("category-results").assertDoesNotExist()
         compose.onNodeWithTag("udhar-amount").performScrollTo().performTextInput("120")
+        compose.onNodeWithTag("udhar-amount").assertTextContains("120")
+        compose.waitForIdle()
         val fd = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
             .uiAutomation.executeShellCommand("screencap -p /data/local/tmp/dailyledger-udhar-entry-sheet.png")
         android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }

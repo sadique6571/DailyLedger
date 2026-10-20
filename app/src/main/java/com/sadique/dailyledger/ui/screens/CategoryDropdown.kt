@@ -80,9 +80,9 @@ fun CategoryDropdown(
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     LaunchedEffect(inlineResults, expanded, keyboardVisible) {
         if (inlineResults && expanded) {
-            // Wait for the keyboard layout once, then reveal the input and first
-            // result together. Do not repeat this for each query keystroke.
-            delay(300)
+            // Relocate with the layout frame, never with a delayed wall-clock
+            // task that can move a result underneath a tap already in progress.
+            // IME visibility starts one more frame request; typing does not.
             withFrameNanos { }
             val firstRows = with(density) { 144.dp.toPx() }
             inlineView.bringIntoView(Rect(0f, 0f, 1f,
