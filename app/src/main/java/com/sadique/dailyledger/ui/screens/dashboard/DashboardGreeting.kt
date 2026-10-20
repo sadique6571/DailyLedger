@@ -25,8 +25,9 @@ internal fun DashboardGreetingSection(
     weatherEnabled: Boolean, weatherCity: String, weatherTemperature: String, weatherCondition: String,
 ) {
     val hour = LocalTime.now().hour
-    Column(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp)
-        .testTag("compact-greeting"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp)
+        .testTag("compact-greeting"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(when (hour) {
             in 5..11 -> "🌅 Good morning,"; in 12..16 -> "☀️ Good afternoon,"
             in 17..20 -> "🌆 Good evening,"; else -> "🌙 Good night,"
@@ -34,10 +35,11 @@ internal fun DashboardGreetingSection(
         Text(userName.substringBefore(' ').ifBlank { "Friend" } + " 👋", translate = false,
             fontSize = 25.sp, fontWeight = FontWeight.Bold, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("greeting-name"))
+        }
         if (weatherEnabled && weatherCity.isNotBlank()) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = .86f)) {
-                Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp).testTag("weather-chip"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface.copy(alpha = .86f)) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp).testTag("weather-chip"),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(when {
                         weatherCondition.contains("storm", true) -> "⛈️"
                         weatherCondition.contains("rain", true) -> "🌧️"
@@ -47,12 +49,9 @@ internal fun DashboardGreetingSection(
                     }, fontSize = 15.sp)
                     Text(listOf(weatherCity, weatherTemperature, weatherCondition).filter { it.isNotBlank() }.joinToString(" • "),
                         fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false))
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier)
                 }
             }
-        } else Text(cycleStartLabel?.let { "Salary cycle from $it" }
-            ?: month.format(DateTimeFormatter.ofPattern("MMMM yyyy",
-                if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH)),
-            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

@@ -1,3 +1,7 @@
+## Build 36 — preview layout and bottom entry sheet
+
+The dashboard now uses a compact balance section, greeting/weather side by side, and Salary/Expense tiles in one row. Other income and savings stay available in their money sections. A floating **+** button above navigation opens expense entry from the main screens. Expense, income and transaction editing use a bottom sheet with a pinned Save button, scrollable fields, date/category validation and unsaved-change protection. AI insights stay last, without Not useful actions. See [Build 36](docs/BUILD_36.md).
+
 ## Compact UI — 2.0.0 build 35
 
 Preview-inspired compact header with Search/AI actions, greeting emojis and weather chip; teal Light/Aqua and navy Dark colours; selected navigation pills. Existing card treatment is retained. AI insight cards stay at the dashboard end and no longer show “Not useful”; online refresh stays manual. Reminders remain available from More. Backup timing, data, encryption, AI logic and signing are unchanged. See [build 35](docs/BUILD_35.md).

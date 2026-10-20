@@ -17,7 +17,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import java.time.LocalDate
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.TransactionEntity
@@ -26,6 +30,7 @@ import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
 import com.sadique.dailyledger.ui.plainAmount
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDialog(
     x: TransactionEntity?,
@@ -38,12 +43,12 @@ fun TransactionDialog(
     onHistory: ((String, String) -> Unit)? = null,
     onAdvanced: ((TransactionEntity) -> Unit)? = null,
 ) {
-    var type by remember { mutableStateOf(x?.type ?: initialType) }
-    var amount by remember { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: initialAmount) }
-    var cat by remember { mutableStateOf(x?.category ?: initialCategory) }
-    var note by remember { mutableStateOf(x?.note ?: initialNote) }
-    var date by remember { mutableStateOf(x?.date ?: LedgerRepository.today()) }
-    var discardWarning by remember { mutableStateOf(false) }
+    var type by rememberSaveable { mutableStateOf(x?.type ?: initialType) }
+    var amount by rememberSaveable { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: initialAmount) }
+    var cat by rememberSaveable { mutableStateOf(x?.category ?: initialCategory) }
+    var note by rememberSaveable { mutableStateOf(x?.note ?: initialNote) }
+    var date by rememberSaveable { mutableStateOf(x?.date ?: LedgerRepository.today()) }
+    var discardWarning by rememberSaveable { mutableStateOf(false) }
     val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
     val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
@@ -54,13 +59,23 @@ fun TransactionDialog(
         confirmButton = { TextButton(onClick = { discardWarning = false; dismiss() }) { Text("Discard") } },
         dismissButton = { TextButton(onClick = { discardWarning = false }) { Text("Keep editing") } },
     )
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = safeDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        modifier = Modifier.fillMaxWidth(0.97f).testTag("wide-transaction-entry"),
-        title = { Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
+            confirmValueChange = { target ->
+                if (target == SheetValue.Hidden && dirty) { discardWarning = true; false } else true
+            }),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.testTag("transaction-bottom-sheet"),
+    ) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.82f).imePadding()
+            .testTag("wide-transaction-entry")) {
+            Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction",
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row {
                     FilterChip(type == "EXPENSE", { type = "EXPENSE"; cat = "" }, { Text("Expense") })
                     Spacer(Modifier.width(8.dp))
@@ -73,6 +88,11 @@ fun TransactionDialog(
                     }
                 }
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("100", "500", "1000", "5000").forEach { preset ->
+                        AssistChip(onClick = { amount = preset }, label = { Text("Rs $preset") })
+                    }
+                }
                 onAdvanced?.let { action -> TextButton(onClick = {
                     action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
                 }) { Text("Quantity, account & privacy options") } }
@@ -97,17 +117,23 @@ fun TransactionDialog(
                 }
                 LedgerDateField(date, { date = it }, label = if (type == "INCOME" && cat.equals("Salary", true)) "Salary date" else "Entry date", calendarTag = "transaction-calendar")
             }
-        },
-        confirmButton = {
-            Button(
-                enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
-                onClick = {
-                    parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { save(type, it, cat, note, date.trim()) }
-                },
-            ) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = safeDismiss) { Text("Cancel") } },
-    )
+            HorizontalDivider(Modifier.padding(top = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = safeDismiss) { Text("Cancel") }
+                Button(
+                    modifier = Modifier.weight(1f).heightIn(min = 50.dp).testTag("transaction-save"),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
+                    onClick = {
+                        parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { save(type, it, cat, note, date.trim()) }
+                    },
+                ) { Text("Save") }
+            }
+        }
+    }
+
 }
 
 @Composable

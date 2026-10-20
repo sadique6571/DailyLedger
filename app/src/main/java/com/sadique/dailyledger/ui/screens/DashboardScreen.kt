@@ -86,7 +86,7 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 10.dp else 12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 88.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 10.dp else 12.dp)) {
             val sections = DashboardSections()
             with(sections) {
             enteringItem(key = "greeting", index = 0) {
@@ -106,24 +106,18 @@ fun DashboardScreen(
                 )
             }
             enteringItem(key = "monthly-totals", index = 2) {
-                Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space8)) {
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space8)) {
-                        DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-salary"), onAddSalary)
-                        DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.weight(1f).fillMaxHeight(), onAddOtherIncome)
-                    }
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space8)) {
-                        DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f).fillMaxHeight(), onAddExpense)
-                        DashboardStat("Savings", savings.sumOf { it.amountMinor }, "Separate total", Icons.Rounded.AccountBalanceWallet, LedgerColors.Blue, Modifier.weight(1f).fillMaxHeight(), onOpenSavings)
-                    }
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
+                    DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-salary"), onAddSalary)
+                    DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-expense"), onAddExpense)
                 }
             }
+
             enteringItem(key = "salary-cycle-controls", index = 3) {
-                GradientButton(
-                    "Salary Received & Cycle Options",
-                    onClick = { salaryOptionsOpen = true },
-                    modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
-                    icon = Icons.Rounded.EventAvailable,
-                )
+                OutlinedButton(
+                    onClick = { salaryOptionsOpen = true }, modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
+                    shape = LedgerTokens.ShapeCard,
+                ) { Text("Salary Received & Cycle Options") }
+
             }
             if (planningNotices.isNotEmpty()) enteringItem(key = "budget-notice", index = 4) {
                 LedgerCard(Modifier.fillMaxWidth()) {
@@ -148,12 +142,15 @@ fun DashboardScreen(
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
             if (true) enteringItem(key = "separate-totals", index = 8) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DashboardStat("Other income", summary.otherIncome, "This cycle", Icons.Rounded.AddCircle, LedgerColors.Teal, Modifier.fillMaxWidth(), onAddOtherIncome)
                 DashboardMoneySpaces(
                     savings = savings, cp = cp, receipts = receipts, committees = committees,
                     committeeMembers = committeeMembers, loans = loans, lp = lp, month = month,
                     savingsFirst = display.savingsFirst, money = visibleMoney,
                     onOpenSavings = onOpenSavings, onOpenKameti = onOpenKameti, onOpenLoans = onOpenLoans,
                 )
+                }
             }
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)

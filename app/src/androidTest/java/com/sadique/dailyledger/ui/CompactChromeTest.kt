@@ -38,7 +38,7 @@ class CompactChromeTest {
             Scaffold(topBar = {
                 AppTopBar(0, "Your money, a brighter tomorrow", false, "Back", "back", {},
                     { searches++ }, {}, { ai++ })
-            }, bottomBar = { AppBottomBar(0, {}) }) { pad ->
+            }, floatingActionButton = { ExpenseFloatingButton {} }, bottomBar = { AppBottomBar(0, {}) }) { pad ->
                 Box(Modifier.padding(pad)) {
                     DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
                         savings = emptyList(), userName = "Sadique", weatherEnabled = true,
@@ -52,6 +52,7 @@ class CompactChromeTest {
         compose.onNodeWithTag("global-search").performClick()
         compose.onNodeWithTag("global-ai").performClick()
         compose.runOnIdle { assertEquals(1, searches); assertEquals(1, ai) }
+        compose.onNodeWithTag("floating-add-expense").assertIsDisplayed()
         shot("compact-home-light")
         compose.runOnIdle { mode.value = "DARK" }
         compose.onNodeWithTag("compact-app-header").assertIsDisplayed()

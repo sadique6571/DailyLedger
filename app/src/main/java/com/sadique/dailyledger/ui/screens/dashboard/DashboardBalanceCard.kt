@@ -50,18 +50,18 @@ internal fun DashboardBalanceCard(
 ) {
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
-        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(LedgerTokens.Space16)) {
-            WalletArtwork(Modifier.align(Alignment.TopEnd).size(60.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
+        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(14.dp)) {
+            WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Remaining balance", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     IconButton(onClick = onToggleBalanceVisibility, Modifier.size(30.dp)) {
                         Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                     }
                 }
-                Text(money(summary.remaining), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold,
+                Text(money(summary.remaining), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
-                Text(if (summary.remaining < 0) "This salary cycle is over budget" else "Available in this salary cycle", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(top = LedgerTokens.Space4))
+                if (summary.remaining < 0) Text("This salary cycle is over budget", color = Color.White, fontSize = 11.sp)
                 // Keep the percentage outside the track: an overlaid chip clips in
                 // Urdu RTL and with large system text on narrower devices.
                 Row(
@@ -73,7 +73,7 @@ internal fun DashboardBalanceCard(
                     Surface(shape = CircleShape, color = Color.White) {
                         Text(
                             com.sadique.dailyledger.i18n.progressPercent(spentPct),
-                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                            Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 .testTag("balance-progress-percent"),
                             translate = false, color = LedgerColors.Navy,
                             fontWeight = FontWeight.Bold, fontSize = 14.sp,
@@ -111,10 +111,10 @@ internal fun DashboardBalanceCard(
                 }
                 if (summary.udharPayments > 0) Text("Udhar paid this cycle: ${money(summary.udharPayments)}", color = Color(0xFFC0FFEE), fontSize = 11.sp)
                 if (summary.otherIncome > 0) Text("Other income: ${money(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
-                HorizontalDivider(Modifier.padding(vertical = LedgerTokens.Space6), color = Color.White.copy(alpha = .2f))
+                HorizontalDivider(Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = .2f))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                     Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = Color(0xFFB4FFF1))
-                    Text("Daily spending guide · Offline AI", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Daily spending guide · Offline AI", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space12)) {
                     Column(Modifier.weight(1f)) {
@@ -123,15 +123,15 @@ internal fun DashboardBalanceCard(
                             guide.dailyAllowanceMinor?.let { "Around ${money(it)} / day until salary" }
                                 ?: if (guide.lastSalaryDate == null) "Record your salary date to see a daily estimate."
                                 else "Confirm your next salary before planning more spending.",
-                            color = Color.White, fontSize = 13.sp, modifier = Modifier.testTag("daily-spending-guide"),
+                            color = Color.White, fontSize = 11.sp, modifier = Modifier.testTag("daily-spending-guide"),
                         )
                     }
                     Column(Modifier.weight(1f)) {
                         Text("Actual daily average", color = Color(0xFFCAF6FF), fontSize = 11.sp)
                         Text(guide.actualDailyExpenseMinor?.let { "${money(it)} / day" }
-                            ?: "Record salary to see average", color = Color.White, fontSize = 13.sp,
+                            ?: "Record salary to see average", color = Color.White, fontSize = 11.sp,
                             modifier = Modifier.testTag("actual-daily-average"))
-                        guide.elapsedSalaryDays?.let { Text("Over $it days since salary", color = Color(0xFFCAF6FF), fontSize = 10.sp) }
+                        guide.elapsedSalaryDays?.let { Text("Over $it days since salary", color = Color(0xFFCAF6FF), fontSize = 9.sp) }
                     }
                 }
                 guide.expectedSalaryDate?.let { expected ->
@@ -143,7 +143,7 @@ internal fun DashboardBalanceCard(
                     }
                     Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                         color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
-                    Text(if (salaryDay == null && plannedSalaryDate == null) "Estimate from your last salary. Reserve upcoming bills first." else "Based on your selected salary day. Reserve upcoming bills first.", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+
                 }
                 if (guide.lowBalance) {
                     Surface(color = Color(0xFFFFE5E8), shape = LedgerTokens.ShapeSmall, modifier = Modifier.fillMaxWidth().padding(top = LedgerTokens.Space4).testTag("low-balance-notice")) {

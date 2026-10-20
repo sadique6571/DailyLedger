@@ -460,6 +460,9 @@ fun DailyLedgerApp(
                 onAiEntry = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) },
             )
         },
+        floatingActionButton = {
+            ExpenseFloatingButton { quickTransaction = EntryShortcut("EXPENSE") }
+        },
         bottomBar = {
             AppBottomBar(
                 tab = tab,
