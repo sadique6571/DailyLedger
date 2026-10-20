@@ -11,6 +11,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
@@ -51,7 +54,10 @@ fun TransactionDialog(
     var discardWarning by rememberSaveable { mutableStateOf(false) }
     val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
+    val keyboard = LocalSoftwareKeyboardController.current
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
+    val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
     if (discardWarning) AlertDialog(
         onDismissRequest = { discardWarning = false },
         title = { Text("Discard unsaved changes?") },
@@ -65,7 +71,10 @@ fun TransactionDialog(
     val latestDirty = rememberUpdatedState(dirty)
     val confirmSheetChange: (SheetValue) -> Boolean = remember {
         { target ->
-            if (target == SheetValue.Hidden && latestDirty.value) {
+            if (target == SheetValue.Hidden && latestKeyboardVisible.value) {
+                keyboard?.hide()
+                false
+            } else if (target == SheetValue.Hidden && latestDirty.value) {
                 discardWarning = true
                 false
             } else true
@@ -75,12 +84,14 @@ fun TransactionDialog(
         skipPartiallyExpanded = true, confirmValueChange = confirmSheetChange,
     )
     ModalBottomSheet(
-        onDismissRequest = safeDismiss,
+        onDismissRequest = { if (keyboardVisible) keyboard?.hide() else safeDismiss() },
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !keyboardVisible),
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.testTag("transaction-bottom-sheet"),
     ) {
+        BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
         Column(Modifier.fillMaxWidth().fillMaxHeight(.82f).imePadding()
             .testTag("wide-transaction-entry")) {
             Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction",

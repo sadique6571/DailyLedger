@@ -58,13 +58,23 @@ fun CommitteeScreen(
     onDeleteMember: (CommitteeMemberEntity) -> Unit,
     onDelete: (CommitteeEntity) -> Unit,
     onCalendar: () -> Unit = {},
+    entryRequest: String? = null, onEntryOpened: () -> Unit = {},
     onPersonalTurnReceive: (String, Long, String, String, String) -> Unit = { _, _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     var organizerMode by remember { mutableStateOf(false) }
+    var add by remember { mutableStateOf(false) }
+    var addCollection by remember { mutableStateOf(false) }
+    LaunchedEffect(entryRequest) {
+        when (entryRequest) {
+            "kameti" -> { organizerMode = false; add = true; onEntryOpened() }
+            "collection" -> { organizerMode = true; addCollection = true; onEntryOpened() }
+        }
+    }
     if (organizerMode) {
         OrganizerKametiScreen(
             repo = repo, circles = organizerCircles, members = organizerMembers,
+            requestAdd = addCollection, onAddOpened = { addCollection = false },
             collections = organizerCollections, payouts = organizerPayouts,
             onBack = { organizerMode = false },
             onAddCircle = onAddCircle, onAddMembers = onAddOrganizerMembers,
@@ -74,7 +84,6 @@ fun CommitteeScreen(
         )
         return
     }
-    var add by remember { mutableStateOf(false) }
     var receivingId by remember { mutableStateOf<String?>(null) }
     var deleteCommittee by remember { mutableStateOf<CommitteeEntity?>(null) }
     var deleteReceipt by remember { mutableStateOf<CommitteeReceiptEntity?>(null) }

@@ -12,6 +12,28 @@ import org.junit.Test
 class EntrySheetTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun plusMenuShowsLabelsAndOpensSelectedEntrySheet() {
+        var selected by mutableStateOf("")
+        var menu by mutableStateOf(false)
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            ExpenseFloatingButton { menu = true }
+            if (menu) QuickEntryMenu({ menu = false }) { selected = it; menu = false }
+            if (selected == "saving") SavingDialog({}, save = { _, _, _, _ -> })
+        } }
+        compose.onNodeWithTag("floating-add-expense").performClick()
+        compose.onNodeWithTag("quick-entry-expense").assertTextContains("Expense")
+        compose.onNodeWithTag("quick-entry-salary").assertTextContains("Salary")
+        compose.onNodeWithTag("quick-entry-saving").performClick()
+        compose.onNodeWithText("Add saving").assertIsDisplayed()
+        compose.onNodeWithText("Amount PKR").performTextInput("250")
+        val fd = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .uiAutomation.executeShellCommand("input keyevent 4")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("ledger-entry-sheet").assertIsDisplayed()
+        compose.onNodeWithText("Amount PKR").assertTextContains("250")
+    }
+
     @Test fun savingsOpensAsSheetAndSavesWithoutChangingAmount() {
         var saved = 0L
         compose.setContent { DailyLedgerTheme("LIGHT") {

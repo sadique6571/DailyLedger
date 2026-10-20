@@ -48,11 +48,13 @@ fun LoansScreen(
     onAdd: (String, String, Long, String?, String, String, String) -> Unit,
     onPayment: (String, Long, String, String, String) -> Unit,
     onDelete: (LoanEntity) -> Unit,
+    requestAdd: Boolean = false, onAddOpened: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
     val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     var add by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
     Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

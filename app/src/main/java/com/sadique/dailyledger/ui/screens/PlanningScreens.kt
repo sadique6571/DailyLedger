@@ -42,12 +42,13 @@ fun PlanningNotice() {
 }
 
 @Composable
-fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<TransactionEntity>) {
+fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<TransactionEntity>, requestAdd: Boolean = false, onAddOpened: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }
     val data by store.data.collectAsState()
     var edit by remember { mutableStateOf<CategoryBudget?>(null) }
     var adding by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { edit = null; adding = true; onAddOpened() } }
     var pendingDelete by remember { mutableStateOf<CategoryBudget?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     val progress = remember(owner, data.budgets, transactions, YearMonth.now()) { PlannerMath.budgets(owner, data.budgets, transactions, YearMonth.now()) }
@@ -108,11 +109,12 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
 }
 
 @Composable
-fun BillsScreen(vm: MainViewModel) {
+fun BillsScreen(vm: MainViewModel, requestAdd: Boolean = false, onAddOpened: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val data by vm.planner.data.collectAsState()
     var edit by remember { mutableStateOf<RecurringBill?>(null) }
     var adding by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { edit = null; adding = true; onAddOpened() } }
     var review by remember { mutableStateOf<RecurringBill?>(null) }
     var remove by remember { mutableStateOf<RecurringBill?>(null) }
     var skip by remember { mutableStateOf<RecurringBill?>(null) }

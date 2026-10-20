@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
-/** Persistent quick expense action above the bottom navigation. */
+/** Persistent entry action above the bottom navigation. */
 @Composable
 fun ExpenseFloatingButton(onClick: () -> Unit) {
     FloatingActionButton(
@@ -22,6 +22,6 @@ fun ExpenseFloatingButton(onClick: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
     ) {
-        Icon(Icons.Rounded.Add, "Add expense", Modifier.size(29.dp))
+        Icon(Icons.Rounded.Add, "Add entry", Modifier.size(29.dp))
     }
 }

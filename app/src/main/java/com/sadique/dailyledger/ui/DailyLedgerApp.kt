@@ -340,6 +340,24 @@ fun DailyLedgerApp(
         return@CompositionLocalProvider
     }
     var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
+    var entryMenu by remember { mutableStateOf(false) }
+    var entryRequest by remember { mutableStateOf<String?>(null) }
+    if (entryMenu) QuickEntryMenu(onDismiss = { entryMenu = false }) { action ->
+        entryMenu = false
+        when (action) {
+            "expense" -> quickTransaction = EntryShortcut("EXPENSE")
+            "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
+            "income" -> quickTransaction = EntryShortcut("INCOME", "Other income")
+            "saving" -> addSaving = true
+            "ai" -> open(AUTO_FILL)
+            "credit" -> { addCreditRequested = true; open(7) }
+            "loan" -> { entryRequest = action; open(2) }
+            "kameti", "collection" -> { entryRequest = action; open(3) }
+            "budget" -> { entryRequest = action; open(BUDGETS) }
+            "reminder" -> { entryRequest = action; open(BILLS) }
+            else -> { entryRequest = action; open(NavigationHistory.FINANCE_TOOLS) }
+        }
+    }
     if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, vm::saveCreditDrafts)
     if (addSaving) SavingDialog(
         dismiss = { addSaving = false },
@@ -461,7 +479,7 @@ fun DailyLedgerApp(
             )
         },
         floatingActionButton = {
-            ExpenseFloatingButton { quickTransaction = EntryShortcut("EXPENSE") }
+            ExpenseFloatingButton { entryMenu = true }
         },
         bottomBar = {
             AppBottomBar(
@@ -538,6 +556,7 @@ fun DailyLedgerApp(
                 )
                 2 -> LoansScreen(
                     loans = loans,
+                    requestAdd = entryRequest == "loan", onAddOpened = { entryRequest = null },
                     payments = lp,
                     repo = vm.repo,
                     onAdd = { d, p, a, due, n, phone, wa -> vm.launch { saveLoan(d, p, a, due, n, phone, wa) } },
@@ -546,6 +565,7 @@ fun DailyLedgerApp(
                 )
                 3 -> CommitteeScreen(
                     committees = committees,
+                    entryRequest = entryRequest, onEntryOpened = { entryRequest = null },
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
@@ -589,12 +609,12 @@ fun DailyLedgerApp(
                 7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
-                BUDGETS -> BudgetScreen(user.id, vm.planner, tx)
-                BILLS -> BillsScreen(vm)
+                BUDGETS -> BudgetScreen(user.id, vm.planner, tx, requestAdd = entryRequest == "budget", onAddOpened = { entryRequest = null })
+                BILLS -> BillsScreen(vm, requestAdd = entryRequest == "reminder", onAddOpened = { entryRequest = null })
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
                 COMPARISON -> MonthlyComparisonScreen(user.id, tx, savings)
                 SEARCH -> GlobalSearchScreen(vm, ::open)
-                NavigationHistory.FINANCE_TOOLS -> com.sadique.dailyledger.ui.screens.FinanceToolsScreen(vm)
+                NavigationHistory.FINANCE_TOOLS -> com.sadique.dailyledger.ui.screens.FinanceToolsScreen(vm, entryRequest = entryRequest, onEntryOpened = { entryRequest = null })
                 LEARNING -> LearningScreen(vm)
                 else -> MoreScreen(
                     onTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },

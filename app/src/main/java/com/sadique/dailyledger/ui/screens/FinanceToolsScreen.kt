@@ -31,7 +31,7 @@ import java.util.UUID
 import org.json.JSONObject
 
 @Composable
-fun FinanceToolsScreen(vm:MainViewModel) {
+fun FinanceToolsScreen(vm:MainViewModel, entryRequest: String? = null, onEntryOpened: () -> Unit = {}) {
     val context=LocalContext.current
     val profile by vm.repo.profileBackup.collectAsState(initial=ProfileBackupData())
     val tx by vm.transactions.collectAsState(); val savings by vm.savings.collectAsState()
@@ -51,6 +51,16 @@ fun FinanceToolsScreen(vm:MainViewModel) {
     var paying by remember { mutableStateOf(emptySet<String>()) }
     var showEntry by remember { mutableStateOf(false) };var editing by remember { mutableStateOf<TransactionEntity?>(null) }
     var refund by remember { mutableStateOf<TransactionEntity?>(null) };var split by remember { mutableStateOf(false) }
+    LaunchedEffect(entryRequest) {
+        if (entryRequest != null) {
+            when (entryRequest) {
+                "detailed" -> { editing = null; showEntry = true }
+                "SPLIT" -> split = true
+                else -> addKind = FinanceKind.entries.firstOrNull { it.name == entryRequest }
+            }
+            onEntryOpened()
+        }
+    }
     var vault by remember { mutableStateOf(false) };var busy by remember { mutableStateOf(false) };var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf<String?>(null) };var selected by remember { mutableStateOf(emptySet<String>()) }
     var advancePurchase by remember { mutableStateOf<FinanceItem?>(null) }
