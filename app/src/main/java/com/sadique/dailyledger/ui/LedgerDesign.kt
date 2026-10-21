@@ -74,70 +74,22 @@ fun ledgerCardBrush(accent: Color = MaterialTheme.colorScheme.primary): Brush {
 }
 
 @Composable
-fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, accent: Color = MaterialTheme.colorScheme.primary, content: @Composable ColumnScope.() -> Unit) {
-    val display = LocalDisplayPreferences.current!!
-    val scheme = MaterialTheme.colorScheme
-    val dark = ledgerIsDark()
-    val shape = LedgerTokens.ShapeCard
-    Surface(
-        modifier, shape = shape,
-        color = scheme.surface, shadowElevation = LedgerTokens.Elevation2,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp, scheme.primary.copy(alpha = if (dark) .24f else .14f),
-        ),
-    ) {
-        Column(
-            Modifier.fillMaxWidth().clip(shape)
-                .background(
-                    ledgerCardBrush(accent),
-                    shape = shape,
-                ).padding(display.cardPadding.dp),
-            verticalArrangement = Arrangement.spacedBy(contentSpacing),
-            content = content,
-        )
+fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, accent: Color = ledgerCardAccent(), content: @Composable ColumnScope.() -> Unit) {
+    LedgerCardSurface(modifier, accent = accent) {
+        Column(Modifier.fillMaxWidth().padding((LocalDisplayPreferences.current?.cardPadding ?: 10).dp),
+            verticalArrangement = Arrangement.spacedBy(contentSpacing), content = content)
     }
 }
 
-/** Compact card for history rows and small record blocks. */
+/** History and full records use the same shell and inset as Home cards. */
 @Composable
-fun LedgerHistoryCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = LedgerTokens.ShapeCard,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shadowElevation = LedgerTokens.Elevation1,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
-    ) {
-        Column(
-            Modifier.fillMaxWidth().background(ledgerCardBrush()).padding(LedgerDesignTokens.InnerPadding),
-            verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space4),
-            content = content,
-        )
-    }
+fun LedgerHistoryCard(modifier: Modifier = Modifier, accent: Color = ledgerCardAccent(), content: @Composable ColumnScope.() -> Unit) {
+    LedgerCard(modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space4, accent = accent, content = content)
 }
 
-/** Elevated card for full money records. */
 @Composable
-fun LedgerRecordCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = LedgerTokens.ShapeCard,
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = LedgerTokens.Elevation1,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
-    ) {
-        Column(
-            Modifier.fillMaxWidth().background(ledgerCardBrush()).padding(LedgerDesignTokens.InnerPadding),
-            verticalArrangement = Arrangement.spacedBy(LedgerDesignTokens.RowGap),
-            content = content,
-        )
-    }
+fun LedgerRecordCard(modifier: Modifier = Modifier, accent: Color = ledgerCardAccent(), content: @Composable ColumnScope.() -> Unit) {
+    LedgerCard(modifier.fillMaxWidth(), contentSpacing = LedgerDesignTokens.RowGap, accent = accent, content = content)
 }
 
 @Composable

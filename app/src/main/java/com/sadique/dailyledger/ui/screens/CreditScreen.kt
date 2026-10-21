@@ -188,7 +188,7 @@ fun CreditScreen(
                             Text("Record payment")
                         }
                         history.take(3).forEach { row ->
-                            com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                            com.sadique.dailyledger.ui.LedgerHistoryCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(row.id)) {
                                 PaymentRowWithProofs(row.id, "credit", repo) {
                                     Text("${row.date} • ${money(row.amountMinor)} • ${row.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                                 }

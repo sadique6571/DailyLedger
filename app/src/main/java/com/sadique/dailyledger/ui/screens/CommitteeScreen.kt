@@ -148,7 +148,7 @@ fun CommitteeScreen(
 
                 Card(
                     Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    accent = com.sadique.dailyledger.ui.ledgerCardAccent(committee.id), shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
@@ -278,7 +278,7 @@ fun CommitteeScreen(
                         if (history) {
                             if (rs.isNotEmpty()) Text("Receiving history", style = MaterialTheme.typography.titleSmall)
                             rs.sortedWith(compareByDescending<CommitteeReceiptEntity> { it.date }.thenByDescending { it.createdAt }).forEach { receipt ->
-                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(receipt.id)) {
                                   Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(visibleMoney(receipt.amountMinor), style = MaterialTheme.typography.titleSmall)
@@ -291,7 +291,7 @@ fun CommitteeScreen(
                             }
                             if (ps.isNotEmpty()) Text("Installments paid", style = MaterialTheme.typography.titleSmall)
                             ps.sortedByDescending { it.installmentNumber }.forEach {
-                                com.sadique.dailyledger.ui.LedgerHistoryCard() {
+                                com.sadique.dailyledger.ui.LedgerHistoryCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(it.id)) {
                                     PaymentRowWithProofs(it.id, "committee", repo) {
                                         Text("#${it.installmentNumber} • ${it.month} • ${visibleMoney(it.amountMinor)} • ${it.method}" + if (it.chargesSalaryBalance()) "" else " • Historical record", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                                     }
