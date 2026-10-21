@@ -3,6 +3,12 @@ package com.sadique.dailyledger.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -39,30 +45,31 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
     val progress by animateFloatAsState(if (expanded) 1f else 0f, tween(280), label = "entry-toggle")
     val ink = MaterialTheme.colorScheme.onPrimary
     BackHandler(enabled = expanded) { expanded = false }
-    Column(Modifier.widthIn(max = 220.dp).testTag("quick-entry-dial"),
-        horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        quickEntryActions.forEachIndexed { index, action ->
-            androidx.compose.animation.AnimatedVisibility(visible = expanded,
-                enter = slideInHorizontally(tween(250, delayMillis = index * 35)) { it } +
-                    fadeIn(tween(200, delayMillis = index * 35)),
-                exit = slideOutHorizontally(tween(220, delayMillis = (4 - index) * 25)) { it } +
-                    fadeOut(tween(180, delayMillis = (4 - index) * 25))) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.testTag("quick-entry-row-${action.id}")) {
-                    Surface(shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = .94f),
-                        contentColor = MaterialTheme.colorScheme.onSurface) {
-                        Text(action.label, fontSize = 13.sp, lineHeight = 17.sp, maxLines = 1,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
-                    }
-                    FilledIconButton(onClick = { expanded = false; onSelect(action.id) },
-                        modifier = Modifier.size(48.dp).testTag("quick-entry-${action.id}"),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
-                        Icon(action.icon, action.label, Modifier.size(24.dp))
+    Row(Modifier.testTag("quick-entry-dial"),
+        verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        AnimatedVisibility(visible = expanded,
+            enter = slideInHorizontally(tween(280)) { it } + fadeIn(tween(200)),
+            exit = slideOutHorizontally(tween(220)) { it } + fadeOut(tween(180))) {
+            Surface(modifier = Modifier.widthIn(max = 220.dp).testTag("quick-entry-glass"),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = .82f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f)),
+                shadowElevation = 6.dp) {
+                Column(Modifier.heightIn(max = 310.dp).verticalScroll(rememberScrollState())
+                    .background(Brush.verticalGradient(listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = .25f), Color.Transparent)))
+                    .padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    quickEntryActions.forEach { action ->
+                        TextButton(onClick = { expanded = false; onSelect(action.id) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .testTag("quick-entry-${action.id}"),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
+                            Icon(action.icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(10.dp))
+                            Text(action.label, fontSize = 13.sp, maxLines = 1)
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }

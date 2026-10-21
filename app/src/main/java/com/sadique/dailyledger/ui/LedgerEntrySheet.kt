@@ -1,6 +1,10 @@
 package com.sadique.dailyledger.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -57,12 +61,15 @@ fun LedgerEntrySheet(
         onDismissRequest = dismissSafely,
         sheetState = state,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
+        tonalElevation = 0.dp,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = properties.dismissOnBackPress && !keyboardVisible),
     ) {
         CompositionLocalProvider(LocalEntrySheet provides true) {
             BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
-            Column(modifier.fillMaxWidth().fillMaxHeight(.82f).imePadding()
+            Column(modifier.fillMaxWidth().fillMaxHeight(if (keyboardVisible) .98f else .82f).imePadding()
+                .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .testTag("ledger-entry-sheet")) {
                 Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
                     ProvideTextStyle(MaterialTheme.typography.titleLarge) { title() }

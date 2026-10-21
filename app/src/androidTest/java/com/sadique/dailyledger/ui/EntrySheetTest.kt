@@ -32,7 +32,10 @@ class EntrySheetTest {
             assertTrue("Shortcuts must form a vertical list", upper.bottom <= lower.top)
             assertEquals(upper.center.x, lower.center.x, 1f)
         }
-        assertTrue(bounds.last().bottom <= toggle.fetchSemanticsNode().boundsInRoot.top)
+        val toggleBounds = toggle.fetchSemanticsNode().boundsInRoot
+        assertTrue("Menu must sit beside the plus", bounds.all { it.right < toggleBounds.left })
+        assertTrue("Last action must share the plus vertical span", bounds.last().bottom > toggleBounds.top)
+        compose.onNodeWithTag("quick-entry-glass").assertIsDisplayed()
         assertEquals(before, toggle.fetchSemanticsNode().boundsInRoot)
         compose.waitForIdle()
         val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation

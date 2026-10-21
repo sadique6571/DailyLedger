@@ -5,6 +5,10 @@ import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -88,11 +92,14 @@ fun TransactionDialog(
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !keyboardVisible),
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
+        tonalElevation = 0.dp,
         modifier = Modifier.testTag("transaction-bottom-sheet"),
     ) {
         BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.82f).imePadding()
+        Column(Modifier.fillMaxWidth().fillMaxHeight(if (keyboardVisible) .98f else .82f).imePadding()
+            .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
             .testTag("wide-transaction-entry")) {
             Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction",
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
