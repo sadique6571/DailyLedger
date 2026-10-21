@@ -25,7 +25,7 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState(),
-    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}, onReminders: (() -> Unit)? = null) {
+    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onReminders: (() -> Unit)? = null) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {

@@ -2,7 +2,7 @@
 
 An Android personal finance app for income, expenses, savings, loans, udhar and kameti. Entries remain usable offline; Google sign-in, opt-in AI suggestions and verified Google Drive backups provide the connected features.
 
-**Current version: 2.0.0 · build 47.** The application ID and existing signing certificate are retained for in-place updates.
+**Current version: 2.0.0 · build 48.** The application ID and existing signing certificate are retained for in-place updates.
 
 ## Current interface
 
@@ -25,6 +25,8 @@ Expense/salary forms no longer show View history, quick-note presets or Today/Ye
 - Spending summaries, monthly comparisons, budgets and bill reminders.
 - Offline Auto Fill and opt-in online AI suggestions. This is an entry/suggestions workflow, not a chat interface. Review AI-generated dates, categories and amounts before saving.
 - English/Urdu interface, amount privacy and PDF/CSV reports.
+
+Build 48 removes the unreachable Money tools screen, its receipt/SMS/voice intake panel and unused dialogs. The bundled OCR dependency and microphone permission are removed. The active quantity/account/private entry editor remains available. The old floating-button helper lives only in instrumentation tests.
 
 Historical Money tools data stays compatible with the existing storage and backup paths, although its menu destination is no longer shown. The detailed feature history is in [docs/](docs/); older build notes describe their own versions rather than the current interface.
 
@@ -79,7 +81,7 @@ Install the APK over the existing app; uninstalling or clearing data is not requ
 
 See [TESTING.md](TESTING.md) for additional historical verification details. The latest Actions run is the authoritative result for its exact commit.
 
-## Device checks for build 47
+## Device checks for build 48
 
 1. Open the five-action Plus menu on Home, switch tabs and return: it should be hidden off Home and closed on return. Each tab's own Add action should still work.
 2. Compare Weather and Salary gradients in light/dark modes. Check long names, large amounts and the phone's larger font setting.

@@ -96,12 +96,6 @@ class FinanceRepositoryTest {
             if(db.ledgerDao().transactionsNow("o").single().updatedAt!=before.updatedAt)assertTrue(runCatching{r.saveTransaction("EXPENSE",12000,"Milk","Stale","2026-10-01",before)}.isFailure)
         }finally{db.close()}
     }
-    @Test fun pastedSmsDropsIdentifiersAndReceiptSkipsGrandTotals() {
-        val sms=FinanceIntake.sms("PKR 1,500.00 debited from account 123456789 on 2026-10-12. Balance PKR 99,000.00","2026-10-19","EXPENSE")
-        assertEquals(150000L,sms.amountMinor);assertEquals("2026-10-12",sms.date);assertFalse(sms.note.contains("123456789"))
-        val rows=FinanceIntake.receipt("Milk 150.00\nBread 100.00\nSubtotal 250.00\nGrand Total 250.00","2026-10-19")
-        assertEquals(2,rows.size);assertEquals(25000L,rows.sumOf{it.amountMinor})
-    }
     @Test fun claimsGoalsAndInstallmentsRestoreAcrossOwnersWithEveryLinkIntact()=runBlocking {
         val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
         try {
