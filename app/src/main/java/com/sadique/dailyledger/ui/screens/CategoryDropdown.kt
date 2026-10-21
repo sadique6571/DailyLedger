@@ -44,7 +44,7 @@ import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.LedgerCategory
 import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.ui.GlowIcon
-import com.sadique.dailyledger.ui.categoryVisual
+import com.sadique.dailyledger.ui.rememberCategoryVisual
 
 // Supplied from the signed-in owner's observable ledger. No separate cache/account mixing.
 val LocalCategoryHistory = staticCompositionLocalOf { emptyList<TransactionEntity>() }
@@ -117,7 +117,7 @@ fun CategoryDropdown(
                             style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                     items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
-                        val visual = categoryVisual(category.label, type)
+                        val visual = rememberCategoryVisual(category.label, type)
                         DropdownMenuItem(text = { Text(category.label) },
                             leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
                             onClick = { choose(category.label) })

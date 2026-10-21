@@ -14,12 +14,14 @@ import com.sadique.dailyledger.ui.enteringItems
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
@@ -33,7 +35,9 @@ import com.sadique.dailyledger.data.CreditPurchaseEntity
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.ui.categoryVisual
 import com.sadique.dailyledger.ui.LedgerCard
+import com.sadique.dailyledger.ui.LedgerTokens
 import com.sadique.dailyledger.ui.LedgerBackdrop
+import kotlinx.coroutines.launch
 import com.sadique.dailyledger.ui.money
 import java.util.UUID
 import java.net.URLEncoder
@@ -56,6 +60,19 @@ fun CreditScreen(
     LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var aiAdd by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
+    var pendingUndoDelete by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
+    val undoBar = remember { SnackbarHostState() }
+    val undoScope = rememberCoroutineScope()
+    val visibleCredits = credits.filter { it.id != pendingUndoDelete?.id }
+    fun requestDelete(credit: CreditPurchaseEntity) {
+        if (pendingUndoDelete == credit) return
+        pendingUndoDelete = credit
+        undoScope.launch {
+            val result = undoBar.showSnackbar("Udhar record removed", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Short)
+            if (result != SnackbarResult.ActionPerformed) onDelete(credit)
+            if (pendingUndoDelete == credit) pendingUndoDelete = null
+        }
+    }
     val manualBatchId = remember(add) { UUID.randomUUID().toString() }
     var pay by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
     var pickPayment by remember { mutableStateOf(false) }
@@ -73,6 +90,7 @@ fun CreditScreen(
     LedgerBackdrop(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        snackbarHost = { SnackbarHost(undoBar) },
         floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add udhar") } },
     ) { p ->
         LazyColumn(
@@ -92,7 +110,7 @@ fun CreditScreen(
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                             Icon(
-                                Icons.Outlined.ShoppingCart,
+                                Icons.Rounded.ShoppingCart,
                                 contentDescription = null,
                                 modifier = Modifier.padding(10.dp).size(22.dp),
                                 tint = MaterialTheme.colorScheme.primary,
@@ -103,7 +121,7 @@ fun CreditScreen(
                             Text(money(outstanding), style = MaterialTheme.typography.headlineSmall)
                         }
                         Button(onClick = { aiAdd = true }) {
-                            Icon(Icons.Outlined.AutoAwesome, null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("AI Udhar Add")
                         }
@@ -111,16 +129,30 @@ fun CreditScreen(
                 }
             }
 
-            if (credits.isEmpty()) {
+            if (visibleCredits.isEmpty()) {
                 enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No udhar records yet",
                     "Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.",
-                    "Add udhar", Icons.Outlined.ShoppingCart, onAction = { add = true }) }
+                    "Add udhar", Icons.Rounded.ShoppingCart, onAction = { add = true }) }
             }
 
-            enteringItems(credits, key = { it.id }) { credit ->
+            enteringItems(visibleCredits, key = { it.id }) { credit ->
                 val history = payments.filter { it.creditId == credit.id }
                 val paid = history.sumOf { it.amountMinor }
                 val left = (credit.amountMinor - paid).coerceAtLeast(0L)
+                val swipeState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart) { deleting = credit; false } else false
+                    },
+                )
+                SwipeToDismissBox(
+                    state = swipeState,
+                    enableDismissFromStartToEnd = false,
+                    backgroundContent = {
+                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, LedgerTokens.ShapeCard).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                            Icon(Icons.Rounded.DeleteOutline, "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    },
+                ) {
                 LedgerCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(
@@ -128,24 +160,45 @@ fun CreditScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            val tint = categoryVisual(credit.category).color
-                            Surface(shape = CircleShape, color = tint.copy(alpha = 0.11f)) {
-                                Icon(
-                                    categoryVisual(credit.category).icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(10.dp).size(20.dp),
-                                    tint = tint,
-                                )
+                            val accent = com.sadique.dailyledger.ui.ledgerCardAccent(credit.creditor)
+                            Surface(shape = CircleShape, color = accent.copy(alpha = 0.16f), modifier = Modifier.size(40.dp)) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        credit.creditor.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.take(2).map { it.first().uppercaseChar() }.joinToString(""),
+                                        style = MaterialTheme.typography.titleSmall, color = accent, translate = false,
+                                    )
+                                }
                             }
                             Column(Modifier.weight(1f)) {
                                 Text(credit.item, translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("${credit.creditor} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(credit.category)}", translate = false, style = MaterialTheme.typography.bodyMedium)
                                 Text("Bought ${credit.purchaseDate} • ${money(credit.amountMinor)}", style = MaterialTheme.typography.bodySmall)
-                                credit.dueDate?.let { Text("Due $it • ${creditDueLabel(it)}", style = MaterialTheme.typography.bodySmall) }
+                                credit.dueDate?.let {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("Due $it", style = MaterialTheme.typography.bodySmall)
+                                        com.sadique.dailyledger.ui.DueDateBadge(it)
+                                    }
+                                }
                                 Text("Paid ${money(paid)} • Remaining ${money(left)}")
                                 if (left == 0L || credit.closed) Text("Paid in full", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             }
-                            IconButton(onClick = { deleting = credit }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }
+                            IconButton(onClick = {
+                                val personCredits = credits.filter { it.creditor.equals(credit.creditor, ignoreCase = true) }
+                                val text = buildString {
+                                    appendLine("Udhar statement — ${credit.creditor}")
+                                    var totalLeft = 0L
+                                    personCredits.forEach { c ->
+                                        val p = payments.filter { it.creditId == c.id }.sumOf { it.amountMinor }
+                                        val l = (c.amountMinor - p).coerceAtLeast(0L)
+                                        totalLeft += l
+                                        appendLine("• ${c.item} (${c.purchaseDate}) — ${money(c.amountMinor)} · Paid ${money(p)} · Remaining ${money(l)}")
+                                    }
+                                    appendLine("Total remaining: ${money(totalLeft)}")
+                                    appendLine("— Daily Ledger")
+                                }
+                                com.sadique.dailyledger.ui.shareText(context, "Share udhar statement", text)
+                            }) { Icon(Icons.Rounded.Share, "Share statement") }
+                            IconButton(onClick = { deleting = credit }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
                         }
 
                         if (credit.phone.isNotBlank() || credit.whatsapp.isNotBlank()) {
@@ -154,7 +207,7 @@ fun CreditScreen(
                                     AssistChip(
                                         onClick = { context.openContactAction(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${credit.phone}"))) },
                                         label = { Text("Call") },
-                                        leadingIcon = { Icon(Icons.Outlined.Call, null) },
+                                        leadingIcon = { Icon(Icons.Rounded.Call, null) },
                                     )
                                     AssistChip(
                                         onClick = {
@@ -164,7 +217,7 @@ fun CreditScreen(
                                             )
                                         },
                                         label = { Text("SMS") },
-                                        leadingIcon = { Icon(Icons.Outlined.Sms, null) },
+                                        leadingIcon = { Icon(Icons.Rounded.Sms, null) },
                                     )
                                 }
                                 val wa = credit.whatsapp.ifBlank { credit.phone }
@@ -176,14 +229,14 @@ fun CreditScreen(
                                             context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$num?text=$msg")))
                                         },
                                         label = { Text("WhatsApp") },
-                                        leadingIcon = { Icon(Icons.Outlined.Chat, null) },
+                                        leadingIcon = { Icon(Icons.Rounded.Chat, null) },
                                     )
                                 }
                             }
                         }
 
                         Button(onClick = { pay = credit }, enabled = left > 0L, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Outlined.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(7.dp))
                             Text("Record payment")
                         }
@@ -196,6 +249,7 @@ fun CreditScreen(
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -205,7 +259,7 @@ fun CreditScreen(
         DeleteCreditDialog(
             credit = credit,
             onDismiss = { deleting = null },
-            onConfirm = { onDelete(credit); deleting = null },
+            onConfirm = { requestDelete(credit); deleting = null },
         )
     }
     if (add) {

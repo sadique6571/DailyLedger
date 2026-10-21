@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -51,6 +52,7 @@ fun DashboardScreen(
     planningNotices: List<String> = emptyList(),
     onOpenPlanning: () -> Unit = {},
     onDismissTip: (SpendingTip) -> Unit = {}, dismissedTipKeys: Set<String> = emptySet(),
+    lastSync: Long = 0L, driveEnabled: Boolean = false,
 ) {
     val today by produceState(initialValue = LocalDate.now()) {
         while (true) { value = LocalDate.now(); delay(30_000) }
@@ -64,6 +66,9 @@ fun DashboardScreen(
     }
     val grouped = remember(expenseRows) { expenseRows.groupBy { it.category }.mapValues { it.value.sumOf { row -> row.expenseEffect() } }.entries.filter { it.value > 0 }.sortedByDescending { it.value } }
     val currentMonthExpenses = remember(tx, month) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") } }
+    val prevMonth = month.minusMonths(1)
+    val prevMonthExpensesTotal = remember(tx, prevMonth) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$prevMonth-") }.sumOf { it.expenseEffect() } }
+    val curMonthExpensesTotal = remember(currentMonthExpenses) { currentMonthExpenses.sumOf { it.expenseEffect() } }
     val frequentItems = remember(currentMonthExpenses) { currentMonthExpenses.filter { !it.privateEntry && it.refundOf.isBlank() }.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
         .sortedByDescending { it.second }
@@ -83,6 +88,7 @@ fun DashboardScreen(
     val spentPct = (spentRatio * 100).roundToInt()
     val guide = remember(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) { DailySpendingGuide.calculate(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) }
     val display = LocalDisplayPreferences.current!!
+    val context = androidx.compose.ui.platform.LocalContext.current
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
@@ -105,10 +111,52 @@ fun DashboardScreen(
                     salaryDay = salaryDay, plannedSalaryDate = plannedSalaryDate, money = visibleMoney,
                 )
             }
+            enteringItem(key = "backup-status", index = 2) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(if (driveEnabled && lastSync > 0) Icons.Rounded.CloudSync else Icons.Rounded.Cloud, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        when {
+                            !driveEnabled -> "Google Drive backup is off"
+                            lastSync > 0 -> "Last backup: ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(lastSync))}"
+                            else -> "Not yet backed up"
+                        },
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             enteringItem(key = "monthly-totals", index = 2) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
                     DashboardStat("Salary", summary.salary, "This cycle", Icons.Rounded.ArrowUpward, LedgerColors.Green, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-salary"), onAddSalary)
                     DashboardStat("Expense", summary.expenses, "This cycle", Icons.Rounded.ArrowDownward, LedgerColors.Red, Modifier.weight(1f).fillMaxHeight().testTag("dashboard-add-expense"), onAddExpense)
+                }
+                if (prevMonthExpensesTotal > 0) {
+                    val deltaPct = ((curMonthExpensesTotal - prevMonthExpensesTotal) * 100.0 / prevMonthExpensesTotal).roundToInt()
+                    Text(
+                        when {
+                            deltaPct > 0 -> "Expenses ${visibleMoney(curMonthExpensesTotal)} this month — $deltaPct% more than last month"
+                            deltaPct < 0 -> "Expenses ${visibleMoney(curMonthExpensesTotal)} this month — ${-deltaPct}% less than last month"
+                            else -> "Expenses ${visibleMoney(curMonthExpensesTotal)} this month — same as last month"
+                        },
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+                TextButton(onClick = {
+                    val monthName = month.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
+                    val text = buildString {
+                        appendLine("Daily Ledger — $monthName ${month.year} summary")
+                        appendLine("Income: ${visibleMoney(summary.salary + summary.otherIncome)}")
+                        appendLine("Expenses: ${visibleMoney(summary.expenses)}")
+                        appendLine("Savings: ${visibleMoney(summary.savingsContributions)}")
+                        appendLine("Remaining: ${visibleMoney(summary.remaining)}")
+                    }
+                    com.sadique.dailyledger.ui.shareText(context, "Share monthly summary", text)
+                }, modifier = Modifier.testTag("share-monthly-summary")) {
+                    Icon(Icons.Rounded.Share, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Share summary")
+                }
                 }
             }
 

@@ -15,6 +15,8 @@ import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -71,6 +73,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onBiometric: (Boolean) -> Unit,
+    pinHash: String = "",
+    onSetPin: (String) -> Unit = {},
+    onRemovePin: () -> Unit = {},
     onDriveEnabled: (Boolean) -> Unit,
     onWeatherEnabled: (Boolean) -> Unit,
     onTransactionSounds: (Boolean) -> Unit,
@@ -104,6 +109,35 @@ fun SettingsScreen(
     var exportFrom by remember { mutableStateOf("") }
     var exportThrough by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    val csvImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            busy = true; message = null
+            scope.launch {
+                try {
+                    val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText().orEmpty()
+                    var imported = 0; var skipped = 0
+                    vm.saveChange {
+                        text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.forEach { line ->
+                            if (line.startsWith("date", ignoreCase = true)) return@forEach
+                            val parts = splitCsvLine(line)
+                            val date = parts.getOrNull(0)?.trim().orEmpty()
+                            val type = parts.getOrNull(1)?.trim()?.uppercase(java.util.Locale.ROOT).orEmpty()
+                            val category = parts.getOrNull(2)?.trim().orEmpty()
+                            val amount = parts.getOrNull(3)?.let { parseAmountExpression(it) } ?: 0L
+                            val note = parts.getOrNull(4)?.trim().orEmpty()
+                            if (isValidDate(date) && (type == "INCOME" || type == "EXPENSE") && category.isNotBlank() && amount > 0L) {
+                                saveTransaction(type, amount, category, note, date)
+                                imported++
+                            } else skipped++
+                        }
+                    }
+                    message = "CSV import complete: $imported entries added, $skipped lines skipped."
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { message = "CSV import failed: ${e.message ?: "unknown error"}" }
+                finally { busy = false }
+            }
+        }
+    }
     var confirmation by remember { mutableStateOf<String?>(null) }
     var resetStage by remember { mutableStateOf(0) }
     val offlineProfiles by vm.offlineProfiles.collectAsState()
@@ -141,11 +175,12 @@ fun SettingsScreen(
                         start to end
                     }
                 }
+                val accountLabel = user.name.ifBlank { user.email }
                 if (previewOnly) {
-                    preview = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ExportManager.statementBytes(vm.repo, from, through) }
+                    preview = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ExportManager.statementBytes(vm.repo, from, through, accountLabel) }
                     return@launch
                 }
-                val location = if (pdf) ExportManager.pdf(context, vm.repo, from, through)
+                val location = if (pdf) ExportManager.pdf(context, vm.repo, from, through, accountLabel)
                     else ExportManager.csv(context, vm.repo, from, through)
                 val format = if (pdf) "PDF" else "CSV"
                 val notificationPosted = ExportNotifications.post(context, format, location)
@@ -347,6 +382,10 @@ fun SettingsScreen(
             }
         }
 
+        enteringItem(key = "settings-search", index = 2, entranceKey = entranceVisit) {
+            OutlinedTextField(settingsQuery, { settingsQuery = it.take(80) }, label = { Text("Search settings") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("settings-search"), trailingIcon = { if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Rounded.Close, "Clear search") } })
+        }
         enteringItem(key = "settings-language", index = 1, entranceKey = entranceVisit) {
             SectionCard("Language", "Choose your interface language") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -356,9 +395,51 @@ fun SettingsScreen(
                 Text("Urdu uses a bundled Nastaleeq font and works offline. Saved categories and records keep their original keys.", style = MaterialTheme.typography.bodySmall)
             }
         }
-        enteringItem(key = "settings-search", index = 2, entranceKey = entranceVisit) {
-            OutlinedTextField(settingsQuery, { settingsQuery = it.take(80) }, label = { Text("Search settings") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("settings-search"), trailingIcon = { if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Rounded.Close, "Clear search") } })
+        if (matchesSetting("Appearance theme text size font")) enteringItem(key = "settings-appearance", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Appearance", "Pick a theme and text size — changes apply right away") {
+                LedgerThemeOptions.chunked(4).forEach { rowOptions ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        rowOptions.forEach { option ->
+                            val isSelected = theme.uppercase() == option.key
+                            Column(
+                                modifier = Modifier.weight(1f).clickable { onTheme(option.key) }.testTag("theme-${option.key.lowercase()}"),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                                        .background(option.background, RoundedCornerShape(12.dp))
+                                        .border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                                        .padding(6.dp),
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Box(Modifier.size(14.dp).background(option.primary, RoundedCornerShape(50)))
+                                        Box(Modifier.size(14.dp).background(option.secondary, RoundedCornerShape(50)))
+                                    }
+                                }
+                                Text(option.label, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                        repeat(4 - rowOptions.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                Text("Text size", style = MaterialTheme.typography.labelLarge)
+                listOf(0 to "Small", 1 to "Normal", 2 to "Large", 3 to "Extra large").chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pair.forEach { (value, label) ->
+                            FilterChip(selected = display.fontSize == value, onClick = { display.updateFontSize(value) }, label = { Text(label) }, modifier = Modifier.testTag("font-size-$value"))
+                        }
+                    }
+                }
+            }
+        }
+        if (matchesSetting("Category icons colors appearance")) enteringItem(key = "settings-category-icons", index = 2, entranceKey = entranceVisit) {
+            var categoryEditorOpen by remember { mutableStateOf(false) }
+            SectionCard("Category icons & colors", "Give any category your own icon and color") {
+                Text("Apni pasand ka icon aur rang chunein — lists, entry aur reports mein foran nazar ayega.", style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { categoryEditorOpen = true }, modifier = Modifier.testTag("open-category-icons")) { Text("Choose a category") }
+            }
+            if (categoryEditorOpen) CategoryVisualEditorDialog(onDismiss = { categoryEditorOpen = false })
         }
         if (matchesSetting("Salary calendar next expected date")) enteringItem(key = "settings-salary", index = 3, entranceKey = entranceVisit) {
             SalarySettingsCard(vm.salarySchedule, salaryTransactions)
@@ -455,6 +536,52 @@ fun SettingsScreen(
                     Text("Biometric / device lock", Modifier.weight(1f))
                     Switch(biometric, onCheckedChange = onBiometric)
                 }
+                var pinEditor by remember { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("App lock PIN")
+                        Text("PIN set ho to app khulne par PIN ya biometric — jo asan ho — chalega.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (pinHash.isNotBlank()) {
+                        TextButton(onClick = { pinEditor = true }) { Text("Change") }
+                        TextButton(onClick = onRemovePin) { Text("Remove") }
+                    } else {
+                        TextButton(onClick = { pinEditor = true }) { Text("Set PIN") }
+                    }
+                }
+                if (pinEditor) {
+                    var pin1 by remember { mutableStateOf("") }
+                    var pin2 by remember { mutableStateOf("") }
+                    val pinValid = com.sadique.dailyledger.security.PinLock.isValidFormat(pin1) && pin1 == pin2
+                    AlertDialog(
+                        onDismissRequest = { pinEditor = false },
+                        title = { Text(if (pinHash.isNotBlank()) "Change app PIN" else "Set app PIN") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = pin1,
+                                    onValueChange = { if (it.length <= 8 && it.all { c -> c.isDigit() }) pin1 = it },
+                                    label = { Text("New PIN (4–8 digits)") }, singleLine = true,
+                                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = pin2,
+                                    onValueChange = { if (it.length <= 8 && it.all { c -> c.isDigit() }) pin2 = it },
+                                    label = { Text("Confirm PIN") }, singleLine = true,
+                                    isError = pin2.isNotEmpty() && pin1 != pin2,
+                                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                if (pin2.isNotEmpty() && pin1 != pin2) Text("PINs do not match", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            }
+                        },
+                        confirmButton = { TextButton(onClick = { onSetPin(pin1); pinEditor = false }, enabled = pinValid) { Text("Save PIN") } },
+                        dismissButton = { TextButton(onClick = { pinEditor = false }) { Text("Cancel") } },
+                    )
+                }
             }
         }
 
@@ -521,6 +648,10 @@ fun SettingsScreen(
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+                Text("Import transactions from CSV", style = MaterialTheme.typography.labelLarge)
+                Text("One entry per line: date, type, category, amount, note — for example: 2026-10-01, EXPENSE, Food, 1250, Lunch. A header line is skipped automatically.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain")) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("import-csv")) { Text("Import CSV") }
             }
         }
 
@@ -596,4 +727,20 @@ private tailrec fun Context.findActivity(): Activity = when (this) {
     is Activity -> this
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> error("No Activity found in context chain")
+}
+
+/** Splits one CSV line, honoring double-quoted fields that may contain commas. */
+private fun splitCsvLine(line: String): List<String> {
+    val out = mutableListOf<String>()
+    val current = StringBuilder()
+    var quoted = false
+    for (c in line) {
+        when {
+            c == '"' -> quoted = !quoted
+            c == ',' && !quoted -> { out += current.toString(); current.clear() }
+            else -> current.append(c)
+        }
+    }
+    out += current.toString()
+    return out
 }

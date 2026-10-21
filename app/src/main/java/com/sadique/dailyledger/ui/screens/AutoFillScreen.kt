@@ -149,7 +149,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     }
                 }
                 itemsIndexed(entries, key = { i, _ -> "draft-$i" }) { i, entry ->
-                    val visual = categoryVisual(entry.category, entry.type)
+                    val visual = rememberCategoryVisual(entry.category, entry.type)
                     val issues = warnings(i, entry)
                     val reviewed = DraftReviewPolicy.signature(entry) in checked
                     LedgerCard(Modifier.fillMaxWidth().then(if (issues.isNotEmpty() && !reviewed)
@@ -225,7 +225,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         listOf("Food", "Transport", "Shopping", "Bills", "Health").forEach { category ->
-                            val visual = categoryVisual(category)
+                            val visual = rememberCategoryVisual(category)
                             Column(Modifier.clickable(enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS) { manualCategory = category; manual = true }.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 GlowIcon(visual.icon, visual.color, size = 43.dp)
                                 Text(category, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))

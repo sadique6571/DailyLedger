@@ -18,6 +18,7 @@ import com.sadique.dailyledger.ui.enteringItems
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
@@ -38,6 +40,7 @@ import com.sadique.dailyledger.ui.isValidDate
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
 import com.sadique.dailyledger.ui.plainAmount
+import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -57,6 +60,19 @@ fun LoansScreen(
     var add by remember { mutableStateOf(false) }
     LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
+    var pendingUndoDelete by remember { mutableStateOf<LoanEntity?>(null) }
+    val undoBar = remember { SnackbarHostState() }
+    val undoScope = rememberCoroutineScope()
+    val visibleLoans = loans.filter { it.id != pendingUndoDelete?.id }
+    fun requestDelete(loan: LoanEntity) {
+        if (pendingUndoDelete == loan) return
+        pendingUndoDelete = loan
+        undoScope.launch {
+            val result = undoBar.showSnackbar("Loan removed", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Short)
+            if (result != SnackbarResult.ActionPerformed) onDelete(loan)
+            if (pendingUndoDelete == loan) pendingUndoDelete = null
+        }
+    }
     var pickPayment by remember { mutableStateOf(false) }
     LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
     if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
@@ -64,14 +80,14 @@ fun LoansScreen(
             .map { row -> row.person to { pay = row; pickPayment = false } },
         { pickPayment = false })
 
-    Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
+    Scaffold(snackbarHost = { SnackbarHost(undoBar) }, floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
-            if (loans.isEmpty()) enteringItem {
+            if (visibleLoans.isEmpty()) enteringItem {
                 com.sadique.dailyledger.ui.LedgerEmptyState("No loans yet", "Track money borrowed or lent and record repayments here.",
-                    "Add loan", Icons.Outlined.Handshake, onAction = { add = true })
+                    "Add loan", Icons.Rounded.Handshake, onAction = { add = true })
             }
-            enteringItems(loans, key = { it.id }) { loan ->
+            enteringItems(visibleLoans, key = { it.id }) { loan ->
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)
@@ -81,15 +97,20 @@ fun LoansScreen(
                             Column(Modifier.weight(1f)) {
                                 Text("${loan.person} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(if (loan.direction == "BORROWED") "I borrowed" else "Borrowed from me")}", translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("Outstanding ${visibleMoney(left)} / ${visibleMoney(loan.principalMinor)}")
-                                loan.dueDate?.let { Text("Due $it • ${dueLabel(it)}", style = MaterialTheme.typography.bodySmall) }
+                                loan.dueDate?.let {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("Due $it", style = MaterialTheme.typography.bodySmall)
+                                        com.sadique.dailyledger.ui.DueDateBadge(it)
+                                    }
+                                }
                                 if (left == 0L || loan.closed) Text("Settled", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             }
-                            IconButton(onClick = { onDelete(loan) }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }
+                            IconButton(onClick = { requestDelete(loan) }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
                         }
                         if (loan.phone.isNotBlank() || loan.whatsapp.isNotBlank()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            if (loan.phone.isNotBlank()) { AssistChip(onClick = { context.openContactAction(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${loan.phone}"))) }, label = { Text("Call") }, leadingIcon = { Icon(Icons.Outlined.Call, null) }); AssistChip(onClick = { context.openContactAction(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${loan.phone}")).putExtra("sms_body", reminder(loan, left))) }, label = { Text("SMS") }, leadingIcon = { Icon(Icons.Outlined.Sms, null) }) }
+                            if (loan.phone.isNotBlank()) { AssistChip(onClick = { context.openContactAction(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${loan.phone}"))) }, label = { Text("Call") }, leadingIcon = { Icon(Icons.Rounded.Call, null) }); AssistChip(onClick = { context.openContactAction(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${loan.phone}")).putExtra("sms_body", reminder(loan, left))) }, label = { Text("SMS") }, leadingIcon = { Icon(Icons.Rounded.Sms, null) }) }
                             val wa = loan.whatsapp.ifBlank { loan.phone }
-                            if (wa.isNotBlank()) AssistChip(onClick = { val num=whatsappNumber(wa); val msg=URLEncoder.encode(reminder(loan,left), StandardCharsets.UTF_8.toString()); context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$num?text=$msg"))) }, label = { Text("WhatsApp") }, leadingIcon = { Icon(Icons.Outlined.Chat, null) })
+                            if (wa.isNotBlank()) AssistChip(onClick = { val num=whatsappNumber(wa); val msg=URLEncoder.encode(reminder(loan,left), StandardCharsets.UTF_8.toString()); context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$num?text=$msg"))) }, label = { Text("WhatsApp") }, leadingIcon = { Icon(Icons.Rounded.Chat, null) })
                         }
                         Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = { pay = loan }, enabled = left > 0, modifier = Modifier.fillMaxWidth()) { Text(if (loan.direction == "BORROWED") "Record my repayment" else "Record payment received") }
                         val allPayments = payments.filter { it.loanId == loan.id }

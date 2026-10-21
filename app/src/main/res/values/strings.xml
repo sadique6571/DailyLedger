@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Daily Ledger</string>
+    <string name="shortcut_new_expense">New expense</string>
+    <string name="shortcut_new_expense_long">Add a new expense</string>
+    <string name="shortcut_new_udhar">New udhar</string>
+    <string name="shortcut_new_udhar_long">Add a new udhar entry</string>
 </resources>

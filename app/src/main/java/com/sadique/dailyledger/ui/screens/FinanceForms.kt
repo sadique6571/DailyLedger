@@ -44,11 +44,11 @@ import java.util.UUID
     }
 }
 @Composable internal fun FinanceFormDialog(title:String,dismiss:()->Unit,save:suspend()->Unit,enabled:Boolean=true,button:String="Save",content:@Composable ColumnScope.(Boolean)->Unit) {
-    var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
+    var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope();val haptics=rememberLedgerHaptics()
     LedgerEntrySheet(canDismiss = !busy, onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier,title={Text(title)},
         text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(10.dp)){
             error?.let{Text(it,color=MaterialTheme.colorScheme.error)};content(busy)
-        }},confirmButton={Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled=enabled&&!busy,onClick={if(!busy){busy=true;error=null;scope.launch{try{save();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}}){Text(if(busy)"Saving…" else button)}},
+        }},confirmButton={Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled=enabled&&!busy,onClick={if(!busy){busy=true;error=null;scope.launch{try{save();haptics.confirm();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}}){Text(if(busy)"Saving…" else button)}},
         dismissButton={TextButton(onClick=dismiss,enabled=!busy){Text("Cancel")}})
 }
 @Composable internal fun FinanceEntryEditor(owner:String,accounts:List<String>,initial:TransactionEntity?,template:TransactionEntity?=null,defaultPrivate:Boolean=false,dismiss:()->Unit,onSave:suspend(TransactionEntity)->Unit) {

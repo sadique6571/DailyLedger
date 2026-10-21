@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
+import com.sadique.dailyledger.ui.parseAmountExpression
+import com.sadique.dailyledger.ui.plainAmount
 
 @Composable
 fun SavingsScreen(
@@ -40,6 +42,8 @@ fun SavingsScreen(
     onDelete: (SavingEntity) -> Unit,
 ) {
     var add by remember { mutableStateOf(false) }
+    var goalEditor by remember { mutableStateOf(false) }
+    val display = LocalDisplayPreferences.current!!
     val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
     val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     val direct = savings.filter { it.kind == "DIRECT" }.sumOf { it.amountMinor }
@@ -51,6 +55,26 @@ fun SavingsScreen(
                 Text("Your savings stay separate from salary and kameti.")
                 Spacer(Modifier.height(12.dp))
                 SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${visibleMoney(direct)} • Leftover: ${visibleMoney(leftover)}", onClick = { add = true })
+            }
+            enteringItem {
+                val goal = display.savingsGoalMinor
+                val total = direct + leftover
+                com.sadique.dailyledger.ui.LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 6.dp) {
+                    if (goal > 0) {
+                        val pct = if (goal > 0) (total * 100 / goal).coerceIn(0, 100) else 0
+                        Text(if (display.savingsGoalLabel.isNotBlank()) "Savings goal — ${display.savingsGoalLabel}" else "Savings goal", translate = false, style = MaterialTheme.typography.titleMedium)
+                        LinearProgressIndicator(progress = { (total.toFloat() / goal.toFloat()).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().testTag("savings-goal-progress"))
+                        Text("${visibleMoney(total)} of ${visibleMoney(goal)} • $pct%", style = MaterialTheme.typography.bodySmall)
+                        Row {
+                            TextButton(onClick = { goalEditor = true }) { Text("Edit goal") }
+                            TextButton(onClick = { display.updateSavingsGoal(0L, "") }) { Text("Remove") }
+                        }
+                    } else {
+                        Text("Savings goal", style = MaterialTheme.typography.titleMedium)
+                        Text("Set a target — for example Bike or Emergency fund — and watch your progress here.", style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { goalEditor = true }) { Text("Set a goal") }
+                    }
+                }
             }
             if (savings.isEmpty()) enteringItem {
                 com.sadique.dailyledger.ui.LedgerEmptyState("No savings yet", "Keep direct and leftover savings separate from daily spending.",
@@ -71,6 +95,22 @@ fun SavingsScreen(
         }
     }
     if (add) SavingDialog({ add = false }) { k, a, d, n -> onAdd(k, a, d, n); add = false }
+    if (goalEditor) {
+        var label by remember { mutableStateOf(display.savingsGoalLabel) }
+        var amount by remember { mutableStateOf(if (display.savingsGoalMinor > 0) plainAmount(display.savingsGoalMinor) else "") }
+        AlertDialog(
+            onDismissRequest = { goalEditor = false },
+            title = { Text("Savings goal") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(label, { label = it }, label = { Text("Goal name (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(amount, { amount = it }, label = { Text("Target amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = { TextButton(onClick = { display.updateSavingsGoal(parseAmountExpression(amount) ?: 0L, label.trim()); goalEditor = false }, enabled = (parseAmountExpression(amount) ?: 0L) > 0L) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { goalEditor = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 @Composable

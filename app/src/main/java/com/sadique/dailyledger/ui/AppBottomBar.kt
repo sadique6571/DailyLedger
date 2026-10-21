@@ -6,6 +6,11 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Groups
@@ -37,20 +42,21 @@ fun AppBottomBar(
 ) {
     val tabs = remember {
         listOf(
-            BottomTab("Home", Icons.Rounded.Home, Icons.Rounded.Home),
-            BottomTab("Udhar", Icons.Rounded.ShoppingCart, Icons.Rounded.ShoppingCart),
-            BottomTab("Kameti", Icons.Rounded.Groups, Icons.Rounded.Groups),
-            BottomTab("Savings", Icons.Rounded.AccountBalanceWallet, Icons.Rounded.AccountBalanceWallet),
-            BottomTab("More", Icons.Rounded.Apps, Icons.Rounded.Apps),
+            BottomTab("Home", Icons.Rounded.Home, Icons.Filled.Home),
+            BottomTab("Udhar", Icons.Rounded.ShoppingCart, Icons.Filled.ShoppingCart),
+            BottomTab("Kameti", Icons.Rounded.Groups, Icons.Filled.Groups),
+            BottomTab("Savings", Icons.Rounded.AccountBalanceWallet, Icons.Filled.AccountBalanceWallet),
+            BottomTab("More", Icons.Rounded.Apps, Icons.Filled.Apps),
         )
     }
+    val haptics = rememberLedgerHaptics()
     Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = LedgerTokens.Elevation1) {
     NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
         tabs.forEachIndexed { i, t ->
             val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS; else -> false }
             NavigationBarItem(selected = selected,
-                onClick = { onSelectTab(i) },
-                icon = { Icon(t.icon, t.label, Modifier.size(23.dp)) },
+                onClick = { haptics.tap(); onSelectTab(i) },
+                icon = { Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp)) },
                 label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,

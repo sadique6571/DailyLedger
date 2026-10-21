@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.*
+import kotlinx.coroutines.launch
 import java.time.YearMonth
 
 @Composable
@@ -88,6 +90,19 @@ fun CommitteeScreen(
     }
     var receivingId by remember { mutableStateOf<String?>(null) }
     var deleteCommittee by remember { mutableStateOf<CommitteeEntity?>(null) }
+    var pendingUndoDelete by remember { mutableStateOf<CommitteeEntity?>(null) }
+    val undoBar = remember { SnackbarHostState() }
+    val undoScope = rememberCoroutineScope()
+    val visibleCommittees = committees.filter { it.id != pendingUndoDelete?.id }
+    fun requestDeleteCommittee(committee: CommitteeEntity) {
+        if (pendingUndoDelete == committee) return
+        pendingUndoDelete = committee
+        undoScope.launch {
+            val result = undoBar.showSnackbar("Kameti removed", actionLabel = "Undo", withDismissAction = true, duration = SnackbarDuration.Short)
+            if (result != SnackbarResult.ActionPerformed) onDelete(committee)
+            if (pendingUndoDelete == committee) pendingUndoDelete = null
+        }
+    }
     var deleteReceipt by remember { mutableStateOf<CommitteeReceiptEntity?>(null) }
     var paying by remember { mutableStateOf<Pair<CommitteeEntity, Int>?>(null) }
     var addMemberTo by remember { mutableStateOf<CommitteeEntity?>(null) }
@@ -108,8 +123,9 @@ fun CommitteeScreen(
 
 
     Scaffold(
+        snackbarHost = { SnackbarHost(undoBar) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { add = true }) { Icon(Icons.Outlined.Add, "New kameti") }
+            FloatingActionButton(onClick = { add = true }) { Icon(Icons.Rounded.Add, "New kameti") }
         },
     ) { p ->
         LazyColumn(
@@ -127,16 +143,16 @@ fun CommitteeScreen(
             }
             enteringItem {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SummaryCard("Total paid", payments.sumOf { it.amountMinor }, Icons.Outlined.Payments, Modifier.weight(1f))
-                    SummaryCard("Total received", receipts.sumOf { it.amountMinor }, Icons.Outlined.AccountBalanceWallet, Modifier.weight(1f))
+                    SummaryCard("Total paid", payments.sumOf { it.amountMinor }, Icons.Rounded.Payments, Modifier.weight(1f))
+                    SummaryCard("Total received", receipts.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f))
                 }
             }
-            if (committees.isEmpty()) {
+            if (visibleCommittees.isEmpty()) {
                 enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No kameti yet",
                     "Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.",
-                    "New kameti", Icons.Outlined.Groups, onAction = { add = true }) }
+                    "New kameti", Icons.Rounded.Groups, onAction = { add = true }) }
             }
-            enteringItems(committees, key = { it.id }) { committee ->
+            enteringItems(visibleCommittees, key = { it.id }) { committee ->
                 val ps = payments.filter { it.committeeId == committee.id }
                 val rs = receipts.filter { it.committeeId == committee.id }
                 val ms = members.filter { it.committeeId == committee.id }.sortedBy { it.turnNumber }
@@ -154,13 +170,13 @@ fun CommitteeScreen(
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Groups, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Rounded.Groups, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(committee.name, translate = false, style = MaterialTheme.typography.titleMedium)
                                 Text("${committee.sharesHalfUnits / 2.0} kametis • ${ps.size}/${committee.totalInstallments} installments paid", style = MaterialTheme.typography.bodySmall)
                             }
-                            IconButton(onClick = { deleteCommittee = committee }) { Icon(Icons.Outlined.DeleteOutline, "Delete ${committee.name}") }
+                            IconButton(onClick = { deleteCommittee = committee }) { Icon(Icons.Rounded.DeleteOutline, "Delete ${committee.name}") }
                         }
 
                         Text("Monthly payment: ${visibleMoney(committee.monthlyContribution())}", style = MaterialTheme.typography.titleSmall)
@@ -178,7 +194,11 @@ fun CommitteeScreen(
                             Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                     Text("Next installment #$next • $month", style = MaterialTheme.typography.labelLarge)
-                                    Text(monthCountdown(month), style = MaterialTheme.typography.bodySmall)
+                                    val badgeDate = runCatching {
+                                        val ym = java.time.YearMonth.parse(month)
+                                        if (ym.isAfter(java.time.YearMonth.now())) ym.atDay(1) else ym.atEndOfMonth()
+                                    }.getOrNull()
+                                    badgeDate?.let { date -> com.sadique.dailyledger.ui.DueDateBadge(date.toString()) }
                                 }
                             }
                         }
@@ -235,14 +255,14 @@ fun CommitteeScreen(
                         }
 
                         FilledTonalButton(onClick = { addMemberTo = committee }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Outlined.PersonAdd, null)
+                            Icon(Icons.Rounded.PersonAdd, null)
                             Spacer(Modifier.width(8.dp))
                             Text("Add member / turn")
                         }
 
                         if (ms.isNotEmpty() || committee.memberSchedule.isNotBlank()) {
                             TextButton(onClick = { memberList = !memberList }) {
-                                Icon(if (memberList) Icons.Outlined.ExpandLess else Icons.Outlined.Groups, null)
+                                Icon(if (memberList) Icons.Rounded.ExpandLess else Icons.Rounded.Groups, null)
                                 Spacer(Modifier.width(6.dp))
                                 Text(if (memberList) "Hide member turns" else "Show member turns")
                             }
@@ -270,7 +290,7 @@ fun CommitteeScreen(
 
                         if (ps.isNotEmpty() || rs.isNotEmpty()) {
                             TextButton(onClick = { history = !history }) {
-                                Icon(if (history) Icons.Outlined.ExpandLess else Icons.Outlined.History, null)
+                                Icon(if (history) Icons.Rounded.ExpandLess else Icons.Rounded.History, null)
                                 Spacer(Modifier.width(6.dp))
                                 Text(if (history) "Hide history" else "Receiving & payment history")
                             }
@@ -285,7 +305,7 @@ fun CommitteeScreen(
                                         Text("${receipt.date ?: "Date not recorded"} • ${receipt.method}", style = MaterialTheme.typography.bodySmall)
                                         if (receipt.note.isNotBlank()) Text(receipt.note, translate = false, style = MaterialTheme.typography.bodySmall)
                                     }
-                                    IconButton(onClick = { deleteReceipt = receipt }) { Icon(Icons.Outlined.DeleteOutline, "Delete receiving") }
+                                    IconButton(onClick = { deleteReceipt = receipt }) { Icon(Icons.Rounded.DeleteOutline, "Delete receiving") }
                                   }
                                 }
                             }
@@ -363,7 +383,7 @@ fun CommitteeScreen(
 
     deleteCommittee?.let { committee ->
         DeleteCommitteeDialog(committee, { deleteCommittee = null }) {
-            onDelete(committee)
+            requestDeleteCommittee(committee)
             deleteCommittee = null
         }
     }

@@ -74,21 +74,23 @@ object ExportManager {
         repo: LedgerRepository,
         from: LocalDate? = null,
         through: LocalDate? = null,
+        accountLabel: String = "",
     ): String = withContext(Dispatchers.IO) {
         require(from == null || through == null || !from.isAfter(through)) { "Start date must be on or before end date." }
-        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(repo, from, through))
+        save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", statementBytes(repo, from, through, accountLabel))
     }
     internal suspend fun savePreparedPdf(context: Context, bytes: ByteArray): String = withContext(Dispatchers.IO) {
         save(context, "DailyLedger-Statement-${stamp()}.pdf", "application/pdf", bytes)
     }
-    internal suspend fun statementBytes(repo: LedgerRepository, from: LocalDate?, through: LocalDate?): ByteArray =
+    internal suspend fun statementBytes(repo: LedgerRepository, from: LocalDate?, through: LocalDate?, accountLabel: String = ""): ByteArray =
         statementBytes(repo.transactions.first().filterNot { it.privateEntry }, from, through,
-            repo.committees.first(), repo.committeePayments.first(), repo.committeeReceipts.first())
+            repo.committees.first(), repo.committeePayments.first(), repo.committeeReceipts.first(), accountLabel)
 
     internal fun statementBytes(
         transactions: List<TransactionEntity>, from: LocalDate?, through: LocalDate?,
         committees: List<CommitteeEntity> = emptyList(), payments: List<CommitteePaymentEntity> = emptyList(),
         receipts: List<CommitteeReceiptEntity> = emptyList(),
+        accountLabel: String = "",
     ): ByteArray {
         val sections = StatementData.sections(transactions, committees, payments, receipts, from, through)
         val pageCount = sections.sumOf { it.pages().size }
@@ -100,7 +102,7 @@ object ExportManager {
                     pageNumber++
                     val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create())
                     val canvas = page.canvas
-                    drawPageHeader(canvas, pageNumber, from, through, section, index == 0)
+                    drawPageHeader(canvas, pageNumber, from, through, section, index == 0, accountLabel)
                     var y = if (index == 0) 242f else 150f
                     drawTableHeader(canvas, y, section.kameti)
                     y += HEADER_HEIGHT
@@ -129,6 +131,7 @@ object ExportManager {
         through: LocalDate?,
         section: StatementSection,
         showSummary: Boolean,
+        accountLabel: String = "",
     ) {
         val header = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(24f, 24f, 571f, 120f, COLOR_NAVY, COLOR_TEAL, Shader.TileMode.CLAMP)
@@ -145,6 +148,10 @@ object ExportManager {
             else -> "${from.format(DATE_FORMAT)} - ${through.format(DATE_FORMAT)}"
         }
         canvas.drawText(period, 42f, 136f, textPaint(10f, COLOR_INK, Typeface.BOLD))
+        if (accountLabel.isNotBlank()) {
+            val accountPaint = textPaint(8f, COLOR_MUTED).apply { textAlign = Paint.Align.RIGHT }
+            canvas.drawText(fitText("Account: $accountLabel", accountPaint, 220f), 556f, 136f, accountPaint)
+        }
         if (showSummary) {
             val cardY = 150f
             val cardH = 64f

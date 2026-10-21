@@ -38,6 +38,7 @@ import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.ui.isValidDate
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
+import com.sadique.dailyledger.ui.parseAmountExpression
 import com.sadique.dailyledger.ui.plainAmount
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,14 +137,17 @@ fun TransactionDialog(
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") }, enabled = !busy)
                     }
                 }
-                OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
+                OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseAmountExpression(amount) ?: 0) <= 0, supportingText = {
+                    val exprTotal = if (amount.contains('+') || amount.contains('-')) parseAmountExpression(amount) else null
+                    Text(if (exprTotal != null && exprTotal > 0) "= ${money(exprTotal)}" else "Enter an amount greater than zero")
+                })
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("100", "500", "1000", "5000").forEach { preset ->
                         AssistChip(enabled = !busy, onClick = { amount = preset }, label = { Text("Rs $preset") })
                     }
                 }
                 onAdvanced?.let { action -> TextButton(enabled = !busy, onClick = {
-                    action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
+                    action((x ?: TransactionEntity("","",type,parseAmountExpression(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseAmountExpression(amount) ?: 0,category=cat,note=note,date=date))
                 }) { Text("Quantity, account & privacy options") } }
                 CategoryDropdown(type, cat, { cat = it }, inlineResults = true, enabled = !busy)
                 OutlinedTextField(note, { note = it }, enabled = !busy, singleLine = true,
@@ -158,9 +162,9 @@ fun TransactionDialog(
                 confirmButton = { Button(
                     modifier = Modifier.heightIn(min = 48.dp).testTag("transaction-save"),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = !busy && isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
+                    enabled = !busy && isValidDate(date) && (parseAmountExpression(amount) ?: 0) > 0 && cat.isNotBlank(),
                     onClick = {
-                        if (!busy) parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { parsed ->
+                        if (!busy) parseAmountExpression(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { parsed ->
                             val async = saveAsync
                             if (async == null) save(type, parsed, cat, note, date.trim())
                             else {
