@@ -3,6 +3,11 @@ package com.sadique.dailyledger.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -39,12 +44,16 @@ internal val quickEntryActions = listOf(
 
 /** Five labelled actions retract into the stationary plus/minus toggle. */
 @Composable
-internal fun QuickEntryDial(onSelect: (String) -> Unit) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+internal fun QuickEntryDial(
+    expandedState: MutableState<Boolean> = rememberSaveable { mutableStateOf(false) },
+    onBoundsChanged: (Rect) -> Unit = {},
+    onSelect: (String) -> Unit,
+) {
+    var expanded by expandedState
     val progress by animateFloatAsState(if (expanded) 1f else 0f, tween(280), label = "entry-toggle")
     val ink = MaterialTheme.colorScheme.onPrimary
     BackHandler(enabled = expanded) { expanded = false }
-    Row(Modifier.testTag("quick-entry-dial"),
+    Row(Modifier.onGloballyPositioned { onBoundsChanged(it.boundsInRoot()) }.testTag("quick-entry-dial"),
         verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         AnimatedVisibility(visible = expanded,
             enter = fadeIn(tween(120)),
@@ -60,8 +69,12 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = .25f), Color.Transparent)))
                     .padding(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     quickEntryActions.forEachIndexed { index, action ->
+                        val interactions = remember { MutableInteractionSource() }
+                        val pressed by interactions.collectIsPressedAsState()
+                        val iconScale by animateFloatAsState(if (pressed) .86f else 1f, tween(100), label = "entry-press-${action.id}")
                         TextButton(onClick = { expanded = false; onSelect(action.id) },
                             enabled = expanded,
+                            interactionSource = interactions,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                 .animateEnterExit(
@@ -71,7 +84,7 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
                                         fadeOut(tween(140, delayMillis = (quickEntryActions.lastIndex - index) * 60)))
                                 .testTag("quick-entry-${action.id}"),
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
-                            Icon(action.icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(action.icon, null, Modifier.size(24.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale }, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(8.dp))
                             Text(action.label, fontSize = 13.sp, maxLines = 1)
                         }

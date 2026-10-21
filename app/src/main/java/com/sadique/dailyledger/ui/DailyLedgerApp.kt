@@ -9,6 +9,11 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.ai.AiConsent
 import android.app.Application
 import android.widget.Toast
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.Rect
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -130,6 +135,11 @@ fun DailyLedgerApp(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
+    val maskSaveAmounts = LocalDisplayPreferences.current?.privateAmounts == true
+    fun savedNotice(label: String, amount: Long) {
+        val amountText = if (maskSaveAmounts) "Rs •••••" else money(amount)
+        Toast.makeText(context, "$label saved · $amountText", Toast.LENGTH_SHORT).show()
+    }
     var databaseReady by remember(user.id) { mutableStateOf(false) }
     var loadError by remember(user.id) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(user.id) { mutableIntStateOf(0) }
@@ -342,7 +352,7 @@ fun DailyLedgerApp(
         ) }, confirmButton = {},
         dismissButton = { TextButton(onClick = { aiEntryOpen = false }, enabled = !aiEntryBusy) { Text("Close") } },
     )
-    if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, vm::saveCreditDrafts)
+    if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, { drafts, batch -> vm.saveCreditDrafts(drafts, batch); savedNotice("Udhar", drafts.sumOf { it.amountMinor }) })
     if (addSaving) SavingDialog(
         dismiss = { addSaving = false },
         onHistory = { addSaving = false; open(4) },
@@ -442,7 +452,18 @@ fun DailyLedgerApp(
         return@CompositionLocalProvider
     }
 
+    val entryMenuExpanded = rememberSaveable { mutableStateOf(false) }
+    var entryMenuBounds by remember { mutableStateOf(Rect.Zero) }
     Scaffold(
+        modifier = Modifier.pointerInput(entryMenuExpanded.value, entryMenuBounds) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (entryMenuExpanded.value && !entryMenuBounds.contains(down.position)) {
+                    entryMenuExpanded.value = false
+                    down.consume()
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AppTopBar(
@@ -463,7 +484,7 @@ fun DailyLedgerApp(
             )
         },
         floatingActionButton = {
-            QuickEntryDial { action ->
+            QuickEntryDial(expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
                 when (action) {
                     "ai" -> aiEntryOpen = true
                     "expense" -> quickTransaction = EntryShortcut("EXPENSE")
@@ -537,6 +558,7 @@ fun DailyLedgerApp(
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
                         }) {
                             if (e != null && e.type == t && e.category != c && n.isNotBlank()) {
                                 updateLearning { it.remember(t, n, c) }
@@ -575,7 +597,7 @@ fun DailyLedgerApp(
                     onOrganizerPayout = { member, amount, date, method -> vm.launch { organizer.payOut(member, amount, date, method) } },
                     onDeleteOrganizerMember = { id -> vm.launch { organizer.deleteMember(id) } },
                     onDeleteOrganizerCircle = { id -> vm.launch { organizer.deleteCircle(id) } },
-                    onAdd = { n, a, t, s, p, note, halfUnits, phone -> vm.launch { saveCommittee(n, a, t, s, p, note, (halfUnits + 1) / 2, phone, sharesHalfUnits = halfUnits) } },
+                    onAdd = { n, a, t, s, p, note, halfUnits, phone -> vm.launch(onSuccess = { savedNotice("Kameti", a) }) { saveCommittee(n, a, t, s, p, note, (halfUnits + 1) / 2, phone, sharesHalfUnits = halfUnits) } },
                     onPaid = { c, i, m, method -> vm.launch { markCommitteePaid(c, i, m, method) } },
                     onReceive = { id, a, d, n, method -> vm.launch { addCommitteeReceipt(id, a, d, n, method) } },
                     onDeleteReceipt = { r -> vm.launch { deleteCommitteeReceipt(r) } },
@@ -655,6 +677,7 @@ fun DailyLedgerApp(
             save = { t, a, c, n, d ->
                 vm.launch(onSuccess = {
                     if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
                 }) { saveTransaction(t, a, c, n, d) }
                 quickTransaction = null
             },
