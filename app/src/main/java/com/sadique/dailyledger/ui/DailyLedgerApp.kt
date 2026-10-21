@@ -123,7 +123,6 @@ fun DailyLedgerApp(
     settings: SettingsStore,
     theme: String,
     biometric: Boolean,
-    pinHash: String = "",
     driveEnabled: Boolean,
     lastSync: Long,
     driveStatus: String,
@@ -134,6 +133,7 @@ fun DailyLedgerApp(
     weatherUpdatedAt: Long,
     transactionSounds: Boolean,
     onLogout: () -> Unit,
+    pinHash: String = "",
 ) {
     val context = LocalContext.current
     val maskSaveAmounts = LocalDisplayPreferences.current?.privateAmounts == true

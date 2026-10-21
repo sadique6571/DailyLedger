@@ -73,9 +73,6 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onBiometric: (Boolean) -> Unit,
-    pinHash: String = "",
-    onSetPin: (String) -> Unit = {},
-    onRemovePin: () -> Unit = {},
     onDriveEnabled: (Boolean) -> Unit,
     onWeatherEnabled: (Boolean) -> Unit,
     onTransactionSounds: (Boolean) -> Unit,
@@ -83,6 +80,9 @@ fun SettingsScreen(
     onOpenSavings: () -> Unit = {},
     onAutoFill: () -> Unit = {},
     entranceVisit: Int = 0,
+    pinHash: String = "",
+    onSetPin: (String) -> Unit = {},
+    onRemovePin: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
