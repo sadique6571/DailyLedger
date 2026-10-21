@@ -93,16 +93,22 @@ class EntrySaveAndKeyboardTest {
         compose.onNodeWithTag("transaction-note").assertTextContains("Lunch")
     }
 
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
     @Test fun keyboardScrollDoesNotMoveSheetAndHandleExpandsWithoutLosingDraft() {
-        var imeBottom = 0
         compose.setContent { DailyLedgerTheme("LIGHT") {
-            val bottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
-            SideEffect { imeBottom = bottom }
             TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialAmount = "150", initialCategory = "Milk")
         } }
         val sheet = compose.onNodeWithTag("transaction-bottom-sheet")
-        compose.onNodeWithTag("transaction-note").performScrollTo().performTextInput("Keep my note")
-        compose.waitUntil(5000) { imeBottom > 0 }
+        compose.onNodeWithTag("transaction-note").performScrollTo().performClick().performTextInput("Keep my note")
+        compose.waitUntil(5000) {
+            var visible = false
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                visible = android.view.inspector.WindowInspector.getGlobalWindowViews().any { view ->
+                    androidx.core.view.ViewCompat.getRootWindowInsets(view)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+                }
+            }
+            visible
+        }
         var previousTop = Float.NaN
         var lastMovement = android.os.SystemClock.uptimeMillis()
         compose.waitUntil(5000) {
