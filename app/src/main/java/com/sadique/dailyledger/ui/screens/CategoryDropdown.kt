@@ -131,9 +131,8 @@ fun CategoryDropdown(
             }
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
-        // Both anchors share one toggle handler. A secondary anchor consumes its
-        // gesture before the editable field, avoiding two toggles for one tap.
-        onExpandedChange = { if (enabled) expanded = it },
+        // Editing/re-focusing the search field always reveals the current results.
+        onExpandedChange = { if (enabled) expanded = true },
         modifier = modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().bringIntoViewRequester(inlineView)
             .onSizeChanged { inlineHeight = it.height }) {
@@ -151,11 +150,16 @@ fun CategoryDropdown(
                     if(value.isNotBlank() || query.isNotBlank()) IconButton(enabled=enabled,onClick={
                         query="";editing=true;expanded=true;onSelect("")
                     },modifier=Modifier.testTag("category-clear")) { Icon(Icons.Rounded.Close,"Clear category") }
-                    IconButton(enabled = enabled, onClick = {},
-                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable, enabled)
-                            .testTag("category-toggle").semantics {
-                            contentDescription = strings.text("Categories")
-                        }) { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                    // Give the arrow its own expansion callback. Its secondary anchor
+                    // consumes the tap before the surrounding editable anchor handles it.
+                    ExposedDropdownMenuBox(expanded = expanded && enabled,
+                        onExpandedChange = { if (enabled) expanded = it }) {
+                        IconButton(enabled = enabled, onClick = {},
+                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable, enabled)
+                                .testTag("category-toggle").semantics {
+                                    contentDescription = strings.text("Categories")
+                                }) { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, enabled)
