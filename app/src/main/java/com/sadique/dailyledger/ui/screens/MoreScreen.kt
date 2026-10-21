@@ -45,7 +45,7 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
             ) + listOfNotNull(onReminders?.let { Triple("Reminders", "Review your pending reminders", Icons.Rounded.NotificationsNone) to it })
             rows.forEachIndexed { i, (entry, action) -> enteringItem(index = i) {
                 val color = listOf(LedgerColors.Blue, LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Green, LedgerColors.Teal)[i % 6]
-                LedgerCard(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${entry.first}", onClick = action)) {
+                LedgerCard(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${entry.first}", onClick = action), accent = com.sadique.dailyledger.ui.ledgerCardAccent("more:${entry.first}")) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         GlowIcon(entry.third, color, size = 46.dp)
                         Column(Modifier.weight(1f)) {

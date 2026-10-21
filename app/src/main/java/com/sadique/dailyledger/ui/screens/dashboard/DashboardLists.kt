@@ -48,6 +48,7 @@ internal fun DashboardFrequentSection(
             val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
             val visual = categoryVisual(label, "EXPENSE")
             LedgerCard(
+                accent = com.sadique.dailyledger.ui.ledgerCardAccent("frequent:$label"),
                 modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
                     .clickable { onSelectCategory(label) },
             ) {
@@ -96,6 +97,7 @@ internal fun DashboardRecentSection(
         } else recent.forEachIndexed { index, entry ->
             val visual = categoryVisual(entry.category, entry.type)
             LedgerCard(
+                accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${entry.id}"),
                 modifier = Modifier.fillMaxWidth().testTag("recent-transaction-$index")
                     .clickable { onAllTransactions?.invoke() },
             ) {

@@ -112,12 +112,11 @@ internal fun TransactionRow(
     onShowDetails: () -> Unit,
     onToggleNote: () -> Unit,
 ) {
-    Card(onClick = onEdit, modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
-        Row(Modifier.fillMaxWidth().padding(if (compact) 10.dp else 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    com.sadique.dailyledger.ui.LedgerCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
+        accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${x.id}"),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(if (compact) 0.dp else 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(x.category, style = MaterialTheme.typography.titleMedium)
                  Text(x.type.lowercase().replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.labelSmall,

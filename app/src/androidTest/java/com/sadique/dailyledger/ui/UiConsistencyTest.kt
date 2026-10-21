@@ -15,6 +15,33 @@ import org.junit.Test
 class UiConsistencyTest {
     @get:Rule val compose = createComposeRule()
 
+    private fun styledTransactionActions(theme: String) {
+        var edited = 0; var deleted = 0; var details = 0; var favorites = 0
+        var hidden by mutableStateOf(false)
+        val entry = com.sadique.dailyledger.data.TransactionEntity("card-check", "owner", "EXPENSE", 12500, "Milk", "Morning purchase", "2026-10-21", 1, 1)
+        compose.setContent { DailyLedgerTheme(theme) {
+            androidx.compose.foundation.layout.Column {
+                LedgerCard { androidx.compose.material3.Text("Home-style card") }
+                LedgerHistoryCard(accent = ledgerCardAccent("history")) { androidx.compose.material3.Text("Payment history") }
+                com.sadique.dailyledger.ui.screens.TransactionRow(entry, true, false, false, hidden,
+                    { favorites++ }, { deleted++ }, { edited++ }, { details++ }, {})
+            }
+        } }
+        compose.onNodeWithText("Milk").performClick()
+        compose.onNodeWithText("Details").performClick()
+        compose.onNodeWithContentDescription("Add favorite").performClick()
+        compose.onNodeWithContentDescription("Delete Milk transaction").performClick()
+        compose.runOnIdle { assertEquals(1, edited); assertEquals(1, details); assertEquals(1, favorites); assertEquals(1, deleted) }
+        val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-unified-cards-${theme.lowercase()}.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(shot).use { it.readBytes() }
+        compose.runOnIdle { hidden = true }
+        compose.onNodeWithText("Rs •••••").assertExists()
+    }
+
+    @Test fun styledTransactionActionsAndPrivacyInLight() = styledTransactionActions("LIGHT")
+    @Test fun styledTransactionActionsAndPrivacyInDark() = styledTransactionActions("DARK")
+
     @Test fun globalPlusIsHomeOnlyAndReturningHomeDoesNotReopenMenu() {
         var tab by mutableIntStateOf(NavigationHistory.HOME)
         val expanded = mutableStateOf(false)

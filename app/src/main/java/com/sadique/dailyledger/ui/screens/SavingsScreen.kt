@@ -57,7 +57,7 @@ fun SavingsScreen(
                     "Add saving", Icons.Outlined.AccountBalanceWallet, onAction = { add = true })
             }
             enteringItems(savings, key = { it.id }) { saving ->
-                com.sadique.dailyledger.ui.LedgerRecordCard() {
+                com.sadique.dailyledger.ui.LedgerRecordCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(saving.id)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(if (saving.kind == "LEFTOVER") "Leftover saving" else "Direct saving")

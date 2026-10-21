@@ -563,6 +563,7 @@ fun SettingsScreen(
 @Composable
 internal fun SectionCard(title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
     Card(
+        accent = com.sadique.dailyledger.ui.ledgerCardAccent("settings:$title"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {

@@ -1,5 +1,10 @@
 package com.sadique.dailyledger.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.currentCompositeKeyHash
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ColumnScope
@@ -34,14 +39,33 @@ fun LedgerSurface(
     )
 }
 
+/** A varied palette, selected once by stable screen/list identity rather than Random. */
+private val cardAccents = listOf(LedgerColors.Green, LedgerColors.Blue, LedgerColors.Purple,
+    LedgerColors.Amber, LedgerColors.Teal, LedgerColors.Red)
+
+fun ledgerCardAccent(key: String): Color = cardAccents[(key.hashCode() and Int.MAX_VALUE) % cardAccents.size]
+
+@Composable
+fun ledgerCardAccent(): Color = cardAccents[(currentCompositeKeyHash and Int.MAX_VALUE) % cardAccents.size]
+
+/** The Home-style shell for rectangular content cards throughout the app. */
+@Composable
+fun LedgerCardSurface(modifier: Modifier = Modifier, accent: Color = ledgerCardAccent(), content: @Composable () -> Unit) {
+    LedgerSurface(modifier = modifier, color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface) {
+        Box(Modifier.background(ledgerCardBrush(accent)), propagateMinConstraints = true) { content() }
+    }
+}
+
 @Composable
 fun LedgerRaisedCard(
     modifier: Modifier = Modifier, shape: Shape = LedgerTokens.ShapeCard,
     colors: CardColors = CardDefaults.cardColors(), elevation: CardElevation = CardDefaults.cardElevation(),
     border: BorderStroke? = null, onClick: (() -> Unit)? = null, enabled: Boolean = true,
+    accent: Color = ledgerCardAccent(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    LedgerSurface(if (onClick == null) modifier else modifier.clickable(enabled = enabled, onClick = onClick), color = colors.containerColor) {
-        androidx.compose.foundation.layout.Column(content = content)
+    LedgerCardSurface(if (onClick == null) modifier else modifier.clickable(enabled = enabled, onClick = onClick), accent) {
+        Column(Modifier.fillMaxWidth(), content = content)
     }
 }
