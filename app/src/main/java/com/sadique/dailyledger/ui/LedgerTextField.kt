@@ -1,5 +1,11 @@
 package com.sadique.dailyledger.ui
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -27,13 +33,23 @@ fun LedgerTextField(
     singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     minLines: Int = 1,
+    keyboardActions: KeyboardActions? = null,
 ) {
     val palette = MaterialTheme.colorScheme
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val actions = keyboardActions ?: KeyboardActions(
+        onNext = { focus.moveFocus(FocusDirection.Next) },
+        onDone = { focus.clearFocus(); keyboard?.hide() },
+    )
+    val options = if (singleLine && (keyboardOptions.imeAction == ImeAction.Default || keyboardOptions.imeAction == ImeAction.Unspecified))
+        keyboardOptions.copy(imeAction = ImeAction.Next) else keyboardOptions
     OutlinedTextField(
-        value = value, onValueChange = onValueChange, modifier = modifier,
+        value = value, onValueChange = onValueChange, modifier = if (LocalEntrySheet.current) modifier.fillMaxWidth() else modifier,
         enabled = enabled, readOnly = readOnly, label = label, placeholder = placeholder,
         leadingIcon = leadingIcon, trailingIcon = trailingIcon, supportingText = supportingText,
-        isError = isError, visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
+        isError = isError, visualTransformation = visualTransformation, keyboardOptions = options,
+        keyboardActions = actions,
         singleLine = singleLine, maxLines = maxLines, minLines = minLines,
         shape = LedgerTokens.ShapeSmall,
         colors = OutlinedTextFieldDefaults.colors(

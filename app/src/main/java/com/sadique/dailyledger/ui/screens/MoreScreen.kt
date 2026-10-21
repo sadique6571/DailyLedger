@@ -25,7 +25,7 @@ import com.sadique.dailyledger.ui.*
 
 @Composable
 fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> Unit, onSavings: () -> Unit, onSettings: () -> Unit, onCredit: () -> Unit, onInsights: () -> Unit = {}, listState: LazyListState = rememberLazyListState(),
-    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}) {
+    onBudgets: () -> Unit = {}, onBills: () -> Unit = {}, onCalendar: () -> Unit = {}, onComparison: () -> Unit = {}, onSearch: () -> Unit = {}, onFinanceTools: () -> Unit = {}, onReminders: (() -> Unit)? = null) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             enteringItem {
@@ -33,17 +33,16 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Text("Everything you need in one place", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val rows = listOf(
-                Triple("Money tools", "Plans, accounts, shopping, refunds and private records", Icons.Rounded.AccountBalanceWallet) to onFinanceTools,
                 Triple("Insights", "Spending patterns and offline saving suggestions", Icons.Rounded.BarChart) to onInsights,
                 Triple("Transactions", "Search, edit and manage your entries", Icons.Rounded.Description) to onTransactions,
                 Triple("Loans", "Borrowed, lent and payment history", Icons.Rounded.Handshake) to onLoans,
-                Triple("Settings & backup", "Account, themes and Google Drive backup", Icons.Rounded.Settings) to onSettings,
+                Triple("Settings & backup", "Account, security and Google Drive backup", Icons.Rounded.Settings) to onSettings,
                 Triple("Category budgets", "Monthly limits and spending progress", Icons.Rounded.AccountBalanceWallet) to onBudgets,
                 Triple("Bills & reminders", "Review recurring entries before saving", Icons.Rounded.EventNote) to onBills,
                 Triple("Kameti calendar", "Paid, pending and expected receiving", Icons.Rounded.CalendarMonth) to onCalendar,
                 Triple("Monthly comparison", "Compare income, expenses and categories", Icons.Rounded.CompareArrows) to onComparison,
                 Triple("Search all ledgers", "Find records across your money spaces", Icons.Rounded.Search) to onSearch,
-            )
+            ) + listOfNotNull(onReminders?.let { Triple("Reminders", "Review your pending reminders", Icons.Rounded.NotificationsNone) to it })
             rows.forEachIndexed { i, (entry, action) -> enteringItem(index = i) {
                 val color = listOf(LedgerColors.Blue, LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Purple, LedgerColors.Green, LedgerColors.Teal)[i % 6]
                 LedgerCard(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${entry.first}", onClick = action)) {

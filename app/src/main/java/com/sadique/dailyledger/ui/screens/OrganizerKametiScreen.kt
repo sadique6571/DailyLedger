@@ -22,6 +22,7 @@ fun OrganizerKametiScreen(
     payouts: List<OrganizerPayoutEntity>,
     onBack: () -> Unit,
     onAddCircle: (String, Long, Int, String) -> Unit,
+    requestAdd: Boolean = false, onAddOpened: () -> Unit = {},
     onAddMembers: suspend (String, List<OrganizerMemberDraft>, String) -> Unit,
     onAssignTurn: (String, Int, String) -> Unit,
     onUpdateContact: (String, String, String, String) -> Unit,
@@ -32,6 +33,7 @@ fun OrganizerKametiScreen(
     repo: LedgerRepository? = null,
 ) {
     var addCircle by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { addCircle = true; onAddOpened() } }
     var memberFor by remember { mutableStateOf<OrganizerCircleEntity?>(null) }
     var payMember by remember { mutableStateOf<Pair<OrganizerMemberEntity, Boolean>?>(null) }
     var drawMember by remember { mutableStateOf<OrganizerMemberEntity?>(null) }

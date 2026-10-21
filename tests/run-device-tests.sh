@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # emulator-runner executes each script line separately; keep the full shell workflow in one file.
 set -uo pipefail
+bash tests/set-emulator-heap.sh || exit $?
 ledger_test_status=0
 ./gradlew --no-daemon connectedDebugAndroidTest || ledger_test_status=$?
 if [[ "$ledger_test_status" -eq 0 ]]; then

@@ -9,6 +9,11 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.ai.AiConsent
 import android.app.Application
 import android.widget.Toast
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.Rect
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -130,6 +135,11 @@ fun DailyLedgerApp(
     onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
+    val maskSaveAmounts = LocalDisplayPreferences.current?.privateAmounts == true
+    fun savedNotice(label: String, amount: Long) {
+        val amountText = if (maskSaveAmounts) "Rs •••••" else money(amount)
+        Toast.makeText(context, "$label saved · $amountText", Toast.LENGTH_SHORT).show()
+    }
     var databaseReady by remember(user.id) { mutableStateOf(false) }
     var loadError by remember(user.id) { mutableStateOf<String?>(null) }
     var loadAttempt by remember(user.id) { mutableIntStateOf(0) }
@@ -139,7 +149,6 @@ fun DailyLedgerApp(
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val db = com.sadique.dailyledger.data.AppDatabase.get(context.applicationContext)
                 db.openHelper.writableDatabase
-                com.sadique.dailyledger.data.LedgerRepository(db, user.id).profileSnapshot()
             }
             databaseReady = true
         } catch (e: CancellationException) { throw e }
@@ -158,7 +167,7 @@ fun DailyLedgerApp(
         factory = MainViewModel.Factory(context.applicationContext as Application, user.id),
     )
     var navigation by rememberSaveable(user.id, stateSaver = listSaver(
-        save = { it.entries }, restore = { NavigationHistory(it) }
+        save = { it.entries }, restore = { NavigationHistory(it.filterNot { entry -> entry == NavigationHistory.FINANCE_TOOLS }) }
     )) { mutableStateOf(NavigationHistory()) }
     val tab = navigation.current
     var detailedDraft by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -324,23 +333,26 @@ fun DailyLedgerApp(
             dismissButton = { TextButton(onClick = { aiConsent = false }) { Text("Cancel") } },
         )
     }
-    if (tab == AUTO_FILL) {
-        AutoFillScreen(
-            enabled = aiEnabled,
-            onEnable = { aiConsent = true },
-            onBack = { goBack() },
-            generate = vm::autoFill,
+    var aiEntryOpen by remember { mutableStateOf(false) }
+    var aiEntryBusy by remember { mutableStateOf(false) }
+    var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
+    var entryRequest by remember { mutableStateOf<String?>(null) }
+    if (aiEntryOpen) LedgerEntrySheet(
+        onDismissRequest = { aiEntryOpen = false }, canDismiss = !aiEntryBusy,
+        title = { Text("AI Auto Fill") }, scrollBody = false,
+        text = { AutoFillScreen(
+            enabled = aiEnabled, onEnable = { aiConsent = true },
+            onBack = { aiEntryOpen = false }, generate = vm::autoFill,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
+                savedNotice("AI entries", drafts.sumOf { it.amountMinor })
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
-            },
-            onSaved = { goBack() },
-            onLearnCategory = vm::rememberCategory,
-        )
-        return@CompositionLocalProvider
-    }
-    var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
-    if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, vm::saveCreditDrafts)
+            }, onSaved = { aiEntryOpen = false }, onLearnCategory = vm::rememberCategory,
+            embedded = true, onBusyChanged = { aiEntryBusy = it },
+        ) }, confirmButton = {},
+        dismissButton = { TextButton(onClick = { aiEntryOpen = false }, enabled = !aiEntryBusy) { Text("Close") } },
+    )
+    if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, { drafts, batch -> vm.saveCreditDrafts(drafts, batch); savedNotice("Udhar", drafts.sumOf { it.amountMinor }) })
     if (addSaving) SavingDialog(
         dismiss = { addSaving = false },
         onHistory = { addSaving = false; open(4) },
@@ -404,7 +416,7 @@ fun DailyLedgerApp(
             weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
             onBack = ::goBack,
-            onAutoFill = { open(AUTO_FILL) },
+            onAutoFill = { run { aiEntryOpen = true } },
             onOpenSavings = { open(SAVINGS) },
             entranceVisit = settingsEntranceVisit,
             onTheme = { scope.launch { settings.setTheme(it) } },
@@ -440,7 +452,18 @@ fun DailyLedgerApp(
         return@CompositionLocalProvider
     }
 
+    val entryMenuExpanded = rememberSaveable { mutableStateOf(false) }
+    var entryMenuBounds by remember { mutableStateOf(Rect.Zero) }
     Scaffold(
+        modifier = Modifier.pointerInput(entryMenuExpanded.value, entryMenuBounds) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (entryMenuExpanded.value && !entryMenuBounds.contains(down.position)) {
+                    entryMenuExpanded.value = false
+                    down.consume()
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AppTopBar(
@@ -457,8 +480,19 @@ fun DailyLedgerApp(
                 onNavigateUp = ::goBack,
                 onSearch = { open(SEARCH) },
                 onReminders = { remindersOpen = true },
-                onAiEntry = { if (tab == 7) creditAiOpen = true else open(AUTO_FILL) },
+                onAiEntry = { if (tab == 7) creditAiOpen = true else run { aiEntryOpen = true } },
             )
+        },
+        floatingActionButton = {
+            DashboardEntryDial(tab = tab, expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
+                when (action) {
+                    "ai" -> aiEntryOpen = true
+                    "expense" -> quickTransaction = EntryShortcut("EXPENSE")
+                    "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
+                    "kameti" -> { entryRequest = "kameti"; open(3) }
+                    "credit" -> { addCreditRequested = true; open(7) }
+                }
+            }
         },
         bottomBar = {
             AppBottomBar(
@@ -500,7 +534,7 @@ fun DailyLedgerApp(
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
                     creditPayments = creditPayments,
                     onOpenKameti = { open(3) },
-                    onAutoFill = { open(AUTO_FILL) },
+                    onAutoFill = { run { aiEntryOpen = true } },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
                     onExpenseHistory = { historyQuery = ""; historyFilter = "EXPENSE"; open(1) },
                     onStartNewMonth = vm::startNewMonth,
@@ -519,11 +553,20 @@ fun DailyLedgerApp(
                 1 -> TransactionsScreen(
                     items = tx.filterNot { it.privateEntry },
                     initialQuery = historyQuery, initialFilter = historyFilter,
-                    onAutoFill = { open(AUTO_FILL) },
+                    onAutoFill = { run { aiEntryOpen = true } },
                     onDetailedEntry = { detailedDraft=it },
+                    onSaveAsync = { t, a, c, n, d, e ->
+                        vm.saveChange {
+                            if (e != null && e.type == t && e.category != c && n.isNotBlank()) updateLearning { it.remember(t, n, c) }
+                            saveTransaction(t, a, c, n, d, e)
+                        }
+                        if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                        savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
+                    },
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
                         }) {
                             if (e != null && e.type == t && e.category != c && n.isNotBlank()) {
                                 updateLearning { it.remember(t, n, c) }
@@ -535,6 +578,8 @@ fun DailyLedgerApp(
                 )
                 2 -> LoansScreen(
                     loans = loans,
+                    requestAdd = entryRequest == "loan", onAddOpened = { entryRequest = null },
+                    requestPayment = entryRequest == "loan-payment",
                     payments = lp,
                     repo = vm.repo,
                     onAdd = { d, p, a, due, n, phone, wa -> vm.launch { saveLoan(d, p, a, due, n, phone, wa) } },
@@ -543,6 +588,7 @@ fun DailyLedgerApp(
                 )
                 3 -> CommitteeScreen(
                     committees = committees,
+                    entryRequest = entryRequest, onEntryOpened = { entryRequest = null },
                     payments = cp,
                     receipts = receipts,
                     members = committeeMembers,
@@ -559,7 +605,7 @@ fun DailyLedgerApp(
                     onOrganizerPayout = { member, amount, date, method -> vm.launch { organizer.payOut(member, amount, date, method) } },
                     onDeleteOrganizerMember = { id -> vm.launch { organizer.deleteMember(id) } },
                     onDeleteOrganizerCircle = { id -> vm.launch { organizer.deleteCircle(id) } },
-                    onAdd = { n, a, t, s, p, note, halfUnits, phone -> vm.launch { saveCommittee(n, a, t, s, p, note, (halfUnits + 1) / 2, phone, sharesHalfUnits = halfUnits) } },
+                    onAdd = { n, a, t, s, p, note, halfUnits, phone -> vm.launch(onSuccess = { savedNotice("Kameti", a) }) { saveCommittee(n, a, t, s, p, note, (halfUnits + 1) / 2, phone, sharesHalfUnits = halfUnits) } },
                     onPaid = { c, i, m, method -> vm.launch { markCommitteePaid(c, i, m, method) } },
                     onReceive = { id, a, d, n, method -> vm.launch { addCommitteeReceipt(id, a, d, n, method) } },
                     onDeleteReceipt = { r -> vm.launch { deleteCommitteeReceipt(r) } },
@@ -585,13 +631,13 @@ fun DailyLedgerApp(
                 }
                 7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
-                    requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false })
-                BUDGETS -> BudgetScreen(user.id, vm.planner, tx)
-                BILLS -> BillsScreen(vm)
+                    requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false },
+                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null })
+                BUDGETS -> BudgetScreen(user.id, vm.planner, tx, requestAdd = entryRequest == "budget", onAddOpened = { entryRequest = null })
+                BILLS -> BillsScreen(vm, requestAdd = entryRequest == "reminder", onAddOpened = { entryRequest = null })
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
                 COMPARISON -> MonthlyComparisonScreen(user.id, tx, savings)
                 SEARCH -> GlobalSearchScreen(vm, ::open)
-                NavigationHistory.FINANCE_TOOLS -> com.sadique.dailyledger.ui.screens.FinanceToolsScreen(vm)
                 LEARNING -> LearningScreen(vm)
                 else -> MoreScreen(
                     onTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
@@ -606,7 +652,7 @@ fun DailyLedgerApp(
                     onCalendar = { open(CALENDAR) },
                     onComparison = { open(COMPARISON) },
                     onSearch = { open(SEARCH) },
-                    onFinanceTools = { open(NavigationHistory.FINANCE_TOOLS) },
+                    onReminders = { remindersOpen = true },
                 )
             }
         }
@@ -624,6 +670,7 @@ fun DailyLedgerApp(
         com.sadique.dailyledger.ui.screens.FinanceEntryEditor(user.id,accountNames,
             draft.takeIf { it.id.isNotBlank() },draft.takeIf { it.id.isBlank() },false,{detailedDraft=null}) { row ->
             vm.saveChange { saveTransactionRow(row,draft.takeIf { it.id.isNotBlank() }?.updatedAt) }
+            savedNotice("Entry", row.amountMinor)
         }
     }
     quickTransaction?.let { entry ->
@@ -634,10 +681,11 @@ fun DailyLedgerApp(
             initialType = entry.type,
             initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
-            save = { t, a, c, n, d ->
-                vm.launch(onSuccess = {
-                    if (transactionSounds) TransactionSoundPlayer.play(context, t)
-                }) { saveTransaction(t, a, c, n, d) }
+            save = { _, _, _, _, _ -> },
+            saveAsync = { t, a, c, n, d ->
+                vm.saveChange { saveTransaction(t, a, c, n, d) }
+                if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
                 quickTransaction = null
             },
         )

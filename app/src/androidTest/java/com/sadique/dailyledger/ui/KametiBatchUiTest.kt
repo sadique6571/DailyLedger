@@ -40,6 +40,15 @@ class KametiBatchUiTest {
         } }
         compose.onNodeWithText("Member name").performScrollTo().performTextInput("Ali")
         if (!organizer) compose.onNodeWithText("Turn number").performScrollTo().performTextInput("1")
+        // This regression exercises commit/retry, not keyboard animation. Close
+        // the real IME before moving from editable fields to the batch controls.
+        val automation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+        fun shell(command: String): String = android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            automation.executeShellCommand(command)).bufferedReader().use { it.readText() }
+        fun keyboardShown() = shell("dumpsys input_method").contains("mInputShown=true")
+        compose.waitUntil(5000) { keyboardShown() }
+        shell("input keyevent 4")
+        compose.waitUntil(5000) { !keyboardShown() }
         compose.onNodeWithText(if (organizer) "+ Add another member / turn" else "+ Add another turn / member")
             .performScrollTo().performClick()
         compose.onNodeWithTag("kameti-save-all").performClick()

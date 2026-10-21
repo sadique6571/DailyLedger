@@ -44,6 +44,10 @@ import java.time.LocalDate
    }
   } }
   compose.onNodeWithTag("chart-total").assertExists()
+  val chartBounds = compose.onNodeWithTag("chart-total").fetchSemanticsNode().boundsInRoot
+  val legendBounds = compose.onNodeWithTag("chart-legend").fetchSemanticsNode().boundsInRoot
+  assertTrue(legendBounds.top >= chartBounds.bottom)
+  assertEquals(chartBounds.center.x, legendBounds.center.x, 1f)
   compose.onNodeWithTag("donut-context-tip").assertDoesNotExist()
   compose.onNodeWithTag("chart-category-Category 3").assertExists()
   compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()
@@ -54,6 +58,12 @@ import java.time.LocalDate
   compose.onNodeWithTag("chart-category-Category 4").assertDoesNotExist()
   compose.onNodeWithTag("chart-total").performScrollTo().assertIsDisplayed()
   shot("donut-collapsed")
+ }
+ @Test fun monthlyComparisonUsesColouredMonthBlocks() {
+  compose.setContent { DailyLedgerTheme("AQUA") { MonthlyComparisonScreen("owner", emptyList(), emptyList()) } }
+  compose.onNodeWithTag("monthly-comparison").assertIsDisplayed()
+  compose.onNodeWithText("Income").assertExists()
+  shot("monthly-comparison-colours")
  }
  @Test fun reviewEditThenSave(){var saved=emptyList<TransactionDraft>();val drafts=listOf(TransactionDraft("EXPENSE",150000,"Fuel","Petrol","2026-10-06"),TransactionDraft("EXPENSE",30000,"Milk","Doodh","2026-10-06"))
   compose.setContent{DailyLedgerTheme("AQUA"){AutoFillScreen(true,{},{},{AiDraftResult("Entries check karein",drafts)},{rows,_->saved=rows})}}

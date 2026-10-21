@@ -44,16 +44,16 @@ fun AppBottomBar(
             BottomTab("More", Icons.Rounded.Apps, Icons.Rounded.Apps),
         )
     }
-    Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 10.dp) {
+    Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = LedgerTokens.Elevation1) {
     NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
         tabs.forEachIndexed { i, t ->
             val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS; else -> false }
             NavigationBarItem(selected = selected,
                 onClick = { onSelectTab(i) },
-                icon = { Icon(t.icon, t.label, Modifier.size(25.dp)) },
+                icon = { Icon(t.icon, t.label, Modifier.size(23.dp)) },
                 label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
-                colors = NavigationBarItemDefaults.colors(selectedIconColor = LedgerColors.Teal, selectedTextColor = LedgerColors.Teal,
-                    indicatorColor = Color.Transparent, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant))
         }
     }

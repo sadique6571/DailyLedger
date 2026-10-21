@@ -47,6 +47,7 @@ fun CreditScreen(
     onSave: suspend (List<CreditDraft>, String) -> Unit,
     onPayment: suspend (String, Long, String, String, String) -> Unit,
     onDelete: (CreditPurchaseEntity) -> Unit,
+    requestPayment: Boolean = false, onPaymentOpened: () -> Unit = {},
     requestAdd: Boolean = false,
     onAddOpened: () -> Unit = {},
 ) {
@@ -57,6 +58,13 @@ fun CreditScreen(
     var deleting by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
     val manualBatchId = remember(add) { UUID.randomUUID().toString() }
     var pay by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
+    var pickPayment by remember { mutableStateOf(false) }
+    LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onPaymentOpened() } }
+    if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
+        credits.filter { row -> row.amountMinor > payments.filter { it.creditId == row.id }.sumOf { it.amountMinor } }
+            .map { row -> row.creditor to { pay = row; pickPayment = false } },
+        { pickPayment = false })
+
     val outstanding = credits.sumOf { c ->
         val paid = payments.filter { it.creditId == c.id }.sumOf { it.amountMinor }
         (c.amountMinor - paid).coerceAtLeast(0L)
@@ -104,7 +112,9 @@ fun CreditScreen(
             }
 
             if (credits.isEmpty()) {
-                enteringItem { Text("Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.") }
+                enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No udhar records yet",
+                    "Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.",
+                    "Add udhar", Icons.Outlined.ShoppingCart, onAction = { add = true }) }
             }
 
             enteringItems(credits, key = { it.id }) { credit ->

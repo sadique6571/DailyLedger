@@ -83,6 +83,7 @@ jobs:
           # AVD defaults occasionally giving the test app only a 16 MB heap.
           ram-size: 2048M
           heap-size: 256M
+          pre-emulator-launch-script: python3 tests/configure-emulator.py
           script: bash tests/run-device-tests.sh
 
       - name: Upload test reports

@@ -1,0 +1,93 @@
+package com.sadique.dailyledger.ui
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+
+/** Entry sheets keep category suggestions in the form rather than a floating popup. */
+val LocalEntrySheet = compositionLocalOf { false }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LedgerEntrySheet(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    properties: DialogProperties = DialogProperties(),
+    scrollBody: Boolean = true,
+    canDismiss: Boolean = true,
+) {
+    // The callback identity must not change while typing: it is a sheet-state key.
+    // Validation only approves/vetoes a transition; dismissal belongs to the
+    // actual close event, never to an anchor/layout validation during typing.
+    val compactForm = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360 || LocalDensity.current.fontScale >= 1.4f
+    val sidePadding = if (compactForm) 12.dp else 20.dp
+    val keyboard = LocalSoftwareKeyboardController.current
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
+    val latestCanDismiss = rememberUpdatedState(canDismiss)
+    val latestDismiss = rememberUpdatedState(onDismissRequest)
+    val dismissSafely: () -> Unit = {
+        if (latestKeyboardVisible.value) keyboard?.hide() else if (latestCanDismiss.value) latestDismiss.value()
+    }
+    val confirmChange: (SheetValue) -> Boolean = remember {
+        { target ->
+            if (target == SheetValue.Hidden && latestKeyboardVisible.value) {
+                keyboard?.hide()
+                false
+            } else target != SheetValue.Hidden || latestCanDismiss.value
+        }
+    }
+    var fullScreen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    val state = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true, confirmValueChange = confirmChange,
+    )
+    ModalBottomSheet(
+        onDismissRequest = dismissSafely,
+        sheetState = state,
+        sheetGesturesEnabled = !keyboardVisible && canDismiss,
+        dragHandle = { LedgerSheetHandle(fullScreen, { fullScreen = it }, dismissSafely) },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
+        tonalElevation = 0.dp,
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = properties.dismissOnBackPress && !keyboardVisible),
+    ) {
+        CompositionLocalProvider(LocalEntrySheet provides true) {
+            BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
+            Column(modifier.fillMaxWidth().fillMaxHeight(if (fullScreen) .99f else .86f).imePadding()
+                .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .testTag("ledger-entry-sheet")) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 4.dp)) {
+                    ProvideTextStyle(MaterialTheme.typography.titleLarge) { title() }
+                }
+                val body = Modifier.weight(1f).fillMaxWidth()
+                Box((if (scrollBody) body.verticalScroll(rememberScrollState()) else body)
+                    .padding(horizontal = sidePadding).testTag("ledger-entry-body")) { text() }
+                HorizontalDivider(Modifier.padding(top = 8.dp))
+                LedgerFormActions(
+                    modifier = Modifier.padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
+                    dismissButton = dismissButton, confirmButton = confirmButton,
+                )
+            }
+        }
+    }
+}

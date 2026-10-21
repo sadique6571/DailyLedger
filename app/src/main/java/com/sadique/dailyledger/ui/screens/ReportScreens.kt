@@ -68,8 +68,17 @@ fun MonthlyComparisonScreen(owner: String, transactions: List<TransactionEntity>
 @Composable private fun ComparisonRow(title: String, a: Long, b: Long, first: String, second: String) {
     LedgerCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        Text("$first: ${visibleAmount(a)}"); Text("$second: ${visibleAmount(b)}")
-        Text("Difference: ${visibleAmount(b - a)}")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.material3.Surface(Modifier.weight(1f), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
+                color = MaterialTheme.colorScheme.secondaryContainer) {
+                Column(Modifier.padding(12.dp)) { Text(first); Text(visibleAmount(a), color = MaterialTheme.colorScheme.onSecondaryContainer) }
+            }
+            androidx.compose.material3.Surface(Modifier.weight(1f), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
+                color = MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.padding(12.dp)) { Text(second); Text(visibleAmount(b), color = MaterialTheme.colorScheme.onPrimaryContainer) }
+            }
+        }
+        Text("Difference: ${visibleAmount(b - a)}", color = MaterialTheme.colorScheme.primary)
     }
 }
 @Composable private fun MonthSelector(month: YearMonth, change: (YearMonth) -> Unit) {

@@ -20,14 +20,11 @@ class DisplayPreferences(context: Context) {
         val DEFAULT_ORDER = listOf("greeting", "balance", "monthly-totals", "salary-cycle-controls", "budget-notice", "spending", "frequent-items", "recent", "insights-shortcut", "separate-totals", "udhar-shortcut", "insights")
         fun normalizeOrder(order: List<String>) = (order.filter { it in DEFAULT_ORDER } + DEFAULT_ORDER).distinct()
     }
-    var fontSize by mutableStateOf(store.getInt("font", 1).coerceIn(0, 3))
-        private set
-    var iconSize by mutableStateOf(store.getInt("icons", 1).coerceIn(0, 2))
-        private set
-    var cardSize by mutableStateOf(store.getInt("cards", 1).coerceIn(0, 2))
-        private set
-    var compact by mutableStateOf(store.getBoolean("compact", false))
-        private set
+    // One compact style for everyone; the phone's own accessibility font scale still applies.
+    val fontSize = 1
+    val iconSize = 1
+    val cardSize = 0
+    val compact = true
     var secureScreens by mutableStateOf(store.getBoolean("secure_screens", false))
         private set
     var privateAmounts by mutableStateOf(store.getBoolean("private_amounts", false))
@@ -45,10 +42,6 @@ class DisplayPreferences(context: Context) {
     var savingsFirst by mutableStateOf(store.getBoolean("savings_first", true))
         private set
 
-    fun updateFontSize(value: Int) { fontSize = value.coerceIn(0, 3); store.edit().putInt("font", fontSize).apply() }
-    fun updateIconSize(value: Int) { iconSize = value.coerceIn(0, 2); store.edit().putInt("icons", iconSize).apply() }
-    fun updateCardSize(value: Int) { cardSize = value.coerceIn(0, 2); store.edit().putInt("cards", cardSize).apply() }
-    fun updateCompact(value: Boolean) { compact = value; store.edit().putBoolean("compact", value).apply() }
     fun updateSecureScreens(value: Boolean) { secureScreens = value; store.edit().putBoolean("secure_screens", value).apply() }
     fun updatePrivateAmounts(value: Boolean) { privateAmounts = value; store.edit().putBoolean("private_amounts", value).apply() }
     fun updateShowSpending(value: Boolean) { showSpending = value; store.edit().putBoolean("spending", value).apply() }
@@ -58,7 +51,6 @@ class DisplayPreferences(context: Context) {
     fun updateShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
     fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
-        updateFontSize(1); updateIconSize(1); updateCardSize(1); updateCompact(false)
         updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
         updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true); resetDashboardOrder()
     }

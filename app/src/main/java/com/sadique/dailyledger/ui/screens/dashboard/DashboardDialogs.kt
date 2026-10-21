@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
@@ -78,7 +80,7 @@ internal fun DashboardSalaryDialogs(
     var confirmArchive by remember { mutableStateOf(false) }
 
     if (dialogOpen) {
-        AlertDialog(
+        LedgerEntrySheet(
             onDismissRequest = onCloseDialog,
             modifier = Modifier.testTag("salary-actions-dialog"),
             title = { Text("Salary Received & Cycle Options") },

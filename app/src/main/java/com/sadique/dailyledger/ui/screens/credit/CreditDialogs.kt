@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerDateField
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -52,13 +54,13 @@ internal fun CreditEntryDialog(
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    AlertDialog(
-        onDismissRequest = { if (!busy) dismiss() },
+    LedgerEntrySheet(
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(0.96f).testTag("udhar-manual-entry"),
         title = { Text(if (initial == null) "Add udhar saman" else "Review udhar entry") },
         text = {
-            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
                 ContactPickerButton { pickedName, pickedPhone ->
                     if (creditor.isBlank()) creditor = pickedName
@@ -69,12 +71,12 @@ internal fun CreditEntryDialog(
                     label = { Text("Shop / person") }, singleLine = true)
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag("udhar-category"))
-                OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(amount, { amount = it }, modifier = Modifier.fillMaxWidth().testTag("udhar-amount"),
                     label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true)
                 LedgerDateField(date, { date = it }, label = "Purchase date")
                 LedgerDateField(due, { due = it }, label = "Due date (optional)", optional = true)
-                OutlinedTextField(note, { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
                 Text("Contact (optional)", style = MaterialTheme.typography.labelLarge)
                 OutlinedTextField(phone, { phone = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -86,7 +88,7 @@ internal fun CreditEntryDialog(
         },
         confirmButton = {
             val parsed = parseMinor(amount)
-            Button(
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
                 enabled = !busy && parsed?.let { it > 0L } == true && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
                 onClick = {
                     val value = parsed ?: return@Button
@@ -124,17 +126,17 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
     var busy by remember { mutableStateOf(false) }
     var batchId by remember { mutableStateOf(UUID.randomUUID().toString()) }
     val scope = rememberCoroutineScope()
-    AlertDialog(
-        onDismissRequest = { if (!busy) dismiss() },
+    LedgerEntrySheet(scrollBody = false,
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         title = { Text("AI Udhar Add") },
         text = {
-            LazyColumn(Modifier.heightIn(max = 500.dp).testTag("credit-ai-list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(Modifier.testTag("credit-ai-list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item(key = "input") {
                     Text("Example: 1 Oct rashan 5,000 Aslam Store se udhar, due 15 Oct. Works offline.")
                     OutlinedTextField(creditorHint, { creditorHint = it; result = null }, label = { Text("Shop/person hint") }, enabled = !busy)
                     OutlinedTextField(input, { input = it; result = null; error = "" }, minLines = 3,
                         label = { Text("Udhar saman likhein") }, enabled = !busy, modifier = Modifier.testTag("credit-ai-input"))
-                    Button(onClick = {
+                    Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = {
                         error = ""
                         result = try { OfflineCreditAi.drafts(input, creditorHint) }
                             catch (e: Exception) { error = e.message ?: "Check the dates and amount."; null }
@@ -159,7 +161,7 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
             }
         },
         confirmButton = {
-            Button(onClick = {
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = {
                 val drafts = result?.entries.orEmpty()
                 busy = true
                 scope.launch {
@@ -196,13 +198,13 @@ internal fun CreditPaymentDialog(
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    AlertDialog(
-        onDismissRequest = { if (!busy) dismiss() },
+    LedgerEntrySheet(
+        canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(0.96f),
         title = { Text("Record udhar payment") },
         text = {
-            Column(Modifier.heightIn(max = 450.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
                 Text("Payment aapke current salary-cycle balance se minus hogi.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
@@ -213,12 +215,12 @@ internal fun CreditPaymentDialog(
                         FilterChip(selected = method == option, onClick = { method = option }, label = { Text(option) })
                     }
                 }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
         confirmButton = {
             val parsed = parseMinor(amount)
-            Button(
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
                 enabled = !busy && isValidDate(date) && parsed?.let { it in 1..remaining } == true,
                 onClick = {
                     val value = parsed?.takeIf { it in 1..remaining } ?: return@Button

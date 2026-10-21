@@ -42,7 +42,7 @@ fun InsightsCard(
     dismissedTipKeys: Set<String> = emptySet(),
 ) {
     Card(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().testTag("ai-insights-cards"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
@@ -65,7 +65,6 @@ fun InsightsCard(
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
                     Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
-                    TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                 }
             }
 
@@ -93,7 +92,6 @@ fun InsightsCard(
                     LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                         Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
-                        TextButton(onClick = { onDismissTip(tip) }) { Text("Not useful") }
                     }
                 }
             }

@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import androidx.compose.ui.Alignment
 
 import com.sadique.dailyledger.ui.LedgerDateField
@@ -33,11 +35,11 @@ internal fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance
     var method by remember { mutableStateOf("Cash") }
     val parsed = parseMinor(amount)
     val validAmount = parsed != null && parsed > 0 && parsed <= balance.remaining
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text(turnLabel?.let { "Receive • $it" } ?: "Receive • ${committee.name}") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Remaining: ${visibleMoney(balance.remaining)}")
                 OutlinedTextField(amount, { amount = it }, label = { Text("Received amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, isError = !validAmount)
                 LedgerDateField(date, { date = it }, label = "Entry date")
@@ -45,10 +47,10 @@ internal fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Cash", "Bank", "Easypaisa", "JazzCash", "Other").forEach { FilterChip(method == it, { method = it }, { Text(it) }) }
                 }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
-        confirmButton = { Button(enabled = validAmount && isValidDate(date), onClick = { parsed?.let { save(it, date.trim(), note, method) } }) { Text("Save receiving") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = validAmount && isValidDate(date), onClick = { parsed?.let { save(it, date.trim(), note, method) } }) { Text("Save receiving") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -70,11 +72,11 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
     val combined = runCatching { if (s != null && a != null && (s % 2 == 0 || a % 2L == 0L)) Math.addExact(Math.multiplyExact(a, (s / 2).toLong()), if (s % 2 == 1) a / 2L else 0L) else null }.getOrNull()
     val expected = runCatching { Math.multiplyExact(combined ?: 0L, (t ?: 0).toLong()) }.getOrNull()
     val valid = a != null && a > 0 && t != null && t > 0 && s != null && s > 0 && s <= t * 2 && expected != null && expected > 0 && isValidMonth(start) && (payout.isBlank() || (p != null && p in 1..t))
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text("New kameti") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Name / place") })
                 OutlinedTextField(shares, { shares = it }, label = { Text("My total shares (0.5, 1, 1.5, 2…)") }, supportingText = { Text("For 1.5: create a full turn and a half turn separately after saving.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per kameti") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
@@ -88,10 +90,10 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
                 if (p != null && t != null && p in 1..t && isValidMonth(start)) Text("My month: ${YearMonth.parse(start).plusMonths((p - 1).toLong())}", style = MaterialTheme.typography.bodySmall)
                 ContactPickerButton { _, pickedPhone -> organizerPhone = pickedPhone }
                 OutlinedTextField(organizerPhone, { organizerPhone = it }, label = { Text("Organizer phone / WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
-        confirmButton = { Button(enabled = valid, onClick = { save(name.ifBlank { "Kameti" }, a!!, t!!, start.trim(), p, note, s!!, organizerPhone) }) { Text("Save") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = valid, onClick = { save(name.ifBlank { "Kameti" }, a!!, t!!, start.trim(), p, note, s!!, organizerPhone) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -125,12 +127,12 @@ internal fun PersonalMemberBatchDialog(
     val canAddMyTurn = myUsedUnits + halfUnits <= committee.sharesHalfUnits
     val valid = turnMonth != null && !duplicate && (!isMe || canAddMyTurn) &&
         (isMe || name.isNotBlank())
-    AlertDialog(
-        onDismissRequest = { if (!saving) dismiss() },
+    LedgerEntrySheet(
+        canDismiss = !saving, onDismissRequest = { if (!saving) dismiss() },
         title = { Text("Add all members / my turns") },
         text = {
             if (saving) Text("Saving all entries…")
-            else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            else Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
                 Text("Use a separate row for every turn. If you own 2 shares, add two full turns; for 3 shares, add three. Every turn displays its calculated month.")
                 Text("My shares assigned: ${myUsedUnits / 2.0} / ${committee.sharesHalfUnits / 2.0}")
@@ -165,7 +167,7 @@ internal fun PersonalMemberBatchDialog(
                 turnMonth?.let { Text("Receiving month: $it", style = MaterialTheme.typography.titleSmall) }
                 if (duplicate) Text("This turn already has a full share (or two half shares).", color = MaterialTheme.colorScheme.error)
                 if (isMe && !canAddMyTurn) Text("Your declared shares are already allocated; increase shares in a new Kameti if needed.", color = MaterialTheme.colorScheme.error)
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
                 OutlinedButton(enabled = valid, onClick = {
                     queued.add(PersonalTurnDraft(name.ifBlank { "Me" }.trim(), phone.trim(), whatsapp.trim(), turnNumber!!,
                         turnMonth!!, isMe, note.trim(), halfUnits))
@@ -176,7 +178,7 @@ internal fun PersonalMemberBatchDialog(
             }
         },
         confirmButton = {
-            Button(enabled = queued.isNotEmpty() && !saving, modifier = Modifier.testTag("kameti-save-all"), onClick = {
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = queued.isNotEmpty() && !saving, modifier = Modifier.testTag("kameti-save-all"), onClick = {
                 if (!saving) {
                     val snapshot = queued.toList()
                     saving = true; saveError = null
@@ -198,7 +200,7 @@ internal fun PersonalMemberBatchDialog(
 @Composable
 internal fun MethodDialog(title: String, dismiss: () -> Unit, impact: String = "", save: (String) -> Unit) {
     var method by remember { mutableStateOf("Cash") }
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = dismiss,
         title = { Text(title) },
         text = {
@@ -210,7 +212,7 @@ internal fun MethodDialog(title: String, dismiss: () -> Unit, impact: String = "
                 }
             }
         },
-        confirmButton = { Button(onClick = { save(method) }) { Text("Record payment") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = { save(method) }) { Text("Record payment") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -222,7 +224,7 @@ internal fun MarkMemberReceivedDialog(
     onConfirm: (String) -> Unit,
 ) {
     var date by remember(member.id) { mutableStateOf(LedgerRepository.today()) }
-    AlertDialog(
+    LedgerEntrySheet(
         onDismissRequest = onDismiss,
         title = { Text("Mark ${member.name} received?") },
         text = {
@@ -231,7 +233,7 @@ internal fun MarkMemberReceivedDialog(
                 LedgerDateField(date, { date = it }, label = "Received date")
             }
         },
-        confirmButton = { Button(enabled = isValidDate(date), onClick = { onConfirm(date) }) { Text("Mark received") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = isValidDate(date), onClick = { onConfirm(date) }) { Text("Mark received") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

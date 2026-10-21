@@ -29,6 +29,7 @@ class MoreNavigationUiTest {
                 )
             }
         }
+        compose.onNodeWithText("Money tools").assertDoesNotExist()
         compose.onNodeWithText("Loans", substring = false).performScrollTo().performClick()
         assertEquals("loans", destination)
         compose.onNodeWithText("Settings & backup").performScrollTo().performClick()

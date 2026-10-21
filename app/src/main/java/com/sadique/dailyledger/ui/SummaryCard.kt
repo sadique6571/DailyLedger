@@ -66,10 +66,7 @@ fun SummaryCard(
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
-                    Brush.verticalGradient(listOf(
-                        lerp(cardFill, accent, if (isKameti) .03f else .05f),
-                        cardFill,
-                    )),
+                    ledgerCardBrush(accent),
                     shape = shape,
                 )
                 .padding(horizontal = horizontal, vertical = vertical),

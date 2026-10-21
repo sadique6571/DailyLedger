@@ -7,6 +7,9 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -55,6 +58,7 @@ fun CategoryDropdown(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     allowCustom: Boolean = true,
+    inlineResults: Boolean = com.sadique.dailyledger.ui.LocalEntrySheet.current,
 ) {
     val strings = com.sadique.dailyledger.i18n.LocalStrings.current
     val context = LocalContext.current
@@ -70,6 +74,18 @@ fun CategoryDropdown(
     val categories = options.indexed.map { it.first }
     val frequent = options.frequent
     var expanded by remember { mutableStateOf(false) }
+    val inlineView = remember { BringIntoViewRequester() }
+    var inlineHeight by remember { mutableIntStateOf(0) }
+    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
+    LaunchedEffect(inlineResults, expanded, keyboardVisible) {
+        if (inlineResults && expanded) {
+            // Relocate once per open/keyboard transition, never for each IME animation frame.
+            withFrameNanos { }
+            val firstRows = with(density) { 220.dp.toPx() }
+            inlineView.bringIntoView(Rect(0f, 0f, 1f,
+                if (inlineHeight > 0) minOf(firstRows, inlineHeight.toFloat()) else firstRows))
+        }
+    }
 
     // Dismissing the suggestions is not cancelling an edit. Keep the search draft
     // through focus changes, keyboard/back dismissal and lazy-list recreation.
@@ -87,11 +103,40 @@ fun CategoryDropdown(
         val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
         options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
     }
+    val results: @Composable (Modifier) -> Unit = { resultsModifier ->
+            // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
+            val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()
+            val recentLabels = recent.map { it.label }.toSet()
+            val sections = linkedMapOf<String, List<LedgerCategory>>()
+            if (recent.isNotEmpty()) sections["Frequently used"] = recent
+            sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
+            LazyColumn(resultsModifier.testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
+                sections.forEach { (group, rows) ->
+                    if (!inlineResults) item(key = "heading-$group") {
+                        Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                    items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
+                        val visual = categoryVisual(category.label, type)
+                        DropdownMenuItem(text = { Text(category.label) },
+                            leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
+                            onClick = { choose(category.label) })
+                    }
+                }
+                if (filtered.isEmpty()) item { Text("No matching category", Modifier.padding(16.dp)) }
+                if (allowCustom && query.isNotBlank() && categories.none { it.label.equals(query.trim(), true) }) {
+                    item { DropdownMenuItem(text = { Text("Add custom: ${query.trim().take(60)}") },
+                        onClick = { choose(query.trim().take(60)) }) }
+                }
+            }
+    }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
         // Tapping an editable input should reopen its results, not toggle them
         // closed while the user is trying to continue typing.
         onExpandedChange = { if (enabled) expanded = true },
         modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().bringIntoViewRequester(inlineView)
+            .onSizeChanged { inlineHeight = it.height }) {
         OutlinedTextField(
             value = if (editing) query else strings.text(value),
             onValueChange = {
@@ -115,7 +160,19 @@ fun CategoryDropdown(
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, enabled)
                 .testTag("category-dropdown"),
         )
-        if(expanded && enabled) {
+        if (expanded && enabled && inlineResults) {
+            BackHandler { expanded = false }
+            androidx.compose.material3.Surface(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                results(Modifier.fillMaxWidth().heightIn(max = 132.dp))
+            }
+        }
+        }
+        if(expanded && enabled && !inlineResults) {
           BackHandler { expanded = false }
           val position=remember(view,margin) { object:PopupPositionProvider {
               override fun calculatePosition(anchorBounds:IntRect,windowSize:IntSize,layoutDirection:LayoutDirection,popupContentSize:IntSize):IntOffset {
@@ -132,32 +189,8 @@ fun CategoryDropdown(
               }
           } }
           Popup(popupPositionProvider=position,onDismissRequest={expanded=false},properties=PopupProperties(focusable=false)) {
-           androidx.compose.material3.Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,shadowElevation=3.dp) {
-            // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.
-            val recent = if (query.isBlank()) frequent.mapNotNull { label -> filtered.find { it.label == label } } else emptyList()
-            val recentLabels = recent.map { it.label }.toSet()
-            val sections = linkedMapOf<String, List<LedgerCategory>>()
-            if (recent.isNotEmpty()) sections["Frequently used"] = recent
-            sections.putAll(filtered.filterNot { it.label in recentLabels }.groupBy { it.group })
-            LazyColumn(Modifier.exposedDropdownSize(true).heightIn(max=300.dp).testTag("category-results"),contentPadding=PaddingValues(vertical=8.dp)) {
-                sections.forEach { (group, rows) ->
-                    item(key = "heading-$group") {
-                        Text(group, Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
-                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    }
-                    items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
-                        val visual = categoryVisual(category.label, type)
-                        DropdownMenuItem(text = { Text(category.label) },
-                            leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
-                            onClick = { choose(category.label) })
-                    }
-                }
-                if (filtered.isEmpty()) item { Text("No matching category", Modifier.padding(16.dp)) }
-                if (allowCustom && query.isNotBlank() && categories.none { it.label.equals(query.trim(), true) }) {
-                    item { DropdownMenuItem(text = { Text("Add custom: ${query.trim().take(60)}") },
-                        onClick = { choose(query.trim().take(60)) }) }
-                }
-            }
+           androidx.compose.material3.Surface(modifier = Modifier.testTag("category-floating-popup"), shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surfaceContainerLow,shadowElevation=3.dp) {
+            results(Modifier.exposedDropdownSize(true).heightIn(max = 300.dp))
            }
           }
         }

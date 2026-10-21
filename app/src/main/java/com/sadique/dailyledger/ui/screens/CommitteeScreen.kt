@@ -58,13 +58,25 @@ fun CommitteeScreen(
     onDeleteMember: (CommitteeMemberEntity) -> Unit,
     onDelete: (CommitteeEntity) -> Unit,
     onCalendar: () -> Unit = {},
+    entryRequest: String? = null, onEntryOpened: () -> Unit = {},
     onPersonalTurnReceive: (String, Long, String, String, String) -> Unit = { _, _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     var organizerMode by remember { mutableStateOf(false) }
+    var add by remember { mutableStateOf(false) }
+    var addCollection by remember { mutableStateOf(false) }
+    var pickEntry by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(entryRequest) {
+        when (entryRequest) {
+            "kameti" -> { organizerMode = false; add = true; onEntryOpened() }
+            "collection" -> { organizerMode = true; addCollection = true; onEntryOpened() }
+            "kameti-paid", "kameti-receive", "kameti-member" -> { organizerMode = false; pickEntry = entryRequest; onEntryOpened() }
+        }
+    }
     if (organizerMode) {
         OrganizerKametiScreen(
             repo = repo, circles = organizerCircles, members = organizerMembers,
+            requestAdd = addCollection, onAddOpened = { addCollection = false },
             collections = organizerCollections, payouts = organizerPayouts,
             onBack = { organizerMode = false },
             onAddCircle = onAddCircle, onAddMembers = onAddOrganizerMembers,
@@ -74,7 +86,6 @@ fun CommitteeScreen(
         )
         return
     }
-    var add by remember { mutableStateOf(false) }
     var receivingId by remember { mutableStateOf<String?>(null) }
     var deleteCommittee by remember { mutableStateOf<CommitteeEntity?>(null) }
     var deleteReceipt by remember { mutableStateOf<CommitteeReceiptEntity?>(null) }
@@ -82,6 +93,19 @@ fun CommitteeScreen(
     var addMemberTo by remember { mutableStateOf<CommitteeEntity?>(null) }
     var markMemberReceived by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
     var receivePersonalMember by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
+    pickEntry?.let { action ->
+        val choices: List<Pair<String, () -> Unit>> = when (action) {
+            "kameti-paid" -> committees.flatMap { c ->
+                (1..c.totalInstallments).filter { n -> payments.none { it.committeeId == c.id && it.installmentNumber == n } }
+                    .map { n -> "${c.name} • #$n • ${scheduledMonth(c, n)}" to { paying = c to n; pickEntry = null } }
+            }
+            "kameti-receive" -> committees.filter { committeeBalance(it, receipts).remaining > 0 }
+                .map { c -> c.name to { receivingId = c.id; pickEntry = null } }
+            else -> committees.map { c -> c.name to { addMemberTo = c; pickEntry = null } }
+        }
+        com.sadique.dailyledger.ui.EntryRecordPicker("Choose kameti", choices, { pickEntry = null })
+    }
+
 
     Scaffold(
         floatingActionButton = {
@@ -108,7 +132,9 @@ fun CommitteeScreen(
                 }
             }
             if (committees.isEmpty()) {
-                enteringItem { Text("Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.") }
+                enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No kameti yet",
+                    "Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.",
+                    "New kameti", Icons.Outlined.Groups, onAction = { add = true }) }
             }
             enteringItems(committees, key = { it.id }) { committee ->
                 val ps = payments.filter { it.committeeId == committee.id }

@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerDateField
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -40,12 +42,13 @@ fun PlanningNotice() {
 }
 
 @Composable
-fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<TransactionEntity>) {
+fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<TransactionEntity>, requestAdd: Boolean = false, onAddOpened: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }
     val data by store.data.collectAsState()
     var edit by remember { mutableStateOf<CategoryBudget?>(null) }
     var adding by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { edit = null; adding = true; onAddOpened() } }
     var pendingDelete by remember { mutableStateOf<CategoryBudget?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     val progress = remember(owner, data.budgets, transactions, YearMonth.now()) { PlannerMath.budgets(owner, data.budgets, transactions, YearMonth.now()) }
@@ -87,7 +90,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
         var category by remember(edit) { mutableStateOf(edit?.category ?: "") }
         var amount by remember(edit) { mutableStateOf(edit?.limitMinor?.let(::plainAmount) ?: "") }
         var error by remember { mutableStateOf<String?>(null) }
-        AlertDialog(onDismissRequest = { adding = false }, title = { Text("Monthly category budget") }, text = {
+        LedgerEntrySheet(onDismissRequest = { adding = false }, title = { Text("Monthly category budget") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = edit == null)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Monthly limit (Rs)") }, modifier = Modifier.testTag("budget-amount"))
@@ -106,11 +109,12 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
 }
 
 @Composable
-fun BillsScreen(vm: MainViewModel) {
+fun BillsScreen(vm: MainViewModel, requestAdd: Boolean = false, onAddOpened: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val data by vm.planner.data.collectAsState()
     var edit by remember { mutableStateOf<RecurringBill?>(null) }
     var adding by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { edit = null; adding = true; onAddOpened() } }
     var review by remember { mutableStateOf<RecurringBill?>(null) }
     var remove by remember { mutableStateOf<RecurringBill?>(null) }
     var skip by remember { mutableStateOf<RecurringBill?>(null) }
@@ -152,8 +156,8 @@ private fun BillEditor(existing: RecurringBill?, dismiss: () -> Unit, save: susp
     var day by remember { mutableStateOf((existing?.day ?: LocalDate.now().dayOfMonth).toString()) }
     var start by remember { mutableStateOf(existing?.startMonth ?: YearMonth.now().toString()) }
     var error by remember { mutableStateOf<String?>(null) }
-    AlertDialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false), modifier = Modifier.fillMaxWidth(.94f), title = { Text("Monthly reminder") }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LedgerEntrySheet(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false), modifier = Modifier, title = { Text("Monthly reminder") }, text = {
+        Column(Modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedTextField(title, { title = it.take(100) }, label = { Text("Reminder name") })
             Row { FilterChip(selected = type == "EXPENSE", onClick = { type = "EXPENSE"; category = "" }, label = { Text("Expense") }); FilterChip(selected = type == "INCOME", onClick = { type = "INCOME"; category = "" }, label = { Text("Income") }) }
             CategoryDropdown(type, category, { category = it })
@@ -177,13 +181,13 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    AlertDialog(onDismissRequest = { if (!busy) dismiss() }, title = { Text("Review recurring entry") }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LedgerEntrySheet(canDismiss = !busy, onDismissRequest = { if (!busy) dismiss() }, title = { Text("Review recurring entry") }, text = {
+        Column(Modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(bill.type)
             CategoryDropdown(bill.type, category, { category = it }, enabled = !busy)
             OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount (Rs)") })
             LedgerDateField(date, { date = it }, label = "Entry date", enabled = !busy)
-            OutlinedTextField(note, { note = it.take(500) }, enabled = !busy, label = { Text("Note") })
+            OutlinedTextField(note, { note = it.take(500) }, singleLine = true, enabled = !busy, label = { Text("Note") })
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }, confirmButton = { TextButton(enabled = !busy, onClick = {
@@ -224,7 +228,7 @@ fun LearningScreen(vm: MainViewModel) {
     }
     edit?.let { rule ->
         var category by remember(rule) { mutableStateOf(rule.category) }
-        AlertDialog(onDismissRequest = { edit = null }, title = { Text("Correct category") }, text = { Column { Text(rule.phrase, translate = false); CategoryDropdown(rule.type, category, { category = it }) } },
+        LedgerEntrySheet(onDismissRequest = { edit = null }, title = { Text("Correct category") }, text = { Column { Text(rule.phrase, translate = false); CategoryDropdown(rule.type, category, { category = it }) } },
             confirmButton = { TextButton(enabled = !busy, onClick = { busy = true; scope.launch { try { message = vm.rememberCategory(rule.type, rule.phrase, category); if (message == null) edit = null } finally { busy = false } } }) { Text("Save") } }, dismissButton = { TextButton(onClick = { edit = null }) { Text("Cancel") } })
     }
     remove?.let { rule -> ConfirmRemoval("Forget this category mapping?", { remove = null }) { busy = true; scope.launch { try { message = vm.forgetCategory(rule); if (message == null) remove = null } finally { busy = false } } } }

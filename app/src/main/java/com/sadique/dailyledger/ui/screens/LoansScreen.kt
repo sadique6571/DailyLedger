@@ -2,6 +2,8 @@
 
 package com.sadique.dailyledger.ui.screens
 
+import com.sadique.dailyledger.ui.LedgerEntrySheet
+
 import com.sadique.dailyledger.ui.LedgerDateField
 
 import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
@@ -46,15 +48,29 @@ fun LoansScreen(
     onAdd: (String, String, Long, String?, String, String, String) -> Unit,
     onPayment: (String, Long, String, String, String) -> Unit,
     onDelete: (LoanEntity) -> Unit,
+    requestAdd: Boolean = false, onAddOpened: () -> Unit = {},
+    requestPayment: Boolean = false,
 ) {
     val context = LocalContext.current
     val amountHidden = LocalDisplayPreferences.current?.privateAmounts == true
     val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     var add by remember { mutableStateOf(false) }
+    LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
-    Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
+    var pickPayment by remember { mutableStateOf(false) }
+    LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
+    if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
+        loans.filter { row -> row.principalMinor > payments.filter { it.loanId == row.id }.sumOf { it.amountMinor } }
+            .map { row -> row.person to { pay = row; pickPayment = false } },
+        { pickPayment = false })
+
+    Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
+            if (loans.isEmpty()) enteringItem {
+                com.sadique.dailyledger.ui.LedgerEmptyState("No loans yet", "Track money borrowed or lent and record repayments here.",
+                    "Add loan", Icons.Outlined.Handshake, onAction = { add = true })
+            }
             enteringItems(loans, key = { it.id }) { loan ->
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
@@ -75,7 +91,7 @@ fun LoansScreen(
                             val wa = loan.whatsapp.ifBlank { loan.phone }
                             if (wa.isNotBlank()) AssistChip(onClick = { val num=whatsappNumber(wa); val msg=URLEncoder.encode(reminder(loan,left), StandardCharsets.UTF_8.toString()); context.openContactAction(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$num?text=$msg"))) }, label = { Text("WhatsApp") }, leadingIcon = { Icon(Icons.Outlined.Chat, null) })
                         }
-                        Button(onClick = { pay = loan }, enabled = left > 0, modifier = Modifier.fillMaxWidth()) { Text(if (loan.direction == "BORROWED") "Record my repayment" else "Record payment received") }
+                        Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = { pay = loan }, enabled = left > 0, modifier = Modifier.fillMaxWidth()) { Text(if (loan.direction == "BORROWED") "Record my repayment" else "Record payment received") }
                         val allPayments = payments.filter { it.loanId == loan.id }
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
                         val history = if (showHistory) allPayments else allPayments.take(3)
@@ -103,12 +119,12 @@ private fun reminder(loan: LoanEntity, left: Long): String = if (loan.direction 
 
 @Composable private fun LoanDialog(dismiss:()->Unit, save:(String,String,Long,String?,String,String,String)->Unit){
     var dir by remember{mutableStateOf("BORROWED")}; var person by remember{mutableStateOf("")}; var amount by remember{mutableStateOf("")}; var due by remember{mutableStateOf("")}; var note by remember{mutableStateOf("")}; var phone by remember{mutableStateOf("")}; var wa by remember{mutableStateOf("")}
-    AlertDialog(onDismissRequest=dismiss,title={Text("New loan")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){Row{FilterChip(dir=="BORROWED",{dir="BORROWED"},{Text("I borrowed")});Spacer(Modifier.width(8.dp));FilterChip(dir=="LENT",{dir="LENT"},{Text("Borrowed from me")})};ContactPickerButton { pickedName, pickedPhone -> if (person.isBlank()) person = pickedName; phone = pickedPhone; if (wa.isBlank()) wa = pickedPhone };OutlinedTextField(person,{person=it},label={Text("Person")});OutlinedTextField(phone,{phone=it},label={Text("Phone (optional)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone));OutlinedTextField(wa,{wa=it},label={Text("WhatsApp (optional)")},supportingText={Text("Leave blank to use phone number")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone));OutlinedTextField(amount,{amount=it},label={Text("Amount PKR")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));LedgerDateField(due, { due = it }, label = "Due date (optional)", optional = true);OutlinedTextField(note,{note=it},label={Text("Note")})}},confirmButton={Button(enabled=(due.isBlank()||isValidDate(due)) && (parseMinor(amount)?.let { it > 0 } == true),onClick={parseMinor(amount)?.takeIf{it>0}?.let{save(dir,person.ifBlank{"Unknown"},it,due.trim().ifBlank{null},note,phone,wa)}}){Text("Save")}},dismissButton={TextButton(onClick=dismiss){Text("Cancel")}})
+    LedgerEntrySheet(onDismissRequest=dismiss,title={Text("New loan")},text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(8.dp)){Row{FilterChip(dir=="BORROWED",{dir="BORROWED"},{Text("I borrowed")});Spacer(Modifier.width(8.dp));FilterChip(dir=="LENT",{dir="LENT"},{Text("Borrowed from me")})};ContactPickerButton { pickedName, pickedPhone -> if (person.isBlank()) person = pickedName; phone = pickedPhone; if (wa.isBlank()) wa = pickedPhone };OutlinedTextField(person,{person=it},label={Text("Person")});OutlinedTextField(phone,{phone=it},label={Text("Phone (optional)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone));OutlinedTextField(wa,{wa=it},label={Text("WhatsApp (optional)")},supportingText={Text("Leave blank to use phone number")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone));OutlinedTextField(amount,{amount=it},label={Text("Amount PKR")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));LedgerDateField(due, { due = it }, label = "Due date (optional)", optional = true);OutlinedTextField(note,{note=it},singleLine=true,label={Text("Note")})}},confirmButton={Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled=(due.isBlank()||isValidDate(due)) && (parseMinor(amount)?.let { it > 0 } == true),onClick={parseMinor(amount)?.takeIf{it>0}?.let{save(dir,person.ifBlank{"Unknown"},it,due.trim().ifBlank{null},note,phone,wa)}}){Text("Save")}},dismissButton={TextButton(onClick=dismiss){Text("Cancel")}})
 }
 
 @Composable private fun PaymentDialog(loan:LoanEntity,remaining:Long,dismiss:()->Unit,save:(Long,String,String,String)->Unit){
     var amount by remember(loan.id){mutableStateOf(plainAmount(remaining))};var date by remember{mutableStateOf(LedgerRepository.today())};var note by remember{mutableStateOf("")};var method by remember{mutableStateOf("Cash")}
-    AlertDialog(onDismissRequest=dismiss,title={Text(if(loan.direction=="BORROWED")"Record repayment" else "Record amount received")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(amount,{amount=it},label={Text("Amount PKR")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));LedgerDateField(date, { date = it }, label = "Entry date");Text("Payment method",style=MaterialTheme.typography.labelLarge);FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){listOf("Cash","Bank","Easypaisa","JazzCash").forEach{FilterChip(method==it,{method=it},{Text(it)})}};OutlinedTextField(note,{note=it},label={Text("Note")})}},confirmButton={Button(enabled=isValidDate(date) && (parseMinor(amount)?.let{it in 1..remaining}==true),onClick={parseMinor(amount)?.takeIf{it in 1..remaining}?.let{save(it,date.trim(),note,method)}}){Text("Record")}},dismissButton={TextButton(onClick=dismiss){Text("Cancel")}})
+    LedgerEntrySheet(onDismissRequest=dismiss,title={Text(if(loan.direction=="BORROWED")"Record repayment" else "Record amount received")},text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(amount,{amount=it},label={Text("Amount PKR")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));LedgerDateField(date, { date = it }, label = "Entry date");Text("Payment method",style=MaterialTheme.typography.labelLarge);FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){listOf("Cash","Bank","Easypaisa","JazzCash").forEach{FilterChip(method==it,{method=it},{Text(it)})}};OutlinedTextField(note,{note=it},singleLine=true,label={Text("Note")})}},confirmButton={Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled=isValidDate(date) && (parseMinor(amount)?.let{it in 1..remaining}==true),onClick={parseMinor(amount)?.takeIf{it in 1..remaining}?.let{save(it,date.trim(),note,method)}}){Text("Record")}},dismissButton={TextButton(onClick=dismiss){Text("Cancel")}})
 }
 
 

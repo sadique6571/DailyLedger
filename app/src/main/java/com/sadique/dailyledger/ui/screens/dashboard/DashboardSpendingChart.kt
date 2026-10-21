@@ -63,11 +63,11 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
         Spacer(Modifier.height(15.dp))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val compact = maxWidth < 350.dp
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
-                Column(Modifier.width(if (compact) 103.dp else 122.dp), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
-                    Box(Modifier.size(if (compact) 103.dp else 122.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Box(Modifier.size(if (compact) 180.dp else 200.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
                         Canvas(Modifier.fillMaxSize()) {
-                            val width = 20.dp.toPx()
+                            val width = 26.dp.toPx()
                             val inset = width / 2
                             drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                             var start = -90f
@@ -78,13 +78,12 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 start += sweep
                             }
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(90.dp)) {
-                            Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
+                            Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                             Text("Total spent", fontSize = 11.sp)
                         }
                     }
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
+                Column(Modifier.fillMaxWidth().testTag("chart-legend"), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                     if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                     (if (expanded) categories else categories.take(3)).forEachIndexed { i, (name, value) ->
                         val tint = colorFor(i)
