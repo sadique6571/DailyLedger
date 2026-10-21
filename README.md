@@ -2,7 +2,9 @@
 
 An Android personal finance app for income, expenses, savings, loans, udhar and kameti. Entries remain usable offline; Google sign-in, opt-in AI suggestions and verified Google Drive backups provide the connected features.
 
-**Current version: 2.0.0 · build 48.** The application ID and existing signing certificate are retained for in-place updates.
+**Current version: 2.0.0 · build 49.** The application ID and existing signing certificate are retained for in-place updates.
+
+Build 49 fixes the category arrow touch target: the down arrow opens suggestions and the up arrow closes them in both entry sheets and floating dropdowns.
 
 ## Current interface
 
@@ -81,7 +83,7 @@ Install the APK over the existing app; uninstalling or clearing data is not requ
 
 See [TESTING.md](TESTING.md) for additional historical verification details. The latest Actions run is the authoritative result for its exact commit.
 
-## Device checks for build 48
+## Device checks for build 49
 
 1. Open the five-action Plus menu on Home, switch tabs and return: it should be hidden off Home and closed on return. Each tab's own Add action should still work.
 2. Compare Weather and Salary gradients in light/dark modes. Check long names, large amounts and the phone's larger font setting.
