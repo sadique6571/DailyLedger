@@ -64,7 +64,7 @@ fun LedgerEntrySheet(
         onDismissRequest = dismissSafely,
         sheetState = state,
         sheetGesturesEnabled = !keyboardVisible && canDismiss,
-        dragHandle = { LedgerSheetHandle(fullScreen, { fullScreen = it }) },
+        dragHandle = { LedgerSheetHandle(fullScreen, { fullScreen = it }, dismissSafely) },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
         tonalElevation = 0.dp,

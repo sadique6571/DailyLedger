@@ -105,7 +105,9 @@ fun TransactionDialog(
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !keyboardVisible),
         sheetState = sheetState,
         sheetGesturesEnabled = !keyboardVisible && !busy,
-        dragHandle = { com.sadique.dailyledger.ui.LedgerSheetHandle(fullScreen, { fullScreen = it }) },
+        dragHandle = { com.sadique.dailyledger.ui.LedgerSheetHandle(fullScreen, { fullScreen = it }) {
+            if (keyboardVisible) keyboard?.hide() else safeDismiss()
+        } },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
         tonalElevation = 0.dp,

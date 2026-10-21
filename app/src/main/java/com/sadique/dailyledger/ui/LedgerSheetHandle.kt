@@ -17,8 +17,9 @@ import androidx.compose.ui.unit.dp
 
 /** A deliberate handle gesture changes size; scrolling the form never does. */
 @Composable
-internal fun LedgerSheetHandle(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
+internal fun LedgerSheetHandle(expanded: Boolean, onExpandedChange: (Boolean) -> Unit, onDismissRequest: () -> Unit = {}) {
     val latestChange by rememberUpdatedState(onExpandedChange)
+    val latestDismiss by rememberUpdatedState(onDismissRequest)
     val threshold = with(LocalDensity.current) { 16.dp.toPx() }
     Box(Modifier.fillMaxWidth().height(36.dp).testTag("entry-sheet-handle")
         .pointerInput(expanded, threshold) {
@@ -27,7 +28,9 @@ internal fun LedgerSheetHandle(expanded: Boolean, onExpandedChange: (Boolean) ->
                 onDragStart = { distance = 0f },
                 onDragEnd = {
                     if (distance < -threshold) latestChange(true)
-                    else if (distance > threshold) latestChange(false)
+                    else if (distance > threshold) {
+                        if (expanded) latestChange(false) else latestDismiss()
+                    }
                 },
                 onVerticalDrag = { change, delta -> change.consume(); distance += delta },
             )
