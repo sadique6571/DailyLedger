@@ -17,6 +17,29 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CategoryDropdownTest {
     @get:Rule val compose = createComposeRule()
+    private fun arrowTogglesWithRealTouches(inline: Boolean) {
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            var selected by remember { mutableStateOf("Other") }
+            Column { CategoryDropdown("EXPENSE", selected, { selected = it }, inlineResults = inline) }
+        } }
+        compose.onNodeWithTag("category-results").assertDoesNotExist()
+        // Exercise touch dispatch; a semantics click misses parent/child gesture conflicts.
+        repeat(2) {
+            compose.onNodeWithTag("category-toggle").performTouchInput { click() }
+            compose.onNodeWithTag("category-results").assertIsDisplayed()
+            compose.onNodeWithTag("category-toggle").performTouchInput { click() }
+            compose.onNodeWithTag("category-results").assertDoesNotExist()
+        }
+        compose.onNodeWithTag("category-dropdown").performClick().performTextReplacement("piyaz")
+        compose.onNodeWithText("Onions").performScrollTo().performClick()
+        compose.onNodeWithTag("category-dropdown").assertTextContains("Onions")
+        compose.onNodeWithTag("category-toggle").performTouchInput { click() }
+        compose.onNodeWithTag("category-results").assertIsDisplayed()
+    }
+
+    @Test fun arrowOpensAndClosesInlineResults() = arrowTogglesWithRealTouches(true)
+    @Test fun arrowOpensAndClosesFloatingResults() = arrowTogglesWithRealTouches(false)
+
     @Test fun manualUdharUsesCategoryWithoutRequiringAnItemField() {
         var saved: CreditDraft? = null
         compose.setContent { DailyLedgerTheme("AQUA") {

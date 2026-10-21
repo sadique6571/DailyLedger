@@ -131,9 +131,9 @@ fun CategoryDropdown(
             }
     }
     ExposedDropdownMenuBox(expanded = expanded && enabled,
-        // Tapping an editable input should reopen its results, not toggle them
-        // closed while the user is trying to continue typing.
-        onExpandedChange = { if (enabled) expanded = true },
+        // Both anchors share one toggle handler. A secondary anchor consumes its
+        // gesture before the editable field, avoiding two toggles for one tap.
+        onExpandedChange = { if (enabled) expanded = it },
         modifier = modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().bringIntoViewRequester(inlineView)
             .onSizeChanged { inlineHeight = it.height }) {
@@ -151,8 +151,9 @@ fun CategoryDropdown(
                     if(value.isNotBlank() || query.isNotBlank()) IconButton(enabled=enabled,onClick={
                         query="";editing=true;expanded=true;onSelect("")
                     },modifier=Modifier.testTag("category-clear")) { Icon(Icons.Rounded.Close,"Clear category") }
-                    IconButton(enabled = enabled, onClick = { expanded = !expanded },
-                        modifier = Modifier.testTag("category-toggle").semantics {
+                    IconButton(enabled = enabled, onClick = {},
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable, enabled)
+                            .testTag("category-toggle").semantics {
                             contentDescription = strings.text("Categories")
                         }) { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
                 }
