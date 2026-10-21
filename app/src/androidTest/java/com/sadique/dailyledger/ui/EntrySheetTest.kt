@@ -27,6 +27,12 @@ class EntrySheetTest {
         compose.onNodeWithTag("quick-entry-saving").assertDoesNotExist()
         compose.onNodeWithTag("quick-entry-budget").assertDoesNotExist()
         assertEquals(5, quickEntryActions.size)
+        val bounds = quickEntryActions.map { compose.onNodeWithTag("quick-entry-${it.id}").fetchSemanticsNode().boundsInRoot }
+        bounds.zipWithNext().forEach { (upper, lower) ->
+            assertTrue("Shortcuts must form a vertical list", upper.bottom <= lower.top)
+            assertEquals(upper.center.x, lower.center.x, 1f)
+        }
+        assertTrue(bounds.last().bottom <= toggle.fetchSemanticsNode().boundsInRoot.top)
         assertEquals(before, toggle.fetchSemanticsNode().boundsInRoot)
         compose.waitForIdle()
         val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation

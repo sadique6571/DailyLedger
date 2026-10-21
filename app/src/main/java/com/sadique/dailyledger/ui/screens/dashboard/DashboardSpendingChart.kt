@@ -67,7 +67,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Box(Modifier.size(if (compact) 180.dp else 200.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
                         Canvas(Modifier.fillMaxSize()) {
-                            val width = 20.dp.toPx()
+                            val width = 26.dp.toPx()
                             val inset = width / 2
                             drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                             var start = -90f
