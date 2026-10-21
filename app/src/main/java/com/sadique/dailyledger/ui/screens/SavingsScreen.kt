@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.sadique.dailyledger.ui.isValidDate
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.*
 import com.sadique.dailyledger.ui.money
