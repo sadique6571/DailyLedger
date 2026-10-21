@@ -91,7 +91,7 @@ internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()
         LedgerDateField(date,{date=it},label=when(kind){FinanceKind.GOAL->"Goal deadline";FinanceKind.INSTALLMENT->"First installment date";else->"Plan date"},enabled=!busy)
         if(kind==FinanceKind.GOAL)LedgerTextField(already,{already=it},readOnly=initial!=null,label={Text("Already saved toward goal PKR")},supportingText={Text("Existing savings only; this does not create another saving entry.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),enabled=!busy)
         if(kind==FinanceKind.INSTALLMENT){LedgerTextField(advance,{advance=it},label={Text("Advance PKR")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),enabled=!busy);LedgerTextField(count,{count=it},label={Text("Number of monthly installments")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),enabled=!busy)}
-        LedgerTextField(note,{note=it},label={Text(if(kind in listOf(FinanceKind.TRANSFER,FinanceKind.ADJUSTMENT))"Reason (required)" else "Note")},enabled=!busy,modifier=Modifier.fillMaxWidth())
+        LedgerTextField(note,{note=it},singleLine=true,label={Text(if(kind in listOf(FinanceKind.TRANSFER,FinanceKind.ADJUSTMENT))"Reason (required)" else "Note")},enabled=!busy,modifier=Modifier.fillMaxWidth())
     }
 }
 
@@ -123,7 +123,7 @@ internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()
         FinanceSelect("Account",account,accounts,{account=it},!busy)
         LedgerTextField(amount,{amount=it},readOnly=quantity.isNotBlank(),label={Text("Amount PKR")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
         CategoryDropdown(type,category,{category=it},enabled=!busy && initial?.refundOf.isNullOrBlank())
-        LedgerTextField(note,{note=it},label={Text("Item / note")},enabled=!busy,modifier=Modifier.fillMaxWidth())
+        LedgerTextField(note,{note=it},singleLine=true,label={Text("Item / note")},enabled=!busy,modifier=Modifier.fillMaxWidth())
         if(type=="EXPENSE" && initial?.refundOf.isNullOrBlank()){
             LedgerTextField(quantity,{quantity=it},label={Text("Quantity (optional)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),enabled=!busy)
             LedgerTextField(unit,{unit=it},label={Text("Unit (litres, kg, pieces)")},enabled=!busy)

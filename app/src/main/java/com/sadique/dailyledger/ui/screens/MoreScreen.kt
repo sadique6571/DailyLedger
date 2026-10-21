@@ -33,11 +33,10 @@ fun MoreScreen(onTransactions: () -> Unit, onLoans: () -> Unit, onKameti: () -> 
                 Text("Everything you need in one place", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val rows = listOf(
-                Triple("Money tools", "Plans, accounts, shopping, refunds and private records", Icons.Rounded.AccountBalanceWallet) to onFinanceTools,
                 Triple("Insights", "Spending patterns and offline saving suggestions", Icons.Rounded.BarChart) to onInsights,
                 Triple("Transactions", "Search, edit and manage your entries", Icons.Rounded.Description) to onTransactions,
                 Triple("Loans", "Borrowed, lent and payment history", Icons.Rounded.Handshake) to onLoans,
-                Triple("Settings & backup", "Account, themes and Google Drive backup", Icons.Rounded.Settings) to onSettings,
+                Triple("Settings & backup", "Account, security and Google Drive backup", Icons.Rounded.Settings) to onSettings,
                 Triple("Category budgets", "Monthly limits and spending progress", Icons.Rounded.AccountBalanceWallet) to onBudgets,
                 Triple("Bills & reminders", "Review recurring entries before saving", Icons.Rounded.EventNote) to onBills,
                 Triple("Kameti calendar", "Paid, pending and expected receiving", Icons.Rounded.CalendarMonth) to onCalendar,

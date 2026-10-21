@@ -149,7 +149,6 @@ fun DailyLedgerApp(
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val db = com.sadique.dailyledger.data.AppDatabase.get(context.applicationContext)
                 db.openHelper.writableDatabase
-                com.sadique.dailyledger.data.LedgerRepository(db, user.id).profileSnapshot()
             }
             databaseReady = true
         } catch (e: CancellationException) { throw e }
@@ -168,7 +167,7 @@ fun DailyLedgerApp(
         factory = MainViewModel.Factory(context.applicationContext as Application, user.id),
     )
     var navigation by rememberSaveable(user.id, stateSaver = listSaver(
-        save = { it.entries }, restore = { NavigationHistory(it) }
+        save = { it.entries }, restore = { NavigationHistory(it.filterNot { entry -> entry == NavigationHistory.FINANCE_TOOLS }) }
     )) { mutableStateOf(NavigationHistory()) }
     val tab = navigation.current
     var detailedDraft by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -639,7 +638,6 @@ fun DailyLedgerApp(
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
                 COMPARISON -> MonthlyComparisonScreen(user.id, tx, savings)
                 SEARCH -> GlobalSearchScreen(vm, ::open)
-                NavigationHistory.FINANCE_TOOLS -> com.sadique.dailyledger.ui.screens.FinanceToolsScreen(vm, entryRequest = entryRequest, onEntryOpened = { entryRequest = null })
                 LEARNING -> LearningScreen(vm)
                 else -> MoreScreen(
                     onTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
@@ -654,7 +652,6 @@ fun DailyLedgerApp(
                     onCalendar = { open(CALENDAR) },
                     onComparison = { open(COMPARISON) },
                     onSearch = { open(SEARCH) },
-                    onFinanceTools = { open(NavigationHistory.FINANCE_TOOLS) },
                     onReminders = { remindersOpen = true },
                 )
             }

@@ -76,7 +76,7 @@ internal fun CreditEntryDialog(
                     singleLine = true)
                 LedgerDateField(date, { date = it }, label = "Purchase date")
                 LedgerDateField(due, { due = it }, label = "Due date (optional)", optional = true)
-                OutlinedTextField(note, { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
                 Text("Contact (optional)", style = MaterialTheme.typography.labelLarge)
                 OutlinedTextField(phone, { phone = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("Phone") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -215,7 +215,7 @@ internal fun CreditPaymentDialog(
                         FilterChip(selected = method == option, onClick = { method = option }, label = { Text(option) })
                     }
                 }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
         confirmButton = {

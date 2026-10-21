@@ -1,6 +1,7 @@
 package com.sadique.dailyledger.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ime
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -79,4 +80,47 @@ class EntrySaveAndKeyboardTest {
         compose.onNodeWithText("Entry date").assertTextContains("2026-10-20")
         compose.onNodeWithTag("transaction-save").assertIsDisplayed().assertIsEnabled()
     }
+    @Test fun simplifiedFormHasNoShortcutsAndNoteMovesToDate() {
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialAmount = "100", initialCategory = "Milk", onHistory = { _, _ -> })
+        } }
+        listOf("View history", "Quick notes", "Weekly", "Monthly", "Today", "Yesterday").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
+        }
+        compose.onNodeWithTag("transaction-note").performScrollTo().performTextInput("Lunch")
+        compose.onNodeWithTag("transaction-note").performImeAction()
+        compose.onNodeWithText("Entry date").assertIsFocused()
+        compose.onNodeWithTag("transaction-note").assertTextContains("Lunch")
+    }
+
+    @Test fun keyboardScrollDoesNotMoveSheetAndHandleExpandsWithoutLosingDraft() {
+        var imeBottom = 0
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            val bottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+            SideEffect { imeBottom = bottom }
+            TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialAmount = "150", initialCategory = "Milk")
+        } }
+        val sheet = compose.onNodeWithTag("transaction-bottom-sheet")
+        compose.onNodeWithTag("transaction-note").performScrollTo().performTextInput("Keep my note")
+        compose.waitUntil(5000) { imeBottom > 0 }
+        var previousTop = Float.NaN
+        var lastMovement = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) {
+            val top = sheet.fetchSemanticsNode().boundsInRoot.top
+            if (top != previousTop) { previousTop = top; lastMovement = android.os.SystemClock.uptimeMillis() }
+            android.os.SystemClock.uptimeMillis() - lastMovement > 400
+        }
+        val top = sheet.fetchSemanticsNode().boundsInRoot.top
+        repeat(3) {
+            compose.onNodeWithTag("transaction-entry-body").performTouchInput { swipeUp() }
+            compose.waitForIdle()
+            assertEquals("Keyboard scrolling must not drag the sheet", top, sheet.fetchSemanticsNode().boundsInRoot.top, 1f)
+        }
+        compose.onNodeWithTag("entry-sheet-handle").performClick()
+        compose.waitForIdle()
+        assertTrue("Handle must expand the form", sheet.fetchSemanticsNode().boundsInRoot.top < top)
+        compose.onNodeWithTag("transaction-note").performScrollTo().assertTextContains("Keep my note")
+        compose.onNodeWithTag("transaction-save").assertIsDisplayed()
+    }
+
 }

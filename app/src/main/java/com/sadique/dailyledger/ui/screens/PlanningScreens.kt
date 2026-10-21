@@ -187,7 +187,7 @@ internal fun BillReview(bill: RecurringBill, dismiss: () -> Unit, save: suspend 
             CategoryDropdown(bill.type, category, { category = it }, enabled = !busy)
             OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount (Rs)") })
             LedgerDateField(date, { date = it }, label = "Entry date", enabled = !busy)
-            OutlinedTextField(note, { note = it.take(500) }, enabled = !busy, label = { Text("Note") })
+            OutlinedTextField(note, { note = it.take(500) }, singleLine = true, enabled = !busy, label = { Text("Note") })
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }, confirmButton = { TextButton(enabled = !busy, onClick = {

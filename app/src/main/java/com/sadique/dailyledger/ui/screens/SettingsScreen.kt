@@ -441,60 +441,8 @@ fun SettingsScreen(
             AppVerificationCard(context)
         }
 
-        if (matchesSetting("Appearance theme font icon size card dashboard order privacy screenshot language")) enteringItem(key = "settings-appearance", index = 7, entranceKey = entranceVisit) {
-            SectionCard("Appearance", null) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("SYSTEM", "LIGHT", "DARK", "AQUA", "SUNSET", "FOREST", "ROSE", "MIDNIGHT").forEach {
-                        FilterChip(
-                            selected = theme == it,
-                            onClick = { onTheme(it) },
-                            label = { Text(it.lowercase().replaceFirstChar(Char::uppercase)) },
-                        )
-                    }
-                }
-                Text("Accessibility and layout presets", style = MaterialTheme.typography.titleSmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(onClick = {
-                        display.updateFontSize(1)
-                        display.updateIconSize(1)
-                        display.updateCardSize(1)
-                        display.updateCompact(false)
-                    }) { Text("Standard") }
-                    OutlinedButton(onClick = {
-                        display.updateFontSize(0)
-                        display.updateIconSize(0)
-                        display.updateCardSize(0)
-                        display.updateCompact(true)
-                    }) { Text("Compact") }
-                    OutlinedButton(onClick = {
-                        display.updateFontSize(3)
-                        display.updateIconSize(2)
-                        display.updateCardSize(2)
-                        display.updateCompact(false)
-                    }) { Text("Easy read") }
-                }
-                Text("Font size", style = MaterialTheme.typography.titleSmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Small", "Medium", "Large", "XL").forEachIndexed { index, label ->
-                        FilterChip(selected = display.fontSize == index, onClick = { display.updateFontSize(index) }, label = { Text(label) })
-                    }
-                }
-                Text("Icon size", style = MaterialTheme.typography.titleSmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Small", "Medium", "Large").forEachIndexed { index, label ->
-                        FilterChip(selected = display.iconSize == index, onClick = { display.updateIconSize(index) }, label = { Text(label) })
-                    }
-                }
-                Text("Card size", style = MaterialTheme.typography.titleSmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Compact", "Normal", "Spacious").forEachIndexed { index, label ->
-                        FilterChip(selected = display.cardSize == index, onClick = { display.updateCardSize(index) }, label = { Text(label) })
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Compact layout", Modifier.weight(1f))
-                    Switch(checked = display.compact, onCheckedChange = display::updateCompact)
-                }
+        if (matchesSetting("Security privacy screenshot biometric device lock")) enteringItem(key = "settings-security", index = 7, entranceKey = entranceVisit) {
+            SectionCard("Security & privacy", null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Hide financial amounts (privacy)", Modifier.weight(1f))
                     Switch(checked = display.privateAmounts, onCheckedChange = display::updatePrivateAmounts)
@@ -503,20 +451,7 @@ fun SettingsScreen(
                     Text("Block screenshots and app previews", Modifier.weight(1f))
                     Switch(checked = display.secureScreens, onCheckedChange = display::updateSecureScreens)
                 }
-                Text("Live preview", style = MaterialTheme.typography.titleMedium)
-                LedgerCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        GlowIcon(Icons.Rounded.AccountBalanceWallet, MaterialTheme.colorScheme.primary)
-                        Column(Modifier.weight(1f)) {
-                            Text("Sample balance card", style = MaterialTheme.typography.titleMedium)
-                            Text(if (display.privateAmounts) "Rs •••••" else "Rs 45,500",
-                                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                            Text("Changes apply immediately", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-                OutlinedButton(onClick = display::reset, modifier = Modifier.fillMaxWidth()) { Text("Reset display settings") }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Biometric / device lock", Modifier.weight(1f))
                     Switch(biometric, onCheckedChange = onBiometric)
                 }

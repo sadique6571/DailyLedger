@@ -51,7 +51,10 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     val error = _error.asStateFlow()
     fun clearError() { _error.value = null }
     init { viewModelScope.launch(Dispatchers.IO) {
-        try { repo.ensureLedgerCycle(); repo.learningSnapshot() }
+        try {
+            if (!dao.hasProfileBackup(ownerId)) repo.profileSnapshot()
+            repo.ensureLedgerCycle(); repo.learningSnapshot()
+        }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { _error.value = e.message ?: "Saved data could not be loaded." }
     } }

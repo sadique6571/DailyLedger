@@ -96,6 +96,7 @@ fun TransactionDialog(
             } else true
         }
     }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true, confirmValueChange = confirmSheetChange,
     )
@@ -103,20 +104,22 @@ fun TransactionDialog(
         onDismissRequest = { if (keyboardVisible) keyboard?.hide() else safeDismiss() },
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !keyboardVisible),
         sheetState = sheetState,
+        sheetGesturesEnabled = !keyboardVisible && !busy,
+        dragHandle = { com.sadique.dailyledger.ui.LedgerSheetHandle(fullScreen, { fullScreen = it }) },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
         tonalElevation = 0.dp,
         modifier = Modifier.testTag("transaction-bottom-sheet"),
     ) {
         BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
-        Column(Modifier.fillMaxWidth().fillMaxHeight(if (keyboardVisible) .98f else .82f).imePadding()
+        Column(Modifier.fillMaxWidth().fillMaxHeight(if (fullScreen) .99f else .86f).imePadding()
             .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
             .testTag("wide-transaction-entry")) {
             Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction",
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = sidePadding, vertical = 4.dp))
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())
+            Column(Modifier.weight(1f).testTag("transaction-entry-body").verticalScroll(rememberScrollState())
                 .padding(horizontal = sidePadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row {
                     FilterChip(type == "EXPENSE", { type = "EXPENSE"; cat = "" }, { Text("Expense") }, enabled = !busy)
@@ -139,24 +142,8 @@ fun TransactionDialog(
                     action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
                 }) { Text("Quantity, account & privacy options") } }
                 CategoryDropdown(type, cat, { cat = it }, inlineResults = true, enabled = !busy)
-                onHistory?.let { history -> TextButton(enabled = !busy, onClick = { history(type, cat) }) { Text("View history") } }
-                OutlinedTextField(note, { note = it }, enabled = !busy, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
-                Text("Quick notes", style = MaterialTheme.typography.labelMedium)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Monthly", "Weekly", "Cash", "Online").forEach { preset ->
-                        AssistChip(onClick = { note = if (note.isBlank()) preset else "$note • $preset" }, label = { Text(preset) })
-                    }
-                }
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    TextButton(enabled = !busy, onClick = { date = LocalDate.now().toString() },
-                        contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Today") }
-                    TextButton(onClick = { date = LocalDate.now().minusDays(1).toString() },
-                        contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Yesterday") }
-                }
+                OutlinedTextField(note, { note = it }, enabled = !busy, singleLine = true,
+                    label = { Text("Note") }, modifier = Modifier.fillMaxWidth().testTag("transaction-note"))
                 LedgerDateField(date, { date = it }, enabled = !busy, label = if (type == "INCOME" && cat.equals("Salary", true)) "Salary date" else "Entry date", calendarTag = "transaction-calendar")
             }
             saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = sidePadding).testTag("transaction-save-error")) }

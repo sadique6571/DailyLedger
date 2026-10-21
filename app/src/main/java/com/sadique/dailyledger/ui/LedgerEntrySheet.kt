@@ -56,12 +56,15 @@ fun LedgerEntrySheet(
             } else target != SheetValue.Hidden || latestCanDismiss.value
         }
     }
+    var fullScreen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val state = rememberModalBottomSheetState(
         skipPartiallyExpanded = true, confirmValueChange = confirmChange,
     )
     ModalBottomSheet(
         onDismissRequest = dismissSafely,
         sheetState = state,
+        sheetGesturesEnabled = !keyboardVisible && canDismiss,
+        dragHandle = { LedgerSheetHandle(fullScreen, { fullScreen = it }) },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
         tonalElevation = 0.dp,
@@ -69,7 +72,7 @@ fun LedgerEntrySheet(
     ) {
         CompositionLocalProvider(LocalEntrySheet provides true) {
             BackHandler(enabled = keyboardVisible) { keyboard?.hide() }
-            Column(modifier.fillMaxWidth().fillMaxHeight(if (keyboardVisible) .98f else .82f).imePadding()
+            Column(modifier.fillMaxWidth().fillMaxHeight(if (fullScreen) .99f else .86f).imePadding()
                 .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .testTag("ledger-entry-sheet")) {

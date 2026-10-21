@@ -47,7 +47,7 @@ internal fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Cash", "Bank", "Easypaisa", "JazzCash", "Other").forEach { FilterChip(method == it, { method = it }, { Text(it) }) }
                 }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
         confirmButton = { Button(enabled = validAmount && isValidDate(date), onClick = { parsed?.let { save(it, date.trim(), note, method) } }) { Text("Save receiving") } },
@@ -90,7 +90,7 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
                 if (p != null && t != null && p in 1..t && isValidMonth(start)) Text("My month: ${YearMonth.parse(start).plusMonths((p - 1).toLong())}", style = MaterialTheme.typography.bodySmall)
                 ContactPickerButton { _, pickedPhone -> organizerPhone = pickedPhone }
                 OutlinedTextField(organizerPhone, { organizerPhone = it }, label = { Text("Organizer phone / WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
         confirmButton = { Button(enabled = valid, onClick = { save(name.ifBlank { "Kameti" }, a!!, t!!, start.trim(), p, note, s!!, organizerPhone) }) { Text("Save") } },
@@ -167,7 +167,7 @@ internal fun PersonalMemberBatchDialog(
                 turnMonth?.let { Text("Receiving month: $it", style = MaterialTheme.typography.titleSmall) }
                 if (duplicate) Text("This turn already has a full share (or two half shares).", color = MaterialTheme.colorScheme.error)
                 if (isMe && !canAddMyTurn) Text("Your declared shares are already allocated; increase shares in a new Kameti if needed.", color = MaterialTheme.colorScheme.error)
-                OutlinedTextField(note, { note = it }, label = { Text("Note") })
+                OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
                 OutlinedButton(enabled = valid, onClick = {
                     queued.add(PersonalTurnDraft(name.ifBlank { "Me" }.trim(), phone.trim(), whatsapp.trim(), turnNumber!!,
                         turnMonth!!, isMe, note.trim(), halfUnits))

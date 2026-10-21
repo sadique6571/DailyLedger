@@ -84,7 +84,7 @@ fun SavingDialog(dismiss: () -> Unit, onHistory: (() -> Unit)? = null, save: (St
             }
             OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
             LedgerDateField(date, { date = it }, label = "Entry date")
-            OutlinedTextField(note, { note = it }, label = { Text("Note") })
+            OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             onHistory?.let { action -> TextButton(onClick = action) { Text("View history") } }
         }
     }, confirmButton = { Button(enabled = isValidDate(date), onClick = { parseMinor(amount)?.takeIf { it > 0 }?.let { save(kind, it, date.trim(), note) } }) { Text("Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })

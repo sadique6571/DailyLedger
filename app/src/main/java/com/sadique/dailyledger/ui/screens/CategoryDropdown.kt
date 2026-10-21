@@ -76,12 +76,10 @@ fun CategoryDropdown(
     var expanded by remember { mutableStateOf(false) }
     val inlineView = remember { BringIntoViewRequester() }
     var inlineHeight by remember { mutableIntStateOf(0) }
-    val imeBottom = WindowInsets.ime.getBottom(density)
-    LaunchedEffect(inlineResults, expanded, imeBottom, inlineHeight) {
+    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
+    LaunchedEffect(inlineResults, expanded, keyboardVisible) {
         if (inlineResults && expanded) {
-            // Relocate with the layout frame, never with a delayed wall-clock
-            // task that can move a result underneath a tap already in progress.
-            // IME visibility starts one more frame request; typing does not.
+            // Relocate once per open/keyboard transition, never for each IME animation frame.
             withFrameNanos { }
             val firstRows = with(density) { 220.dp.toPx() }
             inlineView.bringIntoView(Rect(0f, 0f, 1f,
