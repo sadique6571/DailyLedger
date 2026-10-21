@@ -17,11 +17,14 @@ class DisplayPreferences(context: Context) {
     fun updateDashboardOrder(order: List<String>) { dashboardOrder = normalizeOrder(order); store.edit().putString("dashboard_order", dashboardOrder.joinToString(",")).apply() }
     fun resetDashboardOrder() = updateDashboardOrder(DEFAULT_ORDER)
     companion object {
-        val DEFAULT_ORDER = listOf("greeting", "balance", "monthly-totals", "salary-cycle-controls", "budget-notice", "spending", "frequent-items", "recent", "insights-shortcut", "separate-totals", "udhar-shortcut", "insights")
+        val DEFAULT_ORDER = listOf("greeting", "balance", "backup-status", "monthly-totals", "salary-cycle-controls", "budget-notice", "spending", "frequent-items", "recent", "insights-shortcut", "separate-totals", "udhar-shortcut", "insights")
         fun normalizeOrder(order: List<String>) = (order.filter { it in DEFAULT_ORDER } + DEFAULT_ORDER).distinct()
     }
-    // One compact style for everyone; the phone's own accessibility font scale still applies.
-    val fontSize = 1
+    // Text size is user-selectable in Settings (0=Small, 1=Normal, 2=Large, 3=Extra large);
+    // the phone's own accessibility font scale still applies on top.
+    var fontSize by mutableStateOf(store.getInt("font_size", 1).coerceIn(0, 3))
+        private set
+    fun updateFontSize(value: Int) { fontSize = value.coerceIn(0, 3); store.edit().putInt("font_size", fontSize).apply() }
     val iconSize = 1
     val cardSize = 0
     val compact = true
@@ -41,6 +44,16 @@ class DisplayPreferences(context: Context) {
         private set
     var savingsFirst by mutableStateOf(store.getBoolean("savings_first", true))
         private set
+    // First-run intro: shown once per install until the user finishes or skips it.
+    var onboardingSeen by mutableStateOf(store.getBoolean("onboarding_seen", false))
+        private set
+    fun updateOnboardingSeen(value: Boolean) { onboardingSeen = value; store.edit().putBoolean("onboarding_seen", value).apply() }
+    // Savings goal (target amount + optional label), shown on the Savings screen. UI-only; not part of ledger data.
+    var savingsGoalMinor by mutableStateOf(store.getLong("savings_goal_minor", 0L))
+        private set
+    var savingsGoalLabel by mutableStateOf(store.getString("savings_goal_label", "") ?: "")
+        private set
+    fun updateSavingsGoal(minor: Long, label: String) { savingsGoalMinor = minor.coerceAtLeast(0L); savingsGoalLabel = label; store.edit().putLong("savings_goal_minor", savingsGoalMinor).putString("savings_goal_label", label).apply() }
 
     fun updateSecureScreens(value: Boolean) { secureScreens = value; store.edit().putBoolean("secure_screens", value).apply() }
     fun updatePrivateAmounts(value: Boolean) { privateAmounts = value; store.edit().putBoolean("private_amounts", value).apply() }
@@ -51,6 +64,7 @@ class DisplayPreferences(context: Context) {
     fun updateShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
     fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
+        updateFontSize(1)
         updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
         updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true); resetDashboardOrder()
     }

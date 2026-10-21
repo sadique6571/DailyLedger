@@ -22,6 +22,40 @@ fun parseMinor(text: String): Long? = runCatching {
         .longValueExact()
 }.getOrNull()
 
+/**
+ * Like [parseMinor] but also accepts a simple +/- chain of amounts, e.g.
+ * "1200+350-100" — handy when an entry is made of several parts. A single
+ * plain amount behaves exactly like [parseMinor]; invalid input returns null.
+ */
+fun parseAmountExpression(raw: String): Long? {
+    val text = raw.replace(",", "").trim()
+    if (text.isEmpty()) return null
+    if (text.none { it == '+' || it == '-' }) return parseMinor(text)
+    var total = 0L
+    var sign = 1L
+    var index = 0
+    if (text[0] == '-') { sign = -1L; index = 1 } else if (text[0] == '+') { index = 1 }
+    val current = StringBuilder()
+    fun flush(): Boolean {
+        val part = current.toString()
+        if (part.isEmpty()) return false
+        val value = parseMinor(part) ?: return false
+        total += sign * value
+        current.clear()
+        return true
+    }
+    while (index < text.length) {
+        val c = text[index]
+        if (c == '+' || c == '-') {
+            if (!flush()) return null
+            sign = if (c == '-') -1L else 1L
+        } else current.append(c)
+        index++
+    }
+    if (!flush()) return null
+    return total
+}
+
 /** Paisa -> plain decimal string (never scientific notation), e.g. 1250050 -> "12500.50". */
 fun plainAmount(minor: Long): String = BigDecimal.valueOf(minor).movePointLeft(2).setScale(2).toPlainString()
 

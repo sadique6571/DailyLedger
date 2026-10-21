@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_expense"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_expense"
+        android:shortcutLongLabel="@string/shortcut_new_expense_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.sadique.dailyledger"
+            android:targetClass="com.sadique.dailyledger.MainActivity">
+            <extra
+                android:name="ledger_action"
+                android:value="expense" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="new_udhar"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_udhar"
+        android:shortcutLongLabel="@string/shortcut_new_udhar_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.sadique.dailyledger"
+            android:targetClass="com.sadique.dailyledger.MainActivity">
+            <extra
+                android:name="ledger_action"
+                android:value="credit" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

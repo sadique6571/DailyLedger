@@ -87,7 +87,7 @@ class MainActivity : FragmentActivity() {
             LaunchedEffect(current?.user?.id, current?.biometric) { com.sadique.dailyledger.widget.LedgerWidget.refresh(applicationContext) }
             var unlocked by remember { mutableStateOf(false) }
             LaunchedEffect(current != null) {
-                if (current != null) unlocked = !current.biometric
+                if (current != null) unlocked = !current.biometric && current.pinHash.isBlank()
             }
 
             val displayPrefs = remember { com.sadique.dailyledger.ui.DisplayPreferences(applicationContext) }
@@ -115,12 +115,14 @@ class MainActivity : FragmentActivity() {
                         }
                         current == null || !sessionReady -> LoadingScreen()
                         current.user == null -> AuthGate()
-                        current.biometric && !unlocked -> Locked { unlocked = true }
+                        (current.biometric || current.pinHash.isNotBlank()) && !unlocked -> Locked(current.pinHash, current.biometric) { unlocked = true }
+                        !displayPrefs.onboardingSeen -> com.sadique.dailyledger.ui.screens.OnboardingScreen(onDone = { displayPrefs.updateOnboardingSeen(true) })
                         else -> DailyLedgerApp(
                             user = current.user,
                             settings = settings,
                             theme = current.theme,
                             biometric = current.biometric,
+                            pinHash = current.pinHash,
                             driveEnabled = current.driveEnabled,
                             lastSync = current.lastSync,
                             driveStatus = current.driveStatus,
@@ -187,7 +189,7 @@ class MainActivity : FragmentActivity() {
     }
 
     @Composable
-    private fun Locked(onUnlock: () -> Unit) {
+    private fun Locked(pinHash: String, biometricEnabled: Boolean, onUnlock: () -> Unit) {
         val authenticators = remember { Biometrics.pick(this) }
         val prompt = remember {
             BiometricPrompt(
@@ -202,8 +204,9 @@ class MainActivity : FragmentActivity() {
         }
         val start: () -> Unit = {
             if (authenticators == null) {
-                // No screen lock / biometrics enrolled on this device: never trap the user out of their data.
-                onUnlock()
+                // No screen lock / biometrics enrolled on this device: never trap the user out of their data,
+                // unless a PIN is set — then the PIN field below is the way in.
+                if (pinHash.isBlank()) onUnlock()
             } else {
                 val info = BiometricPrompt.PromptInfo.Builder()
                     .setTitle("Unlock Daily Ledger")
@@ -214,6 +217,8 @@ class MainActivity : FragmentActivity() {
             }
         }
         LaunchedEffect(Unit) { start() }
-        Box(Modifier.fillMaxSize().safeDrawingPadding()) { LockedScreen(start) }
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            LockedScreen(unlock = start, pinHash = pinHash, showBiometric = biometricEnabled, onPinUnlock = onUnlock)
+        }
     }
 }

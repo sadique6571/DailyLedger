@@ -5,11 +5,16 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import com.sadique.dailyledger.ui.enteringItem
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,9 +24,11 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
+import com.sadique.dailyledger.ui.rememberLedgerHaptics
 import com.sadique.dailyledger.ui.plainAmount
 import com.sadique.dailyledger.data.TransactionEntity
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TransactionsScreen(
     items: List<TransactionEntity>,
@@ -38,6 +45,7 @@ fun TransactionsScreen(
     var pendingDelete by remember { mutableStateOf<TransactionEntity?>(null) }
     var undoPendingId by remember { mutableStateOf<String?>(null) }
     val undoBar = remember { SnackbarHostState() }
+    val haptics = rememberLedgerHaptics()
     val undoScope = rememberCoroutineScope()
     var pendingSave by remember { mutableStateOf<(() -> Unit)?>(null) }
     var duplicateWarning by remember { mutableStateOf(false) }
@@ -138,7 +146,7 @@ fun TransactionsScreen(
             }
             sorted.forEachIndexed { index, x ->
                 if (sortOrder in setOf("NEWEST", "OLDEST") && (index == 0 || sorted[index - 1].date != x.date)) {
-                    enteringItem(key = "transaction-date-${x.date}") {
+                    stickyHeader(key = "transaction-date-${x.date}") {
                         Text(
                             when (x.date) {
                                 today.toString() -> "Today"
@@ -147,11 +155,43 @@ fun TransactionsScreen(
                             },
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(top = 8.dp, bottom = 2.dp),
                         )
                     }
                 }
                 enteringItem(key = x.id) {
+                    val swipeState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            when (value) {
+                                SwipeToDismissBoxValue.EndToStart -> { pendingDelete = x; false }
+                                SwipeToDismissBoxValue.StartToEnd -> { quickTemplate = null; edit = x; show = true; false }
+                                SwipeToDismissBoxValue.Settled -> false
+                            }
+                        },
+                    )
+                    SwipeToDismissBox(
+                        state = swipeState,
+                        backgroundContent = {
+                            val direction = swipeState.dismissDirection
+                            Box(
+                                Modifier.fillMaxSize().background(
+                                    when (direction) {
+                                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                                        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                                        else -> androidx.compose.ui.graphics.Color.Transparent
+                                    },
+                                    androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                                ).padding(horizontal = 16.dp),
+                                contentAlignment = if (direction == SwipeToDismissBoxValue.EndToStart) Alignment.CenterEnd else Alignment.CenterStart,
+                            ) {
+                                Icon(
+                                    if (direction == SwipeToDismissBoxValue.EndToStart) Icons.Rounded.Delete else Icons.Rounded.Edit,
+                                    null,
+                                    tint = if (direction == SwipeToDismissBoxValue.EndToStart) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                        },
+                    ) {
                     TransactionRow(
                         x = x,
                         compact = compactRows,
@@ -164,6 +204,7 @@ fun TransactionsScreen(
                         onShowDetails = { showDetails = x },
                         onToggleNote = { expandedNoteId = if (expandedNoteId == x.id) null else x.id },
                     )
+                    }
                 }
             }
         }
@@ -182,6 +223,7 @@ fun TransactionsScreen(
             privateAmounts = display.privateAmounts,
             onDismiss = { pendingDelete = null },
             onConfirm = {
+                haptics.confirm()
                 pendingDelete = null
                 undoPendingId = target.id
                 undoScope.launch {

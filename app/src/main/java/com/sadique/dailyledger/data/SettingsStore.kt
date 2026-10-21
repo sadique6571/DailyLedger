@@ -29,6 +29,7 @@ data class AppSettings(
     val weatherCondition: String = "",
     val weatherUpdatedAt: Long = 0,
     val transactionSounds: Boolean = false,
+    val pinHash: String = "",
 )
 
 class SettingsStore(private val context: Context) {
@@ -62,6 +63,7 @@ class SettingsStore(private val context: Context) {
     private fun driveAttemptHashKey(owner: String) = stringPreferencesKey("drive_attempt_hash:$owner")
     private fun driveAttemptFileKey(owner: String) = stringPreferencesKey("drive_attempt_file:$owner")
     private fun skippedDriveBackupKey(owner: String) = stringPreferencesKey("drive_restore_skipped:$owner")
+    private fun pinHashKey(owner: String) = stringPreferencesKey("pin_hash:$owner")
     private fun profile(p: Preferences) = p[K.userId]?.let {
         UserProfile(it, p[K.email].orEmpty(), p[K.name].orEmpty(), p[K.photo], p[K.googleEmail])
     }
@@ -82,6 +84,7 @@ class SettingsStore(private val context: Context) {
             weatherCondition = p[K.weatherCondition].orEmpty(),
             weatherUpdatedAt = p[K.weatherUpdatedAt] ?: 0L,
             transactionSounds = p[K.transactionSounds] ?: false,
+            pinHash = p[pinHashKey(id)].orEmpty(),
         )
     }
     val user = all.map { it.user }
@@ -103,6 +106,10 @@ class SettingsStore(private val context: Context) {
     }
     suspend fun setTheme(value: String) { context.dataStore.edit { it[K.theme] = value } }
     suspend fun setBiometric(value: Boolean) { context.dataStore.edit { it[K.biometric] = value } }
+    /** Stores the app-lock PIN hash for the owner; a blank hash removes the PIN. */
+    suspend fun setPinHash(owner: String, hash: String) {
+        context.dataStore.edit { if (hash.isBlank()) it.remove(pinHashKey(owner)) else it[pinHashKey(owner)] = hash }
+    }
     suspend fun setDriveEnabled(owner: String, value: Boolean) { context.dataStore.edit { it[drive(owner)] = value } }
     suspend fun setLastSync(owner: String, value: Long) { context.dataStore.edit { it[driveTime(owner)] = value } }
     suspend fun setDriveStatus(owner: String, value: String, state: String = "error") {

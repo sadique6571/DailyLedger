@@ -133,6 +133,7 @@ fun DailyLedgerApp(
     weatherUpdatedAt: Long,
     transactionSounds: Boolean,
     onLogout: () -> Unit,
+    pinHash: String = "",
 ) {
     val context = LocalContext.current
     val maskSaveAmounts = LocalDisplayPreferences.current?.privateAmounts == true
@@ -427,6 +428,9 @@ fun DailyLedgerApp(
                     scope.launch { settings.setBiometric(enable) }
                 }
             },
+            pinHash = pinHash,
+            onSetPin = { pin -> scope.launch { settings.setPinHash(user.id, com.sadique.dailyledger.security.PinLock.hash(pin)) } },
+            onRemovePin = { scope.launch { settings.setPinHash(user.id, "") } },
             onDriveEnabled = { enabled ->
                 scope.launch {
                     settings.setDriveEnabled(user.id, enabled)
@@ -533,6 +537,8 @@ fun DailyLedgerApp(
                     onOpenUdhar = { addCreditRequested = true; open(7) },
                     udharOutstanding = credits.sumOf { c -> (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0) },
                     creditPayments = creditPayments,
+                    lastSync = lastSync,
+                    driveEnabled = driveEnabled,
                     onOpenKameti = { open(3) },
                     onAutoFill = { run { aiEntryOpen = true } },
                     onAllTransactions = { historyQuery = ""; historyFilter = "ALL"; open(1) },
@@ -625,6 +631,7 @@ fun DailyLedgerApp(
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text("Your monthly insights", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         OutlinedButton(onClick = { open(COMPARISON) }) { Text("Monthly comparison") }
+                        com.sadique.dailyledger.ui.screens.SpendingTrendCard(tx)
                         InsightsCard(snapshot, aiTips, aiStatus, aiEnabled, onEnable = { aiConsent = true },
                             busy = aiBusy, onRefresh = { vm.refreshInsights(snapshot) }, onDismissTip = ::dismissTip, dismissedTipKeys = dismissedTips)
                     }
@@ -660,9 +667,15 @@ fun DailyLedgerApp(
     }
     LaunchedEffect(user.id) {
         val activity=context as? android.app.Activity
-        if(activity?.intent?.getStringExtra("ledger_action")=="expense") {
-            activity.intent.removeExtra("ledger_action")
-            quickTransaction=EntryShortcut("EXPENSE")
+        when (activity?.intent?.getStringExtra("ledger_action")) {
+            "expense" -> {
+                activity.intent.removeExtra("ledger_action")
+                quickTransaction=EntryShortcut("EXPENSE")
+            }
+            "credit" -> {
+                activity.intent.removeExtra("ledger_action")
+                addCreditRequested = true; open(7)
+            }
         }
         com.sadique.dailyledger.widget.LedgerWidget.refresh(context)
     }

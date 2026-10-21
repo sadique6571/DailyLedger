@@ -8,9 +8,11 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
+import com.sadique.dailyledger.data.expenseEffect
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.LedgerCard
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
@@ -105,6 +108,59 @@ private fun MetricChip(label: String, value: String, modifier: Modifier = Modifi
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall)
             Text(value, style = MaterialTheme.typography.titleSmall)
+        }
+    }
+}
+
+/** Bar chart of total expenses for the last six months, current month highlighted. */
+@Composable
+fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) {
+    val months = androidx.compose.runtime.remember(tx) {
+        val now = java.time.YearMonth.now()
+        (5 downTo 0).map { offset ->
+            val m = now.minusMonths(offset.toLong())
+            val total = tx.filter { it.type == "EXPENSE" && it.date.startsWith("$m-") }.sumOf { it.expenseEffect() }
+            m to total
+        }
+    }
+    if (months.all { it.second == 0L }) return
+    val max = months.maxOf { it.second }.coerceAtLeast(1L)
+    val currentMonth = java.time.YearMonth.now()
+    Card(
+        Modifier.fillMaxWidth().testTag("spending-trend-card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Spending trend", style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier.fillMaxWidth().height(96.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                months.forEach { (m, total) ->
+                    val barHeight = (96f * total.toFloat() / max.toFloat()).dp
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.weight(1f).height(if (total > 0) barHeight.coerceAtLeast(4.dp) else 2.dp)
+                            .background(
+                                if (m == currentMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = .4f),
+                                RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
+                            ),
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                months.forEach { (m, _) ->
+                    Text(
+                        m.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (m == currentMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            }
+            Text("This month: ${com.sadique.dailyledger.ui.visibleAmount(months.last().second)}", style = MaterialTheme.typography.labelMedium)
         }
     }
 }

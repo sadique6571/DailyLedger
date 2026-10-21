@@ -23,7 +23,7 @@ import com.sadique.dailyledger.ui.GlowIcon
 import com.sadique.dailyledger.ui.LedgerCard
 import com.sadique.dailyledger.ui.LedgerColors
 import com.sadique.dailyledger.ui.LedgerTokens
-import com.sadique.dailyledger.ui.categoryVisual
+import com.sadique.dailyledger.ui.rememberCategoryVisual
 
 internal fun TransactionEntity.frequentPurchaseLabel(): String =
     note.trim().ifBlank { category.trim().ifBlank { "Other" } }
@@ -46,7 +46,7 @@ internal fun DashboardFrequentSection(
         }
         if (expanded) items.forEachIndexed { index, (label, total) ->
             val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
-            val visual = categoryVisual(label, "EXPENSE")
+            val visual = rememberCategoryVisual(label, "EXPENSE")
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("frequent:$label"),
                 modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
@@ -95,7 +95,7 @@ internal fun DashboardRecentSection(
                 TextButton(onClick = onAddSalary) { Text("Add salary") }
             }
         } else recent.forEachIndexed { index, entry ->
-            val visual = categoryVisual(entry.category, entry.type)
+            val visual = rememberCategoryVisual(entry.category, entry.type)
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${entry.id}"),
                 modifier = Modifier.fillMaxWidth().testTag("recent-transaction-$index")

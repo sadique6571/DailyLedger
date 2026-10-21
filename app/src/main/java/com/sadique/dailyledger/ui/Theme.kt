@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -154,6 +155,29 @@ private val RoseColors = lightColorScheme(
     error = Color(0xFFEF4444),
 )
 
+/** True-black variant of the Ledger dark scheme for OLED screens. */
+val AmoledColors: ColorScheme = LedgerDarkColors.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceVariant = Color(0xFF0B1514),
+)
+
+/** A user-selectable look for the Appearance picker in Settings; colors mirror the schemes above. */
+data class LedgerThemeOption(val key: String, val label: String, val primary: Color, val secondary: Color, val background: Color)
+
+val LedgerThemeOptions: List<LedgerThemeOption> = listOf(
+    LedgerThemeOption("SYSTEM", "System", AquaColors.primary, LedgerDarkColors.primary, AquaColors.background),
+    LedgerThemeOption("DYNAMIC", "Wallpaper", Color(0xFF6750A4), Color(0xFF625B71), Color(0xFFFFFBFE)),
+    LedgerThemeOption("AQUA", "Aqua", AquaColors.primary, AquaColors.secondary, AquaColors.background),
+    LedgerThemeOption("LEDGER", "Ledger", LedgerLightColors.primary, LedgerLightColors.secondary, LedgerLightColors.background),
+    LedgerThemeOption("SUNSET", "Sunset", SunsetColors.primary, SunsetColors.secondary, SunsetColors.background),
+    LedgerThemeOption("FOREST", "Forest", ForestColors.primary, ForestColors.secondary, ForestColors.background),
+    LedgerThemeOption("ROSE", "Rose", RoseColors.primary, RoseColors.secondary, RoseColors.background),
+    LedgerThemeOption("MIDNIGHT", "Midnight", MidnightColors.primary, MidnightColors.secondary, MidnightColors.background),
+    LedgerThemeOption("DARK", "Dark", LedgerDarkColors.primary, LedgerDarkColors.secondary, LedgerDarkColors.background),
+    LedgerThemeOption("AMOLED", "AMOLED", LedgerDarkColors.primary, LedgerDarkColors.secondary, Color.Black),
+)
+
 @Composable
 fun DailyLedgerTheme(
     mode: String,
@@ -165,18 +189,23 @@ fun DailyLedgerTheme(
     val adjustedDensity = Density(deviceDensity.density, deviceDensity.fontScale * displayPrefs.fontMultiplier)
     val normalized = mode.uppercase()
     val dark = when (normalized) {
-        "DARK", "MIDNIGHT" -> true
+        "DARK", "MIDNIGHT", "AMOLED" -> true
         "LIGHT" -> false
-        "AQUA", "SUNSET", "FOREST", "ROSE" -> false
+        "AQUA", "SUNSET", "FOREST", "ROSE", "LEDGER" -> false
         else -> isSystemInDarkTheme()
     }
-    val scheme = when (normalized) {
+    val dynamicScheme = if (normalized == "DYNAMIC" && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (dark) androidx.compose.material3.dynamicDarkColorScheme(appContext) else androidx.compose.material3.dynamicLightColorScheme(appContext)
+    } else null
+    val scheme = dynamicScheme ?: when (normalized) {
         "AQUA" -> AquaColors
+        "LEDGER" -> LedgerLightColors
         "SUNSET" -> SunsetColors
         "MIDNIGHT" -> MidnightColors
         "FOREST" -> ForestColors
         "ROSE" -> RoseColors
         "DARK" -> LedgerDarkColors
+        "AMOLED" -> AmoledColors
         "LIGHT" -> AquaColors
         else -> if (dark) LedgerDarkColors else AquaColors
     }
@@ -198,18 +227,18 @@ fun DailyLedgerTheme(
     MaterialTheme(colorScheme = readable,
         shapes = Shapes(small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         typography = Typography(
-            headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
-            headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),
-            headlineSmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp),
-            titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 19.sp, lineHeight = 25.sp),
-            titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
-            titleSmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-            bodyLarge = TextStyle(fontFamily = if (strings.urdu) com.sadique.dailyledger.i18n.Nastaleeq else FontFamily.SansSerif, fontSize = if (strings.urdu) 16.sp else 14.sp, lineHeight = if (strings.urdu) 32.sp else 21.sp),
-            bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, lineHeight = 19.sp),
-            bodySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp),
-            labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = .1.sp),
-            labelMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = .3.sp),
-            labelSmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp, letterSpacing = .4.sp),
+            headlineLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
+            headlineMedium = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),
+            headlineSmall = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp),
+            titleLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 19.sp, lineHeight = 25.sp),
+            titleMedium = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
+            titleSmall = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
+            bodyLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = if (strings.urdu) com.sadique.dailyledger.i18n.Nastaleeq else FontFamily.SansSerif, fontSize = if (strings.urdu) 16.sp else 14.sp, lineHeight = if (strings.urdu) 32.sp else 21.sp),
+            bodyMedium = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontSize = 13.sp, lineHeight = 19.sp),
+            bodySmall = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontSize = 11.sp, lineHeight = 16.sp),
+            labelLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = .1.sp),
+            labelMedium = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = .3.sp),
+            labelSmall = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp, letterSpacing = .4.sp),
         ), content = content)
     }
 }
