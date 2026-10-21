@@ -104,7 +104,9 @@ fun TransactionDialog(
         onDismissRequest = { if (keyboardVisible) keyboard?.hide() else safeDismiss() },
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !keyboardVisible),
         sheetState = sheetState,
-        sheetGesturesEnabled = !keyboardVisible && !busy,
+        // Fullscreen body scrolling must never hand a boundary fling to the sheet.
+        // The dedicated handle still controls expand/reduce and dismissal.
+        sheetGesturesEnabled = !fullScreen && !keyboardVisible && !busy,
         dragHandle = { com.sadique.dailyledger.ui.LedgerSheetHandle(fullScreen, { fullScreen = it }) {
             if (keyboardVisible) keyboard?.hide() else safeDismiss()
         } },

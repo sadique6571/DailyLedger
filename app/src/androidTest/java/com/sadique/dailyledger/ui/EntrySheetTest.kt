@@ -1,5 +1,7 @@
 package com.sadique.dailyledger.ui
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.platform.LocalDensity
@@ -14,6 +16,80 @@ import org.junit.Test
 
 class EntrySheetTest {
     @get:Rule val compose = createComposeRule()
+
+    private fun fullScreenScrollStaysFixed(transaction: Boolean, withKeyboard: Boolean) {
+        var imeBottom = 0
+        compose.setContent { DailyLedgerTheme("LIGHT") {
+            if (transaction) {
+                TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialAmount = "150", initialCategory = "Milk")
+            } else LedgerEntrySheet(onDismissRequest = {}, title = { Text("Long entry") },
+                text = {
+                    androidx.compose.foundation.layout.Column {
+                        repeat(24) { Text("Entry row $it", androidx.compose.ui.Modifier.height(48.dp)) }
+                        var note by remember { mutableStateOf("") }
+                        LedgerTextField(note, { note = it }, label = { Text("Regression note") })
+                        val bottom = WindowInsets.ime.getBottom(LocalDensity.current)
+                        SideEffect { imeBottom = bottom }
+                    }
+                }, confirmButton = { androidx.compose.material3.Button({}) { Text("Save") } })
+        } }
+        val handle = compose.onNodeWithTag("entry-sheet-handle")
+        handle.performClick()
+        compose.waitForIdle()
+        if (withKeyboard) {
+            if (transaction) {
+                compose.onNodeWithTag("transaction-note").performScrollTo().performClick().performTextInput("Keep this draft")
+            } else {
+                compose.onNodeWithText("Regression note").performScrollTo().performClick().performTextInput("Keep this draft")
+                compose.waitUntil(5000) { imeBottom > 0 }
+            }
+            compose.waitUntil(5000) {
+                var visible = false
+                androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    visible = android.view.inspector.WindowInspector.getGlobalWindowViews().any { view ->
+                        androidx.core.view.ViewCompat.getRootWindowInsets(view)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+                    }
+                }
+                visible
+            }
+            compose.waitForIdle()
+        }
+        val body = compose.onNodeWithTag(if (transaction) "transaction-entry-body" else "ledger-entry-body")
+        var priorTop = Float.NaN
+        var movedAt = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) {
+            val current = handle.fetchSemanticsNode().boundsInRoot.top
+            if (current != priorTop) { priorTop = current; movedAt = android.os.SystemClock.uptimeMillis() }
+            android.os.SystemClock.uptimeMillis() - movedAt > 400
+        }
+        val top = handle.fetchSemanticsNode().boundsInRoot.top
+        compose.mainClock.autoAdvance = false
+        try {
+            // Fling repeatedly into both scroll boundaries, sampling during settling
+            // as well as after it; a final-position-only check misses sheet bouncing.
+            repeat(3) {
+                listOf(true, false).forEach { up ->
+                    body.performTouchInput { if (up) swipeUp() else swipeDown() }
+                    repeat(40) {
+                        compose.mainClock.advanceTimeBy(16)
+                        assertEquals("Fullscreen scrolling must not move the sheet", top,
+                            handle.fetchSemanticsNode().boundsInRoot.top, 1f)
+                    }
+                }
+            }
+        } finally { compose.mainClock.autoAdvance = true }
+        handle.performClick() // Dedicated handle must still reduce the form.
+        compose.waitForIdle()
+        assertTrue(handle.fetchSemanticsNode().boundsInRoot.top > top + 1f)
+        if (withKeyboard) compose.onNodeWithText("Keep this draft", substring = true).assertExists()
+    }
+
+    @Test fun fullscreenTransactionScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(true, false)
+    @Test fun fullscreenSharedScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(false, false)
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
+    @Test fun fullscreenTransactionKeyboardScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(true, true)
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
+    @Test fun fullscreenSharedKeyboardScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(false, true)
 
     @Test fun plusShowsOnlyFiveShortcutsAndRetractsAtTheSamePosition() {
         var selected = ""
