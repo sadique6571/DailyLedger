@@ -12,6 +12,7 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -147,6 +148,31 @@ fun CommitteeScreen(
                     SummaryCard("Total received", receipts.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f))
                 }
             }
+            enteringItem {
+                val remainingToPay = visibleCommittees.filter { it.active }.sumOf { c -> (c.expectedPayout() - payments.filter { it.committeeId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
+                val remainingToReceive = visibleCommittees.sumOf { committeeBalance(it, receipts).remaining }
+                SummaryCard("Remaining to pay", remainingToPay, Icons.Rounded.Payments, Modifier.fillMaxWidth(),
+                    detail = "Dena baqi: ${visibleMoney(remainingToPay)} • Milna baqi: ${visibleMoney(remainingToReceive)}")
+            }
+            enteringItem {
+                val totalExpected = visibleCommittees.filter { it.active }.sumOf { it.expectedPayout() }
+                val totalPaidK = payments.sumOf { it.amountMinor }
+                if (totalExpected > 0) {
+                    com.sadique.dailyledger.ui.LedgerRaisedCard(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            com.sadique.dailyledger.ui.ProgressDonut(
+                                progress = (totalPaidK.toFloat() / totalExpected.toFloat()).coerceIn(0f, 1f),
+                                centerLabel = "${totalPaidK * 100 / totalExpected}%",
+                                size = 76.dp, strokeWidth = 10.dp,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Kameti progress", style = MaterialTheme.typography.titleMedium)
+                                Text("Ada: ${visibleMoney(totalPaidK)} / Kul: ${visibleMoney(totalExpected)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
             if (visibleCommittees.isEmpty()) {
                 enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No kameti yet",
                     "Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.",
@@ -162,6 +188,12 @@ fun CommitteeScreen(
                 var history by remember(committee.id) { mutableStateOf(false) }
                 var memberList by remember(committee.id) { mutableStateOf(true) }
 
+                val committeeSwipe = rememberSwipeToDismissBoxState(confirmValueChange = { v -> if (v == SwipeToDismissBoxValue.EndToStart) { deleteCommittee = committee; false } else false })
+                SwipeToDismissBox(state = committeeSwipe, enableDismissFromStartToEnd = false, backgroundContent = {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                        Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                }) {
                 Card(
                     Modifier.fillMaxWidth(),
                     accent = com.sadique.dailyledger.ui.ledgerCardAccent(committee.id), shape = RoundedCornerShape(20.dp),
@@ -319,6 +351,7 @@ fun CommitteeScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

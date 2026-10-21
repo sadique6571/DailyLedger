@@ -39,6 +39,9 @@ private data class BottomTab(val label: String, val icon: ImageVector, val selec
 fun AppBottomBar(
     tab: Int,
     onSelectTab: (Int) -> Unit,
+    udharBadge: Int = 0,
+    kametiBadge: Int = 0,
+    moreBadge: Int = 0,
 ) {
     val tabs = remember {
         listOf(
@@ -56,7 +59,16 @@ fun AppBottomBar(
             val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS; else -> false }
             NavigationBarItem(selected = selected,
                 onClick = { haptics.tap(); onSelectTab(i) },
-                icon = { Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp)) },
+                icon = {
+                    val badgeCount = when (i) { 1 -> udharBadge; 2 -> kametiBadge; 4 -> moreBadge; else -> 0 }
+                    if (badgeCount > 0) {
+                        androidx.compose.material3.BadgedBox(badge = { androidx.compose.material3.Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) } }) {
+                            Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp))
+                        }
+                    } else {
+                        Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp))
+                    }
+                },
                 label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,

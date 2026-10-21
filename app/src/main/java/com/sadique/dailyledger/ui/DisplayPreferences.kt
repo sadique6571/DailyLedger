@@ -25,6 +25,10 @@ class DisplayPreferences(context: Context) {
     var fontSize by mutableStateOf(store.getInt("font_size", 1).coerceIn(0, 3))
         private set
     fun updateFontSize(value: Int) { fontSize = value.coerceIn(0, 3); store.edit().putInt("font_size", fontSize).apply() }
+    // Optional user accent color (ARGB int; 0 = use the theme's own colors).
+    var accentColor by mutableStateOf(store.getInt("accent_color", 0))
+        private set
+    fun updateAccent(value: Int) { accentColor = value; store.edit().putInt("accent_color", value).apply() }
     val iconSize = 1
     val cardSize = 0
     val compact = true
@@ -64,7 +68,7 @@ class DisplayPreferences(context: Context) {
     fun updateShowInsights(value: Boolean) { showInsights = value; store.edit().putBoolean("insights", value).apply() }
     fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
-        updateFontSize(1)
+        updateFontSize(1); updateAccent(0)
         updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
         updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true); resetDashboardOrder()
     }

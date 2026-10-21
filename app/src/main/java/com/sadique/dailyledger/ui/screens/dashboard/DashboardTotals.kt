@@ -41,8 +41,12 @@ internal fun DashboardStat(title: String, amount: Long, detail: String, icon: Im
                 GlowIcon(icon, color, size = 26.dp)
                 Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(if (hidden) "Rs •••••" else displayMoney(amount), style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (hidden) {
+                Text("Rs •••••", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else {
+                com.sadique.dailyledger.ui.AnimatedMoneyText(amount, { com.sadique.dailyledger.ui.displayMoney(it) },
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
             Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }

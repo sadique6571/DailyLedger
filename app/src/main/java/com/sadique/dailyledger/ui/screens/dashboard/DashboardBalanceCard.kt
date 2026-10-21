@@ -59,8 +59,9 @@ internal fun DashboardBalanceCard(
                         Icon(if (showBalance) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, if (showBalance) "Hide balance" else "Show balance", Modifier.size(18.dp), tint = Color(0xFFCDFBFF))
                     }
                 }
-                Text(money(summary.remaining), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(.77f))
+                com.sadique.dailyledger.ui.AnimatedMoneyText(summary.remaining, money, color = Color.White,
+                    style = androidx.compose.ui.text.TextStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.fillMaxWidth(.77f))
                 if (summary.remaining < 0) Text("This salary cycle is over budget", color = Color.White, fontSize = 11.sp)
                 // Keep the percentage outside the track: an overlaid chip clips in
                 // Urdu RTL and with large system text on narrower devices.

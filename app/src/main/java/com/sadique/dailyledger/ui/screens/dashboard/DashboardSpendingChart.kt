@@ -8,6 +8,8 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -55,6 +57,12 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
         )
     }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
+    // Sweep-in animation (Round 2): segments fill one after another whenever the data changes.
+    val sweepAnim = remember { Animatable(0f) }
+    LaunchedEffect(categories, total) {
+        sweepAnim.snapTo(0f)
+        sweepAnim.animateTo(1f, tween(900))
+    }
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
@@ -71,11 +79,16 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                             val inset = width / 2
                             drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
                             var start = -90f
+                            var budget = 360f * sweepAnim.value
                             categories.forEachIndexed { index, (_, value) ->
                                 val sweep = if (total > 0) 360f * value / total else 0f
-                                drawArc(colorFor(index), start, (sweep - minOf(1.2f, sweep * .15f)).coerceAtLeast(0f), false,
-                                    Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
+                                val drawn = minOf(sweep, budget).coerceAtLeast(0f)
+                                if (drawn > 0f) {
+                                    drawArc(colorFor(index), start, (drawn - minOf(1.2f, drawn * .15f)).coerceAtLeast(0f), false,
+                                        Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
+                                }
                                 start += sweep
+                                budget -= drawn
                             }
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {

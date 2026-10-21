@@ -17,7 +17,9 @@ import com.sadique.dailyledger.ui.enteringItems
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -83,6 +85,34 @@ fun LoansScreen(
     Scaffold(snackbarHost = { SnackbarHost(undoBar) }, floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
+            enteringItem {
+                val borrowedLeft = visibleLoans.filter { it.direction == "BORROWED" && !it.closed }.sumOf { l -> (l.principalMinor - payments.filter { it.loanId == l.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
+                val lentLeft = visibleLoans.filter { it.direction == "LENT" && !it.closed }.sumOf { l -> (l.principalMinor - payments.filter { it.loanId == l.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    com.sadique.dailyledger.ui.SummaryCard("Total dena hai", borrowedLeft, Icons.Rounded.Payments, Modifier.weight(1f))
+                    com.sadique.dailyledger.ui.SummaryCard("Total lena hai", lentLeft, Icons.Rounded.Handshake, Modifier.weight(1f))
+                }
+            }
+            enteringItem {
+                val openLoans = visibleLoans.filter { !it.closed }
+                val principal = openLoans.sumOf { it.principalMinor }
+                if (principal > 0) {
+                    val paidAll = openLoans.sumOf { l -> payments.filter { it.loanId == l.id }.sumOf { it.amountMinor } }
+                    com.sadique.dailyledger.ui.LedgerRaisedCard(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            com.sadique.dailyledger.ui.ProgressDonut(
+                                progress = (paidAll.toFloat() / principal.toFloat()).coerceIn(0f, 1f),
+                                centerLabel = "${paidAll * 100 / principal}%",
+                                size = 76.dp, strokeWidth = 10.dp,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Overall loan progress", style = MaterialTheme.typography.titleMedium)
+                                Text("Ada ho chuka: ${visibleMoney(paidAll)} / ${visibleMoney(principal)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
             if (visibleLoans.isEmpty()) enteringItem {
                 com.sadique.dailyledger.ui.LedgerEmptyState("No loans yet", "Track money borrowed or lent and record repayments here.",
                     "Add loan", Icons.Rounded.Handshake, onAction = { add = true })
@@ -91,6 +121,12 @@ fun LoansScreen(
                 var showHistory by remember(loan.id) { mutableStateOf(false) }
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)
+                val loanSwipe = rememberSwipeToDismissBoxState(confirmValueChange = { v -> if (v == SwipeToDismissBoxValue.EndToStart) { requestDelete(loan); false } else false })
+                SwipeToDismissBox(state = loanSwipe, enableDismissFromStartToEnd = false, backgroundContent = {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                        Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                }) {
                 com.sadique.dailyledger.ui.LedgerRecordCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(loan.id)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
@@ -124,6 +160,7 @@ fun LoansScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

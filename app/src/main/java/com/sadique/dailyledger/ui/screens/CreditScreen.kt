@@ -120,6 +120,15 @@ fun CreditScreen(
                             Text("Total outstanding", style = MaterialTheme.typography.labelLarge)
                             Text(money(outstanding), style = MaterialTheme.typography.headlineSmall)
                         }
+                        val totalUdhar = visibleCredits.sumOf { it.amountMinor }
+                        val paidUdhar = payments.filter { p -> visibleCredits.any { it.id == p.creditId } }.sumOf { it.amountMinor }
+                        if (totalUdhar > 0) {
+                            com.sadique.dailyledger.ui.ProgressDonut(
+                                progress = (paidUdhar.toFloat() / totalUdhar.toFloat()).coerceIn(0f, 1f),
+                                centerLabel = "${paidUdhar * 100 / totalUdhar}%",
+                                size = 62.dp, strokeWidth = 8.dp,
+                            )
+                        }
                         Button(onClick = { aiAdd = true }) {
                             Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))

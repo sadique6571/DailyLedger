@@ -16,6 +16,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -219,12 +220,27 @@ fun DailyLedgerTheme(
         surfaceContainerHigh = lerp(scheme.surface, scheme.primaryContainer, 0.35f),
         surfaceContainerHighest = lerp(scheme.surface, scheme.primaryContainer, 0.45f),
         outline = lerp(scheme.onSurface, scheme.surface, 0.55f))
+    // User accent color (Round 2, #11): when picked, it overrides the theme's primary family.
+    val accentArgb = displayPrefs.accentColor
+    val themed = if (accentArgb == 0) readable else {
+        val accent = Color(accentArgb)
+        val onAccent = if (accent.luminance() > 0.45f) Color(0xFF1B1B1B) else Color.White
+        readable.copy(
+            primary = accent, onPrimary = onAccent,
+            primaryContainer = lerp(readable.surface, accent, if (dark) 0.38f else 0.20f),
+            onPrimaryContainer = readable.onSurface,
+            secondary = accent, onSecondary = onAccent,
+            surfaceContainerLow = lerp(readable.surface, accent, 0.10f),
+            surfaceContainer = lerp(readable.surface, accent, 0.16f),
+            surfaceContainerHigh = lerp(readable.surface, accent, 0.22f),
+            surfaceContainerHighest = lerp(readable.surface, accent, 0.28f))
+    }
     val translations = remember(appContext) { com.sadique.dailyledger.i18n.LedgerStrings.load(appContext) }
     val strings = remember(displayPrefs.language, translations) { com.sadique.dailyledger.i18n.LedgerStrings(displayPrefs.language == "ur", translations) }
     CompositionLocalProvider(LocalDisplayPreferences provides displayPrefs, LocalDensity provides adjustedDensity,
         com.sadique.dailyledger.i18n.LocalStrings provides strings,
         androidx.compose.ui.platform.LocalLayoutDirection provides if (strings.urdu) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr) {
-    MaterialTheme(colorScheme = readable,
+    MaterialTheme(colorScheme = themed,
         shapes = Shapes(small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         typography = Typography(
             headlineLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
@@ -242,3 +258,15 @@ fun DailyLedgerTheme(
         ), content = content)
     }
 }
+
+/** Accent color choices for Settings → Appearance (Round 2, #11). Stored as ARGB ints in DisplayPreferences. */
+val LedgerAccentColors: List<Pair<String, Color>> = listOf(
+    "Green" to Color(0xFF16A34A),
+    "Blue" to Color(0xFF2563EB),
+    "Purple" to Color(0xFF7C3AED),
+    "Pink" to Color(0xFFDB2777),
+    "Orange" to Color(0xFFEA580C),
+    "Red" to Color(0xFFDC2626),
+    "Teal" to Color(0xFF0D9488),
+    "Brown" to Color(0xFF92400E),
+)

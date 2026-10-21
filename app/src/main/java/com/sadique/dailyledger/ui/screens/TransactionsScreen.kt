@@ -64,6 +64,7 @@ fun TransactionsScreen(
     }
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
+    var calendarMode by rememberSaveable { mutableStateOf(false) }
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
     var expandedNoteId by rememberSaveable { mutableStateOf<String?>(null) }
     var compactRows by rememberSaveable { mutableStateOf(false) }
@@ -86,6 +87,14 @@ fun TransactionsScreen(
                 "DAY" -> it.date == selectedDay
                 else -> true
             }
+    } }
+
+    // Same filters as the list, minus the date range — the calendar needs the whole month (Round 2, #2).
+    val calendarItems = remember(items, undoPendingId, favoritesOnly, favoriteIds, filter, query, searchStrings) { items.filter {
+        it.id != undoPendingId &&
+        (!favoritesOnly || it.id in favoriteIds) &&
+        (filter == "ALL" || it.type == filter) &&
+            (query.isBlank() || it.category.contains(query, true) || searchStrings.text(it.category).contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query))
     } }
 
     val sorted = remember(filtered, sortOrder) { when (sortOrder) {
@@ -133,7 +142,20 @@ fun TransactionsScreen(
                     today = today,
                 )
             }
-            if (filtered.isEmpty()) {
+            enteringItem {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !calendarMode, onClick = { calendarMode = false }, label = { Text("List") })
+                    FilterChip(selected = calendarMode, onClick = { calendarMode = true }, label = { Text("Calendar") })
+                }
+            }
+            if (calendarMode) {
+                enteringItem {
+                    MonthCalendarView(calendarItems) { day ->
+                        selectedDay = day.toString(); dateRange = "DAY"; calendarMode = false
+                    }
+                }
+            }
+            if (!calendarMode && filtered.isEmpty()) {
                 item { com.sadique.dailyledger.ui.LedgerEmptyState(
                     if (items.isEmpty()) "Start your ledger" else "No matching transactions",
                     if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.",
@@ -144,7 +166,7 @@ fun TransactionsScreen(
                     },
                 ) }
             }
-            sorted.forEachIndexed { index, x ->
+            if (!calendarMode) sorted.forEachIndexed { index, x ->
                 if (sortOrder in setOf("NEWEST", "OLDEST") && (index == 0 || sorted[index - 1].date != x.date)) {
                     stickyHeader(key = "transaction-date-${x.date}") {
                         Text(

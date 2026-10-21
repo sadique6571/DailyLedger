@@ -77,8 +77,7 @@ fun SummaryCard(
                 color = scheme.onSurfaceVariant, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             val hidden = LocalDisplayPreferences.current?.privateAmounts == true
-            Text(if (hidden) "Rs •••••" else money(amount), style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            AnimatedMoneyText(amount, { if (hidden) "Rs •••••" else money(it) }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             detail?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall,
                     maxLines = 3, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)

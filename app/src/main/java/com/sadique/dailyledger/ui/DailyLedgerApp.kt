@@ -7,6 +7,12 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import com.sadique.dailyledger.ai.AiConsent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -185,6 +191,23 @@ fun DailyLedgerApp(
     val organizerCircles = if (tab == KAMETI) vm.organizerCircles.collectAsState().value else emptyList()
     val organizerMembers = if (tab == KAMETI) vm.organizerMembers.collectAsState().value else emptyList()
     val organizerCollections = if (tab == KAMETI) vm.organizerCollections.collectAsState().value else emptyList()
+    // Due badges (Round 2, #9): counts of items due today or overdue, shown on the bottom tabs.
+    val badgeToday = java.time.LocalDate.now().toString()
+    val dueCreditCount = remember(credits, creditPayments, badgeToday) { credits.count { c -> !c.closed && c.dueDate != null && c.dueDate <= badgeToday && (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }) > 0 } }
+    val dueLoanCount = remember(loans, lp, badgeToday) { loans.count { l -> !l.closed && l.dueDate != null && l.dueDate <= badgeToday && (l.principalMinor - lp.filter { it.loanId == l.id }.sumOf { it.amountMinor }) > 0 } }
+    val dueKametiCount = remember(committees, cp) {
+        val nowYm = java.time.YearMonth.now()
+        committees.count { c ->
+            if (!c.active) false else {
+                val startYm = runCatching { java.time.YearMonth.parse(c.startMonth) }.getOrNull()
+                if (startYm == null) false else {
+                    val elapsed = ((nowYm.year - startYm.year) * 12 + (nowYm.monthValue - startYm.monthValue) + 1).coerceIn(0, c.totalInstallments)
+                    val paidInstallments = cp.filter { it.committeeId == c.id }.map { it.installmentNumber }.distinct().size
+                    elapsed > 0 && paidInstallments < elapsed
+                }
+            }
+        }
+    }
     val organizerPayouts = if (tab == KAMETI) vm.organizerPayouts.collectAsState().value else emptyList()
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
@@ -501,13 +524,15 @@ fun DailyLedgerApp(
         bottomBar = {
             AppBottomBar(
                 tab = tab,
+                udharBadge = dueCreditCount, kametiBadge = dueKametiCount, moreBadge = dueLoanCount,
                 onSelectTab = { i -> navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
             )
         },
     ) { pad ->
         Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
-          settingsState.SaveableStateProvider("screen-${user.id}-$tab") {
-            when (tab) {
+          AnimatedContent(targetState = tab, transitionSpec = { (fadeIn(tween(200)) + slideInHorizontally(tween(200)) { w -> w / 14 }).togetherWith(fadeOut(tween(140))) }, label = "tab-content") { targetTab ->
+          settingsState.SaveableStateProvider("screen-${user.id}-$targetTab") {
+            when (targetTab) {
                 0 -> DashboardScreen(
                     salaryDay = vm.salarySchedule.day, plannedSalaryDate = vm.salarySchedule.calendar.expected,
                     salaryRecordedWhenPlanned = vm.salarySchedule.calendar.lastRecorded,
@@ -662,6 +687,7 @@ fun DailyLedgerApp(
                     onReminders = { remindersOpen = true },
                 )
             }
+          }
         }
     }
     }

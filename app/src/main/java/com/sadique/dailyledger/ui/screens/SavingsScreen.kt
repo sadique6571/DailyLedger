@@ -25,6 +25,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.sadique.dailyledger.ui.isValidDate
@@ -62,13 +64,23 @@ fun SavingsScreen(
                 val total = direct + leftover
                 com.sadique.dailyledger.ui.LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 6.dp) {
                     if (goal > 0) {
-                        val pct = if (goal > 0) (total * 100 / goal).coerceIn(0, 100) else 0
+                        val pct = (total * 100 / goal).coerceIn(0, 100)
                         Text(if (display.savingsGoalLabel.isNotBlank()) "Savings goal — ${display.savingsGoalLabel}" else "Savings goal", translate = false, style = MaterialTheme.typography.titleMedium)
-                        LinearProgressIndicator(progress = { (total.toFloat() / goal.toFloat()).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().testTag("savings-goal-progress"))
-                        Text("${visibleMoney(total)} of ${visibleMoney(goal)} • $pct%", style = MaterialTheme.typography.bodySmall)
-                        Row {
-                            TextButton(onClick = { goalEditor = true }) { Text("Edit goal") }
-                            TextButton(onClick = { display.updateSavingsGoal(0L, "") }) { Text("Remove") }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            com.sadique.dailyledger.ui.ProgressDonut(
+                                progress = (total.toFloat() / goal.toFloat()).coerceIn(0f, 1f),
+                                centerLabel = "$pct%",
+                                size = 92.dp, strokeWidth = 11.dp,
+                                modifier = Modifier.testTag("savings-goal-progress"),
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("${visibleMoney(total)} of ${visibleMoney(goal)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(if (goal > total) "Baqi: ${visibleMoney(goal - total)}" else "Goal mukammal ho gaya!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row {
+                                    TextButton(onClick = { goalEditor = true }) { Text("Edit goal") }
+                                    TextButton(onClick = { display.updateSavingsGoal(0L, "") }) { Text("Remove") }
+                                }
+                            }
                         }
                     } else {
                         Text("Savings goal", style = MaterialTheme.typography.titleMedium)

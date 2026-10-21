@@ -20,6 +20,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -87,6 +88,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
     var aiConsent by remember { mutableStateOf(false) }
+    var showWhatsNew by remember { mutableStateOf(false) }
+    if (showWhatsNew) WhatsNewDialog { showWhatsNew = false }
     if (aiConsent) {
         AlertDialog(
             onDismissRequest = { aiConsent = false },
@@ -423,6 +426,28 @@ fun SettingsScreen(
                         repeat(4 - rowOptions.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
+                Text("Accent color", style = MaterialTheme.typography.labelLarge)
+                Text("Optional — overrides the theme's main color across the app.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val accentChoices = listOf<Pair<String, androidx.compose.ui.graphics.Color?>>(("Theme" to null)) + com.sadique.dailyledger.ui.LedgerAccentColors.map { it.first to it.second }
+                accentChoices.chunked(5).forEach { rowChoices ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        rowChoices.forEach { (name, color) ->
+                            val argb = color?.toArgb() ?: 0
+                            val isSel = display.accentColor == argb
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(Modifier.size(34.dp)
+                                    .background(color ?: MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+                                    .border(if (isSel) 2.dp else 1.dp, if (isSel) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, RoundedCornerShape(50))
+                                    .clickable { display.updateAccent(argb) }.testTag("accent-${name.lowercase()}"),
+                                    contentAlignment = Alignment.Center) {
+                                    if (color == null) Text("A", style = MaterialTheme.typography.labelMedium)
+                                }
+                                Text(name, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                        repeat(5 - rowChoices.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
                 Text("Text size", style = MaterialTheme.typography.labelLarge)
                 listOf(0 to "Small", 1 to "Normal", 2 to "Large", 3 to "Extra large").chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -659,6 +684,7 @@ fun SettingsScreen(
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
                 Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = { showWhatsNew = true }, modifier = Modifier.fillMaxWidth().testTag("whats-new")) { Text("What's New") }
             }
         }
 
