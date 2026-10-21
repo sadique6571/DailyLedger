@@ -132,7 +132,9 @@ fun CommitteeScreen(
                 }
             }
             if (committees.isEmpty()) {
-                enteringItem { Text("Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.") }
+                enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No kameti yet",
+                    "Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.",
+                    "New kameti", Icons.Outlined.Groups, onAction = { add = true }) }
             }
             enteringItems(committees, key = { it.id }) { committee ->
                 val ps = payments.filter { it.committeeId == committee.id }

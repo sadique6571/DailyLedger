@@ -88,7 +88,7 @@ internal fun CreditEntryDialog(
         },
         confirmButton = {
             val parsed = parseMinor(amount)
-            Button(
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
                 enabled = !busy && parsed?.let { it > 0L } == true && category.isNotBlank() && isValidDate(date) && (due.isBlank() || isValidDate(due)),
                 onClick = {
                     val value = parsed ?: return@Button
@@ -136,7 +136,7 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
                     OutlinedTextField(creditorHint, { creditorHint = it; result = null }, label = { Text("Shop/person hint") }, enabled = !busy)
                     OutlinedTextField(input, { input = it; result = null; error = "" }, minLines = 3,
                         label = { Text("Udhar saman likhein") }, enabled = !busy, modifier = Modifier.testTag("credit-ai-input"))
-                    Button(onClick = {
+                    Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = {
                         error = ""
                         result = try { OfflineCreditAi.drafts(input, creditorHint) }
                             catch (e: Exception) { error = e.message ?: "Check the dates and amount."; null }
@@ -161,7 +161,7 @@ internal fun CreditAiDialog(dismiss: () -> Unit, save: suspend (List<CreditDraft
             }
         },
         confirmButton = {
-            Button(onClick = {
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = {
                 val drafts = result?.entries.orEmpty()
                 busy = true
                 scope.launch {
@@ -220,7 +220,7 @@ internal fun CreditPaymentDialog(
         },
         confirmButton = {
             val parsed = parseMinor(amount)
-            Button(
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall,
                 enabled = !busy && isValidDate(date) && parsed?.let { it in 1..remaining } == true,
                 onClick = {
                     val value = parsed?.takeIf { it in 1..remaining } ?: return@Button

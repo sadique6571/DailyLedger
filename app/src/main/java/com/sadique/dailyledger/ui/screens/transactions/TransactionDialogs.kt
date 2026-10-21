@@ -150,12 +150,11 @@ fun TransactionDialog(
             }
             saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = sidePadding).testTag("transaction-save-error")) }
             HorizontalDivider(Modifier.padding(top = 8.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = safeDismiss, enabled = !busy) { Text("Cancel") }
-                Button(
-                    modifier = Modifier.weight(1f).heightIn(min = 50.dp).testTag("transaction-save"),
+            com.sadique.dailyledger.ui.LedgerFormActions(
+                modifier = Modifier.padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
+                dismissButton = { TextButton(onClick = safeDismiss, enabled = !busy) { Text("Cancel") } },
+                confirmButton = { Button(
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("transaction-save"),
                     shape = RoundedCornerShape(16.dp),
                     enabled = !busy && isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
                     onClick = {
@@ -177,8 +176,8 @@ fun TransactionDialog(
                             }
                         }
                     },
-                ) { Text(if (busy) "Saving…" else "Save") }
-            }
+                ) { Text(if (busy) "Saving…" else "Save") } },
+            )
         }
     }
 

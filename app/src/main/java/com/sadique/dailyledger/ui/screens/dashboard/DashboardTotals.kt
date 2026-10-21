@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sadique.dailyledger.ui.ledgerCardBrush
 import com.sadique.dailyledger.ui.GlowIcon
 import com.sadique.dailyledger.ui.LedgerTokens
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
@@ -34,15 +35,15 @@ internal fun DashboardStat(title: String, amount: Long, detail: String, icon: Im
     val hidden = LocalDisplayPreferences.current!!.privateAmounts
     Surface(modifier.clickable(onClick = action), shape = LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface,
         shadowElevation = LedgerTokens.Elevation1, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = if (dark) .08f else 1f))) {
-        Column(Modifier.fillMaxWidth().clip(LedgerTokens.ShapeCard).background(Brush.verticalGradient(listOf(color.copy(alpha = if (dark) .14f else .1f), MaterialTheme.colorScheme.surface)), LedgerTokens.ShapeCard).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(Modifier.fillMaxWidth().clip(LedgerTokens.ShapeCard).background(ledgerCardBrush(color), LedgerTokens.ShapeCard).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space8)) {
                 GlowIcon(icon, color, size = 26.dp)
-                Text(title, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(if (hidden) "Rs •••••" else displayMoney(amount), fontSize = 20.sp,
+            Text(if (hidden) "Rs •••••" else displayMoney(amount), style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+            Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }
     }

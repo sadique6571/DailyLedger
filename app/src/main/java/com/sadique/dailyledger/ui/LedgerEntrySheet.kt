@@ -83,12 +83,10 @@ fun LedgerEntrySheet(
                 Box((if (scrollBody) body.verticalScroll(rememberScrollState()) else body)
                     .padding(horizontal = sidePadding).testTag("ledger-entry-body")) { text() }
                 HorizontalDivider(Modifier.padding(top = 8.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    dismissButton?.invoke()
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { confirmButton() }
-                }
+                LedgerFormActions(
+                    modifier = Modifier.padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
+                    dismissButton = dismissButton, confirmButton = confirmButton,
+                )
             }
         }
     }

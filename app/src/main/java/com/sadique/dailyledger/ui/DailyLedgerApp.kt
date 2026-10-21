@@ -484,7 +484,7 @@ fun DailyLedgerApp(
             )
         },
         floatingActionButton = {
-            QuickEntryDial(expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
+            DashboardEntryDial(tab = tab, expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
                 when (action) {
                     "ai" -> aiEntryOpen = true
                     "expense" -> quickTransaction = EntryShortcut("EXPENSE")

@@ -1,160 +1,93 @@
-## Build 38 — inline category search in entry sheets
-
-Category results in the bottom entry sheet now stay below the search field inside the form instead of using a popup that moves above the keyboard. The same catalog, custom categories, search draft and validation are retained.
-
-## Build 37 — stable entry sheet
-
-Fixes the bottom entry sheet replaying its opening animation during typing. The sheet retains one state instance while its discard check reads the latest draft. The Build 36 layout and floating expense button remain in place.
-
-## Build 36 — preview layout and bottom entry sheet
-
-The dashboard now uses a compact balance section, greeting/weather side by side, and Salary/Expense tiles in one row. Other income and savings stay available in their money sections. A floating **+** button above navigation opens expense entry from the main screens. Expense, income and transaction editing use a bottom sheet with a pinned Save button, scrollable fields, date/category validation and unsaved-change protection. AI insights stay last, without Not useful actions. See [Build 36](docs/BUILD_36.md).
-
-## Compact UI — 2.0.0 build 35
-
-Preview-inspired compact header with Search/AI actions, greeting emojis and weather chip; teal Light/Aqua and navy Dark colours; selected navigation pills. Existing card treatment is retained. AI insight cards stay at the dashboard end and no longer show “Not useful”; online refresh stays manual. Reminders remain available from More. Backup timing, data, encryption, AI logic and signing are unchanged. See [build 35](docs/BUILD_35.md).
-
-## Category typing fix — 2.0.0 build 34
-
-Unfinished category searches stay visible when the suggestions close, focus moves, the keyboard/back button is used, or the field's saved state is restored. Select a result or explicitly add a custom category before saving; manual entries no longer silently replace an unfinished search with Other. The shared fix covers manual/edit forms and AI review. See [build 34](docs/BUILD_34.md).
-
-## Smaller update — 2.0.0 build 33
-
-Release code/resources are optimized with R8. All existing CPU architectures remain supported. Receipt attachment actions are removed; old stored proof data stays compatible with schema/backup v11. Receipt OCR for reviewed AI entries remains. Category editing clears the old selection instead of restoring “Other”; only chosen categories are learned. New everyday food categories and Roman Urdu/Urdu aliases work with offline and cloud AI. See [build 33](docs/BUILD_33.md).
-
-## Combined update — 2.0.0 build 32
-
-Build 31's complete Money tools and full searchable category list remain. Selected `DailyLedger-2.1.0.zip` changes add shared design tokens, gradient/tonal cards, screen components, photos/PDF payment proofs and a 15-minute edit-backup queue. The existing signing certificate, Firebase sign-in/online AI and Google Drive account restore remain unchanged. See [combined update details](docs/COMBINED_BUILD_32.md).
-
 # Daily Ledger
 
-## Money tools and complete category list
+An Android personal finance app for income, expenses, savings, loans, udhar and kameti. Entries remain usable offline; Google sign-in, opt-in AI suggestions and verified Google Drive backups provide the connected features.
 
-Version **2.0.0, build 31** adds the 24 requested planning, purchase, account and intake workflows through **More → Money tools**. Normal entry forms link to quantity/rate, account and privacy controls. The category dropdown now scrolls through the complete matching catalog instead of stopping at 80.
+**Current version: 2.0.0 · build 47.** The application ID and existing signing certificate are retained for in-place updates.
 
-See the [feature-by-feature guide](docs/FINANCE_TOOLS.md) for every workflow, account assumptions, validation and device-dependent OCR/voice/widget limits. Room schema and backup format are now **10**; migrations preserve existing data. Refunds reduce net expenses, transfers remain outside spending, paid plans cannot charge twice, and private individual records stay out of public reports and AI input.
+## Current interface
 
-**Privacy:** the phone database is SQLCipher encrypted. Drive app-data backups remain readable JSON, not end-to-end encrypted; private-entry app locks do not change that. New tools are included in the existing backup path, with the same certificate, login and providers.
+- **Home:** compact balance and salary/expense cards, spending donut, recent records and AI insights. Search and AI actions stay in the header.
+- **Dashboard Plus:** opens exactly five labelled shortcuts—AI, Expense, Salary, Kameti and Udhar—in a narrow glass panel. Actions enter one at a time. The global Plus appears only on Home; leaving Home closes the menu. Other screens retain their own relevant Add actions.
+- **Consistent cards:** shared accent-to-surface gradients, rounded corners, borders, shadows and compact spacing. Weather uses the same soft green gradient as Salary, with temperature prominent and city/condition secondary. Dark themes use the corresponding dark surface.
+- **Empty screens:** transactions, savings, loans, udhar and personal kameti explain what belongs there and offer a relevant Add action. Transaction search offers Clear filters when appropriate.
+- **Entry sheets:** scrollable fields and a pinned, consistently sized Cancel/Save footer. Pull the top handle upward or tap it to expand; pull downward to reduce an expanded form or close a compact form through its normal draft/save guards.
+- **Keyboard:** single-line fields use Next; dates use Done. Notes do not insert a new line. Scrolling while the keyboard is visible does not drag the sheet. Category search stays inside the form.
+- **Save protection:** transaction and detailed-entry saves wait for the commit, block repeated submission and retain an editable draft after failure. Successful saves show a confirmation; privacy mode masks amounts.
+- **Simplified settings:** compact styling is the default. Appearance controls and the Money tools destination are removed. Existing stored records are retained. Language, privacy, screenshot blocking, weather, sounds, account security and backup settings remain available.
 
-AI learning now travels in **Drive backup v8**: explicit category corrections, ignored history mappings and “Not useful” suggestion feedback. Existing encrypted learning migrates into the encrypted Room database without deleting its legacy copy. Restore commits learning and ledger together; backups v1–v7 remain supported and keep existing learning intact. Drive snapshots remain readable JSON in private app-data, not end-to-end encrypted. Backups still require Drive permission and a completed verified upload.
+Expense/salary forms no longer show View history, quick-note presets or Today/Yesterday buttons. Dates remain editable through the date field and calendar. Transaction-list date filters are separate and remain available.
 
-Auto Fill supports up to **30 income/expense drafts** and 3,000 input characters. Missing amounts are requested before any Cloud call. Review shows dates, categories, amounts and separate totals; ambiguous/Cloud/future-dated entries are highlighted and must be checked or edited before final confirmation. Date words such as “5 tareekh” are masked before extracting money; ambiguous dates require review. Learning remembers corrections and known spelling aliases; it is not a chat or an on-device model-training service. Suggestion feedback suppresses matching recurring advice and can be reset in AI learning.
+## Core features
 
-Loading improvements: encrypted database opening and derived summaries run in the background; category search indexes are shared by all forms, history learning is cached, unchanged query results do not trigger UI updates, and owner/date transaction reads use a composite index. Category menus use a bounded lazy list: every matching category remains reachable, without composing the full catalog at once. No percentage speed claim is made without a physical-device benchmark.
+- Expense/income history, salary scheduling, category search with Urdu/Roman Urdu aliases and custom categories.
+- Separate savings, borrowed/lent loans and udhar purchase/payment records.
+- Personal and organizer kameti tracking, installments, partial receiving, full/half shares and reviewed batch saves.
+- Spending summaries, monthly comparisons, budgets and bill reminders.
+- Offline Auto Fill and opt-in online AI suggestions. This is an entry/suggestions workflow, not a chat interface. Review AI-generated dates, categories and amounts before saving.
+- English/Urdu interface, amount privacy and PDF/CSV reports.
 
-Salary dates are configured in **Settings → Salary calendar**. Select this month's salary date to suggest the same date next month (month-end dates clamp safely). Edit **Next expected salary** in the calendar at any time for irregular 20/40-day gaps. Home shows only the countdown; new recorded salary suggests its date next month. Scheduling dates never posts income or starts/archives a cycle. Salary calendars and plans are account-scoped and included in the verified Drive backup. Category selection now uses the same rounded colored input as other fields: type directly in it to search canonical categories, Urdu/Roman Urdu aliases, history and custom categories. There is no separate search field inside the dropdown.
+Historical Money tools data stays compatible with the existing storage and backup paths, although its menu destination is no longer shown. The detailed feature history is in [docs/](docs/); older build notes describe their own versions rather than the current interface.
 
-## Reliable automatic backup and Kameti batch saves
+## Data, backup and privacy
 
-Automatic backup keeps account-bound pending changes until a Google Drive upload is verified. It retries temporary connection failures, keeps the latest verified backup, and pauses on remote-copy conflicts or after restoring an older backup. Settings shows the actual backup state and last verified time. Keep Drive connected and check that the latest backup has completed before clearing app data or changing phones; changes that never uploaded cannot be recovered from Drive.
+The local Room database is encrypted with SQLCipher. Current ledger backups use the signed-in Google account's private **Drive app-data** folder. The Drive backup JSON is readable and is **not end-to-end encrypted**. PDF/CSV exports are also readable reports and are not full restore files.
 
-Kameti **Save all** commits the reviewed list in one database transaction. A failed row leaves the entire list unsaved; the form stays open for correction or retry. Repeated submission of the same saved request does not duplicate members or overwrite later contact/payment changes. Full/half-share capacity, personal share limits, receiving months and account ownership are checked again when saving.
+Automatic backup records pending changes and retries eligible uploads. An enabled switch alone does not prove a successful backup: check Settings for a verified upload and last successful time. Android may delay background work.
 
-The installed version remains **2.0.0** (build 31). Google Drive stays the backup provider, the local database remains encrypted with SQLCipher, and Drive backup JSON remains private app-data **without end-to-end encryption**. The advanced Kameti documents describe future work; payment-proof attachments, member identity linking, audited turn swaps and biometric app locking are not claimed as delivered.
+Before clearing app data or changing phones:
 
+1. Connect Drive and approve access.
+2. Use **Back up now** and wait for verified success.
+3. Restore using the same app login and Google account.
 
+Restore replaces the local ledger rather than merging records. Unuploaded local changes cannot be recovered from Drive. Older encrypted Drive files and historical Firestore snapshots are not automatically migrated by the current backup workflow; keep the old device/records until a fresh Drive backup is verified.
 
-## Automatic backup reliability update (2.0.0, build 21)
+UI polish does not change the database schema, financial calculations, encryption, backup/restore behavior, AI engines or signing identity. Device appearance preferences are separate from ledger records. System accessibility font scaling continues to apply.
 
-- Saving ledger changes records a pending state and queues account-bound Google Drive work. Offline/auth-service connection failures retry with exponential backoff without the old five-attempt cutoff. A three-hour WorkManager attempt and app-start/resume/sign-in catch-up checks recover missed work. Android can delay background work; this is not a real-time sync guarantee.
-- Uploads compare the actual file checksum and returned/fetched version before acknowledging success. The checkpoint is committed atomically. A lost upload response is reconciled by content, so a retry does not falsely conflict or create another identical revision. First upload creates metadata and data together.
-- The existing Drive file/JSON format remains compatible. One account-bound backup file is updated in place. After the new upload is verified, older revisions are removed; cleanup failures keep the verified backup and retry on the next check.
-- A fresh/empty device, a changed remote version, a replaced/missing file or duplicate backup files cannot silently overwrite the existing backup. Account-bound jobs cannot become another account's upload. Concurrent devices are not a merged live ledger: conflicts require review.
-- Settings distinguishes verified, pending, paused and failed backups, shows the last successful backup, and gives actionable access/storage errors. Resetting local data pauses backup. Restoring an older copy also pauses backup and invalidates the overwrite checkpoint; review it, then explicitly choose **Back up now** to make it current.
+## Connected services and setup
 
-**Before changing phones or clearing app data:** enable Drive backup, approve access, use Back up now and wait for verified status. Restore with the same Daily Ledger login and Google account. Unuploaded local edits cannot be recovered if the phone/app data is lost. Export newer records before restoring: restore replaces the local ledger, it does not merge it. Budgets, reminder schedules, salary calendars and Money tools participate in Drive backup; display preferences remain device-only; PDF/CSV are reports, not full restore files. Local SQLCipher encryption and the readable JSON Drive backup remain as documented below.
+- **Sign-in:** Firebase Authentication with Google.
+- **Online AI:** Firebase AI Logic/Gemini with App Check; the legacy Cloudflare/Groq backend source is retained for older clients and is not the current Android AI provider.
+- **Ledger backup:** Google Drive app-data; new ledger backups are not written to Firestore.
 
-Implementation references: [Android retry/background constraints](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work), [Google Drive retained revisions](https://developers.google.com/workspace/drive/api/guides/manage-revisions). Automated tests use simulated Drive responses; they do not establish a live Google account upload or second-phone restore.
+Read [Google setup](GOOGLE-SETUP.md), [review/setup](REVIEW-AND-SETUP.md) and [Firebase AI setup](FIREBASE-AI-SETUP.md). [KMS setup](KMS-SETUP.md) is historical guidance for legacy backups.
 
-A native Android personal-finance app for PKR income, spending, savings, loans, kameti and shop credit (Udhar). The **2.0.0** candidate adds an offline Urdu interface with bundled Nastaleeq, planning tools, full screen history and reviewed PDF sharing. Insights stays on Home; online suggestions refresh only when requested. Existing Google Drive backup, local SQLCipher encryption, Firebase sign-in/AI and APK signing are retained.
-
-## What's new in 2.0
-
-- **English / اردو:** change language in Settings. Noto Nastaliq Urdu is bundled for offline use, with right-to-left layout, Urdu category search and translated labels for all 244 built-in category names. Stored category keys, transaction dates and past records are unchanged. Custom notes and names stay as entered. Cloud-generated replies and Android/Google system dialogs retain their own language; PDF/CSV statement data and headings keep the existing export format.
-- **Navigation:** nested screens return through the actual path (for example More → Settings → Savings → Search → Transactions). Back restores the previous screen and saved list position. Bottom tabs deliberately start a fresh path.
-- **Settings and Home:** search Settings in English or Urdu; drag dashboard handles or use accessible up/down buttons, then reset the card order if needed. Home keeps Insights and the manual online Refresh button. Existing visibility, privacy, size and theme controls remain.
-- **Category budgets:** monthly category limits, progress and an 80%-used notice; over-limit categories are highlighted. These are calendar-month expense totals, not salary-cycle balances.
-- **Bills & reminders:** monthly rent, fees, salary or other reminders appear when due. Day 29–31 clamps to the end of short months. Missed occurrences remain pending until reviewed or skipped. A reminder never writes a ledger entry or deducts money on its own: review the amount, category and date, then press Confirm & save. Per-occurrence IDs protect retry saves from duplication. Android notifications require permission and are periodic, not exact-time alarms.
-- **Automatic AI learning:** reviewed corrections and consistent saved entries teach category mappings automatically. No separate manual AI-learning manager is shown in Settings or More; category learning does not change amounts or dates. The AI summary now includes recorded Udhar repayments and its prompt uses the same deduction formula; historical date cutoffs remain unchanged.
-- **Kameti calendar:** scheduled monthly installments, paid/pending amounts, expected personal turns and separate partial receiving records. This view never changes balances.
-- **Monthly comparison and search:** compare income, expenses, savings and expense categories between any two calendar months; search transactions, savings, loans/payments, kameti/payments/receiving and Udhar/payments together. Search results show read-only details with an Open ledger action.
-- **PDF preview & sharing:** preview the existing complete statement page by page, then save or choose an Android share destination. Opening or closing the preview does not change ledger records. Existing kameti sections, date filtering and CSV output remain.
-
-Budgets, reminder schedules and AI learning are encrypted and account-scoped **on this device**. They are not added to the existing Drive backup format. Confirmed recurring transactions are ordinary ledger records and use the existing backup path. See [the release checklist](docs/V2_RELEASE_CHECKLIST.md) and [testing evidence](TESTING.md).
-
-- Dashboard salary periods advance only when the user confirms **Salary received • Start new month**. The prior period is automatically archived and its remaining balance carries forward, even when it is not transferred into Savings.
-- **Archive last month** saves a separate calendar-month summary without deleting or moving any transaction; archived period summaries can be viewed from the dashboard.
-- During an active salary cycle, available balance includes salary, other income and carried balance, then subtracts expenses, kameti installments paid for their current calendar month, savings contributions and recorded Udhar repayments. Other income remains separately visible.
-- The balance card contains an **Offline AI daily spending guide**, estimated next salary date/countdown and a red notice when the recorded balance is zero, negative or at most 10% of available funds. The daily estimate divides positive remaining balance by days to the estimated salary; upcoming bills are not automatically reserved. With no salary date, no payday is invented. Due/overdue salaries request confirmation instead of silently moving the estimate forward.
-- The next salary estimate is one calendar month after the latest non-future salary transaction date, clamped for shorter months. This estimate never starts a new cycle or archives records.
-- **Home · Udhar · Kameti · Savings · More** navigation; Insights, Transactions, Loans and Settings remain accessible. A top-right AI shortcut opens reviewed Auto Fill on main screens (specialized Udhar Auto Fill on the Udhar page).
-- Salary, expense, other-income and savings cards open entry forms; the donut and its category rows are read-only. Balance opens its breakdown. Frequent-purchase cards and their totals open a read-only list of the **current calendar month** only, with each purchase date/amount and the monthly total. Detail rows do not open an entry editor.
-- Donut chart includes the total, distinct category colours, amounts and percentages. Its legend cannot add or edit entries.
-- Cards, including Settings sections, slide in from the left with a short stagger and fade. Amount changes do not restart their animation; no shimmer effect. Savings uses a wallet icon.
-- Recording an old kameti installment now increases its paid count/total without deducting the active salary balance. An installment paid in its own month deducts once and remains charged when that salary cycle crosses into another month. Recorded payment totals remain in Kameti history; existing archive snapshots and calendar archive rules are retained.
-- Settings child screens (Savings and Auto Fill) return to Settings with Back and preserve its scroll position. Back first closes expanded backup/weather details; Back from the Settings root returns Home.
-- Google Drive **Restore** and **Back up now** remain available regardless of auto-backup status.
-- Multiple kameti shares, partial receiving, structured member turns, contact actions and reminders.
-- Borrowed/lent loans with payment methods, complete payment history and overpayment checks.
-- Google/email sign-in and email/password account creation using Firebase Authentication.
-- Offline Mini AI: reviewed Roman Urdu/Urdu/English quick entry and local spending/saving suggestions. Common entries require no internet, model download or paid API. It is a small rules engine, not an LLM.
-- Optional Firebase Gemini fallback for complex wording; separate consent required. Online suggestions are requested only with **Refresh** on Home/Insights, never automatically on launch, enabling consent, navigation or ledger changes. Loading ignores duplicate taps and retains the existing two-insights/ten-auto-fill daily limits. Offline insights still recalculate locally. No AI chat and no automatic saving of generated entries.
-- Searchable category dropdowns support grouped categories, frequently used items and custom names. Expanded built-in income/expense categories include individual pantry items and spices, household cleaning products, family medical costs, children’s fees and travel, and additional income sources; category counts are shown dynamically.
-- Separate **Udhar Saman** ledger: goods bought on credit, shops/contacts, due dates, partial payments and editable offline auto-fill.
-- Dated quick entry: `1 Oct 2026 doodh 150, 2 Oct 2026 petrol 1,500` prepares two entries on those exact dates. ISO and DD/MM/YYYY are supported; omitted years use the current year and omitted dates use today. Invalid dates request correction. For recorded entries, `kal`/`کل` means yesterday and `parson`/`پرسوں` means two days ago; the review screen explains this convention. Use `tomorrow`, `aane wala kal` or an exact date for future entries. `Kal raat`, `last night`, `aaj subah`, Urdu relative-day phrases and mixed dated lists are also supported.
-- Offline parsing also recognizes common spelling variations, quantities such as `2 litre doodh 300`, individual vegetables/lentils, `2 din pehle`, and `last Friday`. Per-unit price expressions and ambiguous income/expense direction request clarification or use the existing optional cloud fallback.
-- Review/edit every date, amount and category before saving. Repeated purchases are retained; retries do not duplicate a saved batch.
-- Correcting an AI-suggested category teaches an encrypted, account-specific on-device rule. Matching item notes use the corrected category in later Offline Mini AI and Gemini drafts; learning phrases are not sent to Gemini. Learning handles spelling aliases, quantities and word-order variations, and reuses a category from at least two consistently categorized saved items in the same account. Explicit corrections take priority; conflicting history does not teach a rule. Learning never invents an amount/date and remains on this device.
-- SQLCipher-encrypted local ledger; existing records migrate without a destructive database reset.
-- Optional Google Drive backups store the full ledger as readable JSON in the signed-in Google account's private Daily Ledger app-data folder. There is no backup encryption key or passphrase.
-- Explicit Restore / Skip on a new phone; manual **Restore data** and **Back up now** controls remain available in Settings. Background sync detects changes made from another phone and stops rather than silently overwriting them.
-- Restore validates transaction IDs and confirms the imported transaction count before completing; duplicate IDs cannot silently replace one another.
-- Export format cards offer CSV or a redesigned multi-page PDF with period totals, aligned amounts and category/description rows. PDF has separate income/expense and **kameti** sections with their own totals; paid installments and every partial receiving appear as individual rows. Payments are selected by installment month (day 1 for date filtering), receipts by receiving date, and undated legacy receipts appear only in All records. CSV also includes savings and loan payments. Neither is a full restore backup. City weather and transaction sounds remain available.
-
-See [v1.5 feature notes](OFFLINE-MINI-AI-LOANS-KAMETI.md). Phone contacts use the system picker; Call/SMS/WhatsApp actions require the user to send or call.
-
-## Setup and privacy
-
-Read [Google setup](GOOGLE-SETUP.md), [Review and setup](REVIEW-AND-SETUP.md) and [Firebase AI setup](FIREBASE-AI-SETUP.md). `KMS-SETUP.md` is historical guidance for legacy backups and is not needed for current backup/restore.
-
-New backups are stored in each user's Google Drive app-data folder and are not encrypted separately; access is protected by the Google account and its Drive permissions. Firebase Firestore is no longer used for ledger backups. Existing Firestore snapshots and old encrypted Drive files are not automatically migrated or restored by this version—keep the old phone/local records and create a fresh Drive backup before relying on another device. The local Room database remains SQLCipher-encrypted on the phone.
-
-Backups depend on successful uploads and access to the same Firebase and Google accounts. Check the app's last successful backup status; an enabled switch alone does not mean a backup exists. CSV/PDF exports and Drive backups are readable. AI is separately opt-in, with its own data disclosure and usage limits.
+Release attestation uses Play Integrity. Debug builds use individually registered test tokens and must not be distributed. Live Firebase/Drive behavior depends on the project configuration and account permissions; a CI pass alone does not verify a live account operation.
 
 ## Build and verify
 
+Use Java 21 and an Android SDK supporting the project's compile SDK (currently 37). The Gradle wrapper is included.
+
 ```bash
 bash tests/run-core-tests.sh
-npm --prefix functions test
 npm install
 npm test
-./gradlew testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease
-./gradlew connectedDebugAndroidTest
+npm --prefix functions install
+npm --prefix functions test
+./gradlew --no-daemon testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease
+./gradlew --no-daemon connectedDebugAndroidTest
 ```
 
-GitHub Actions builds and verifies the non-debuggable release APK and publishes its test reports. Install an update over the existing app; do not clear its data to update. The fixed development signer preserves update compatibility, but is not suitable as a private production signing identity.
+Windows builds can use `gradlew.bat`. The Android tests require an emulator or connected device.
 
-## Integration status
+[GitHub Actions](https://github.com/sadique6571/DailyLedger/actions) runs unit/instrumented tests, a release smoke check and APK verification. A successful run uploads:
 
-Cloud AI uses **Firebase AI Logic + Gemini**, authenticated through the existing Firebase project. This Android version does not call the old Cloudflare/Groq worker; legacy worker source is retained for older clients. Firebase Authentication handles sign-in; backups use the signed-in Google account’s private Drive app-data folder. No new ledger backup is written to Firestore, and this backup format does not require a passphrase. AI activation and backup activation are separate.
+- **DailyLedger-APK:** the non-debuggable release `DailyLedger.apk` and `verification.txt` with version/certificate/checksum evidence.
+- **DailyLedger-test-reports:** test reports and captured UI previews.
 
-`AI_APP_CHECK` identifies an app-attestation failure, not proof that a phone is uncertified. Release builds use Play Integrity. Private `debug` builds use individually registered test tokens and must not be distributed. Use **Settings → Check app verification**, then confirm Firebase registration, the actual signing SHA-256 and outside-Play settings. Never add a universal debug token or disable server enforcement to make AI appear to work.
+Install the APK over the existing app; uninstalling or clearing data is not required for an update. The existing shared development signing identity is retained for compatibility and is not a private production signing identity. Existing published releases are not replaced by normal CI builds.
 
-Source/CI checks do not prove a successful request to the live Firebase project. Optional AI/App Check activation requires the project owner to configure Firebase Console. Firebase Console does not contain new Drive ledger backups; Drive account permissions control access to them. Local encryption is not end-to-end encryption of Drive backups. Current build results and remaining live checks are recorded in [TESTING.md](TESTING.md).
+See [TESTING.md](TESTING.md) for additional historical verification details. The latest Actions run is the authoritative result for its exact commit.
 
-## APK and verification
+## Device checks for build 47
 
-The 2.0.0 candidate uses version code **21** with the same application ID and signing certificate for in-place updates. Build and regression evidence is recorded in [TESTING.md](TESTING.md); a source change is not a claim that a live Firebase or Drive operation was tested.
+1. Open the five-action Plus menu on Home, switch tabs and return: it should be hidden off Home and closed on return. Each tab's own Add action should still work.
+2. Compare Weather and Salary gradients in light/dark modes. Check long names, large amounts and the phone's larger font setting.
+3. Try empty lists and filtered transaction results: Add/Clear filters must open the relevant form or reset the filter without creating a record.
+4. Check consistent Save/Cancel placement, keyboard Next/Done, scrolling to the end of a form and handle expansion without losing the draft.
+5. Save one entry and confirm the amount/date/category and success notice. Repeated taps must not duplicate it.
+6. Reopen the app and compare loading time on your own device. Startup avoids a redundant full-profile decode; no percentage speed claim is made without a device benchmark.
 
-Build locally with `./gradlew testDebugUnitTest assembleRelease` (Windows: `gradlew.bat`). Install over the existing app; do not uninstall or clear data to update. The release uses the existing shared development signing identity for compatibility. Earlier release artifacts remain historical releases.
+## Font license
 
-The Urdu font is [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq), distributed under the SIL Open Font License 1.1. Its license is bundled at `app/src/main/assets/OFL-NotoNastaliqUrdu.txt`.
-
-Dashboard spending guide compares the remaining daily allowance with actual expenses per calendar day since the latest recorded salary (salary day and today included, including no-spend days). Savings and kameti are excluded from this expense average. The category donut always draws every category; its legend starts with three rows and can be expanded or collapsed.
-
-### Unified surfaces and complete planning backup (2.0.0 build 28)
-Cards and rectangular boxes share a rounded 20dp edge, themed border and soft 4dp shadow; input fields use the same geometry. Category visuals are cached, and prepared food has dedicated searchable categories/icons. Local insights prioritize monthly budget limits, bills due within seven days and actual spending pace versus remaining salary allowance. Tip boxes respect privacy mode, and a compact tip uses the spare space beside the donut legend.
-
-Database migration 8→9 adds an encrypted account-bound planning snapshot. Drive JSON v9 includes category budgets, recurring bill settings, handled/skipped months and salary calendar together with ledger/AI learning. Invalid restores roll back together; older backups preserve local planning settings. Legacy planning files migrate once and remain recovery copies; reset/owner-migration markers prevent resurrection. Device sign-in credentials, biometric enrollment, notification permissions and Cloud-AI consent are not restored.
-
-Automatic backup uses one coalesced delayed job plus a unique three-hour periodic job per account; opening/resuming the app checks for overdue work. Connection errors retry; Google permission/account conflicts remain visible and require resolution. Android battery/network/force-stop restrictions can delay execution. This is not an exact clock alarm, zero-loss guarantee, or live multi-device merge. Manual Back up now remains available. The private Drive JSON remains readable, not end-to-end encrypted.
+[Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) is distributed under the SIL Open Font License 1.1. Its license is bundled at `app/src/main/assets/OFL-NotoNastaliqUrdu.txt`.

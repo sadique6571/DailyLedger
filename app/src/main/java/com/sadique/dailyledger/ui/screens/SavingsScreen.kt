@@ -44,13 +44,17 @@ fun SavingsScreen(
     val visibleMoney: (Long) -> String = { if (amountHidden) "Rs •••••" else money(it) }
     val direct = savings.filter { it.kind == "DIRECT" }.sumOf { it.amountMinor }
     val leftover = savings.filter { it.kind == "LEFTOVER" }.sumOf { it.amountMinor }
-    Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, null) } }) { p ->
+    Scaffold(floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add saving") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             enteringItem {
                 Text("Savings", style = MaterialTheme.typography.headlineMedium)
                 Text("Your savings stay separate from salary and kameti.")
                 Spacer(Modifier.height(12.dp))
                 SummaryCard("Total savings", direct + leftover, Icons.Outlined.AccountBalanceWallet, detail = "Direct: ${visibleMoney(direct)} • Leftover: ${visibleMoney(leftover)}", onClick = { add = true })
+            }
+            if (savings.isEmpty()) enteringItem {
+                com.sadique.dailyledger.ui.LedgerEmptyState("No savings yet", "Keep direct and leftover savings separate from daily spending.",
+                    "Add saving", Icons.Outlined.AccountBalanceWallet, onAction = { add = true })
             }
             enteringItems(savings, key = { it.id }) { saving ->
                 com.sadique.dailyledger.ui.LedgerRecordCard() {
@@ -87,5 +91,5 @@ fun SavingDialog(dismiss: () -> Unit, onHistory: (() -> Unit)? = null, save: (St
             OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             onHistory?.let { action -> TextButton(onClick = action) { Text("View history") } }
         }
-    }, confirmButton = { Button(enabled = isValidDate(date), onClick = { parseMinor(amount)?.takeIf { it > 0 }?.let { save(kind, it, date.trim(), note) } }) { Text("Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
+    }, confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = isValidDate(date), onClick = { parseMinor(amount)?.takeIf { it > 0 }?.let { save(kind, it, date.trim(), note) } }) { Text("Save") } }, dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } })
 }

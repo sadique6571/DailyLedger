@@ -50,7 +50,7 @@ import java.math.RoundingMode
     LedgerEntrySheet(canDismiss = !busy, onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false),modifier=Modifier,title={Text(title)},
         text={Column(Modifier,verticalArrangement=Arrangement.spacedBy(10.dp)){
             error?.let{Text(it,color=MaterialTheme.colorScheme.error)};content(busy)
-        }},confirmButton={Button(enabled=enabled&&!busy,onClick={if(!busy){busy=true;error=null;scope.launch{try{save();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}}){Text(if(busy)"Saving…" else button)}},
+        }},confirmButton={Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled=enabled&&!busy,onClick={if(!busy){busy=true;error=null;scope.launch{try{save();dismiss()}catch(e:Exception){if(e is kotlin.coroutines.cancellation.CancellationException)throw e;error=e.message ?: "Could not save. Retry."}finally{busy=false}}}}){Text(if(busy)"Saving…" else button)}},
         dismissButton={TextButton(onClick=dismiss,enabled=!busy){Text("Cancel")}})
 }
 internal fun signedMinor(text:String):Long? = runCatching{BigDecimal(text.trim()).movePointRight(2).setScale(0,RoundingMode.UNNECESSARY).longValueExact()}.getOrNull()

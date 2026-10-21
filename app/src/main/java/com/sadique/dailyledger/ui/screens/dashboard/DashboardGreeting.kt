@@ -3,6 +3,9 @@ package com.sadique.dailyledger.ui.screens
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import com.sadique.dailyledger.ui.ledgerCardBrush
+import com.sadique.dailyledger.ui.LedgerColors
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -38,7 +41,7 @@ internal fun DashboardGreetingSection(
         }
         if (weatherEnabled && weatherCity.isNotBlank()) {
             Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp).testTag("weather-chip"),
+                Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(12.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(when {
                         weatherCondition.contains("storm", true) -> "⛈️"
@@ -47,9 +50,13 @@ internal fun DashboardGreetingSection(
                         weatherCondition.contains("snow", true) -> "❄️"
                         hour !in 6..18 -> "🌙"; else -> "☀️"
                     }, fontSize = 15.sp)
-                    Text(listOf(weatherCity, weatherTemperature, weatherCondition).filter { it.isNotBlank() }.joinToString(" • "),
-                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface, modifier = Modifier)
+                    Text(weatherTemperature.ifBlank { weatherCity }, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface)
+                    if (weatherTemperature.isNotBlank()) Text(weatherCity, style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (weatherCondition.isNotBlank()) Text(weatherCondition, style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

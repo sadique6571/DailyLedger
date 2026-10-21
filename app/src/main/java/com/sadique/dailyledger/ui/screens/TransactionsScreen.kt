@@ -126,7 +126,15 @@ fun TransactionsScreen(
                 )
             }
             if (filtered.isEmpty()) {
-                item { com.sadique.dailyledger.ui.LedgerRecordCard { Text(if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+                item { com.sadique.dailyledger.ui.LedgerEmptyState(
+                    if (items.isEmpty()) "Start your ledger" else "No matching transactions",
+                    if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.",
+                    if (items.isEmpty()) "Add transaction" else "Clear filters", Icons.Default.Add,
+                    onAction = {
+                        if (items.isEmpty()) { edit = null; quickTemplate = null; show = true }
+                        else { query = ""; filter = "ALL"; dateRange = "ALL"; selectedDay = ""; favoritesOnly = false }
+                    },
+                ) }
             }
             sorted.forEachIndexed { index, x ->
                 if (sortOrder in setOf("NEWEST", "OLDEST") && (index == 0 || sorted[index - 1].date != x.date)) {

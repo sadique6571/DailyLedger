@@ -50,7 +50,7 @@ internal fun ReceiveDialog(committee: CommitteeEntity, balance: CommitteeBalance
                 OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
-        confirmButton = { Button(enabled = validAmount && isValidDate(date), onClick = { parsed?.let { save(it, date.trim(), note, method) } }) { Text("Save receiving") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = validAmount && isValidDate(date), onClick = { parsed?.let { save(it, date.trim(), note, method) } }) { Text("Save receiving") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -93,7 +93,7 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
                 OutlinedTextField(note, { note = it }, singleLine = true, label = { Text("Note") })
             }
         },
-        confirmButton = { Button(enabled = valid, onClick = { save(name.ifBlank { "Kameti" }, a!!, t!!, start.trim(), p, note, s!!, organizerPhone) }) { Text("Save") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = valid, onClick = { save(name.ifBlank { "Kameti" }, a!!, t!!, start.trim(), p, note, s!!, organizerPhone) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -178,7 +178,7 @@ internal fun PersonalMemberBatchDialog(
             }
         },
         confirmButton = {
-            Button(enabled = queued.isNotEmpty() && !saving, modifier = Modifier.testTag("kameti-save-all"), onClick = {
+            Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = queued.isNotEmpty() && !saving, modifier = Modifier.testTag("kameti-save-all"), onClick = {
                 if (!saving) {
                     val snapshot = queued.toList()
                     saving = true; saveError = null
@@ -212,7 +212,7 @@ internal fun MethodDialog(title: String, dismiss: () -> Unit, impact: String = "
                 }
             }
         },
-        confirmButton = { Button(onClick = { save(method) }) { Text("Record payment") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = { save(method) }) { Text("Record payment") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },
     )
 }
@@ -233,7 +233,7 @@ internal fun MarkMemberReceivedDialog(
                 LedgerDateField(date, { date = it }, label = "Received date")
             }
         },
-        confirmButton = { Button(enabled = isValidDate(date), onClick = { onConfirm(date) }) { Text("Mark received") } },
+        confirmButton = { Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, enabled = isValidDate(date), onClick = { onConfirm(date) }) { Text("Mark received") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

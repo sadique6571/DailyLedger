@@ -42,6 +42,18 @@ internal val quickEntryActions = listOf(
     QuickEntryAction("credit", "Udhar", Icons.Rounded.Storefront),
 )
 
+/** The global shortcut belongs to Home; destination-specific Add buttons stay on their screens. */
+@Composable
+internal fun DashboardEntryDial(
+    tab: Int,
+    expandedState: MutableState<Boolean>,
+    onBoundsChanged: (Rect) -> Unit = {},
+    onSelect: (String) -> Unit,
+) {
+    LaunchedEffect(tab) { if (tab != NavigationHistory.HOME) expandedState.value = false }
+    if (tab == NavigationHistory.HOME) QuickEntryDial(expandedState, onBoundsChanged, onSelect)
+}
+
 /** Five labelled actions retract into the stationary plus/minus toggle. */
 @Composable
 internal fun QuickEntryDial(

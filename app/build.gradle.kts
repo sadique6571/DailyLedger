@@ -23,7 +23,7 @@ android {
         applicationId = "com.sadique.dailyledger"
         minSdk = 26
         targetSdk = 36
-        versionCode = 46
+        versionCode = 47
         versionName = "2.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")

@@ -112,7 +112,9 @@ fun CreditScreen(
             }
 
             if (credits.isEmpty()) {
-                enteringItem { Text("Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.") }
+                enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No udhar records yet",
+                    "Abhi koi udhar saman record nahi hai. Add button ya AI Udhar Add se entry karein.",
+                    "Add udhar", Icons.Outlined.ShoppingCart, onAction = { add = true }) }
             }
 
             enteringItems(credits, key = { it.id }) { credit ->

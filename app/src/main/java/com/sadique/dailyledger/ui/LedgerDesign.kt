@@ -66,8 +66,15 @@ fun LedgerBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.
     }, content = content)
 }
 
+/** Opaque, theme-aware accent-to-surface wash shared by every money card. */
 @Composable
-fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, content: @Composable ColumnScope.() -> Unit) {
+fun ledgerCardBrush(accent: Color = MaterialTheme.colorScheme.primary): Brush {
+    val surface = MaterialTheme.colorScheme.surface
+    return Brush.verticalGradient(listOf(lerp(surface, accent, if (ledgerIsDark()) .14f else .10f), surface))
+}
+
+@Composable
+fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, accent: Color = MaterialTheme.colorScheme.primary, content: @Composable ColumnScope.() -> Unit) {
     val display = LocalDisplayPreferences.current!!
     val scheme = MaterialTheme.colorScheme
     val dark = ledgerIsDark()
@@ -82,10 +89,7 @@ fun LedgerCard(modifier: Modifier = Modifier, contentSpacing: Dp = 0.dp, content
         Column(
             Modifier.fillMaxWidth().clip(shape)
                 .background(
-                    Brush.verticalGradient(listOf(
-                        scheme.primaryContainer.copy(alpha = if (dark) .13f else .15f),
-                        scheme.surface,
-                    )),
+                    ledgerCardBrush(accent),
                     shape = shape,
                 ).padding(display.cardPadding.dp),
             verticalArrangement = Arrangement.spacedBy(contentSpacing),
@@ -108,7 +112,7 @@ fun LedgerHistoryCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
     ) {
         Column(
-            Modifier.padding(LedgerDesignTokens.InnerPadding),
+            Modifier.fillMaxWidth().background(ledgerCardBrush()).padding(LedgerDesignTokens.InnerPadding),
             verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space4),
             content = content,
         )
@@ -129,7 +133,7 @@ fun LedgerRecordCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f)),
     ) {
         Column(
-            Modifier.padding(LedgerTokens.Space16),
+            Modifier.fillMaxWidth().background(ledgerCardBrush()).padding(LedgerDesignTokens.InnerPadding),
             verticalArrangement = Arrangement.spacedBy(LedgerDesignTokens.RowGap),
             content = content,
         )
