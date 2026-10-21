@@ -31,6 +31,7 @@ fun TransactionsScreen(
     initialQuery: String = "",
     initialFilter: String = "ALL",
     onDetailedEntry: ((TransactionEntity) -> Unit)? = null,
+    onSaveAsync: (suspend (String, Long, String, String, String, TransactionEntity?) -> Unit)? = null,
 ) {
     var show by remember { mutableStateOf(false) }
     var edit by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -40,6 +41,7 @@ fun TransactionsScreen(
     val undoScope = rememberCoroutineScope()
     var pendingSave by remember { mutableStateOf<(() -> Unit)?>(null) }
     var duplicateWarning by remember { mutableStateOf(false) }
+    var duplicateDecision by remember { mutableStateOf<kotlinx.coroutines.CompletableDeferred<Boolean>?>(null) }
     var query by rememberSaveable(initialQuery) { mutableStateOf(initialQuery) }
     var filter by rememberSaveable(initialFilter) { mutableStateOf(initialFilter) }
     val listState = rememberLazyListState()
@@ -183,8 +185,8 @@ fun TransactionsScreen(
         )
     }
     if (duplicateWarning) DuplicateWarningDialog(
-        onDismiss = { duplicateWarning = false; pendingSave = null },
-        onConfirm = { val saveAction = pendingSave; duplicateWarning = false; pendingSave = null; saveAction?.invoke() },
+        onDismiss = { duplicateWarning = false; pendingSave = null; duplicateDecision?.complete(false) },
+        onConfirm = { duplicateDecision?.complete(true); val saveAction = pendingSave; duplicateWarning = false; pendingSave = null; saveAction?.invoke() },
     )
     if (show) {
         key(edit?.id, quickTemplate?.id) {
@@ -192,6 +194,15 @@ fun TransactionsScreen(
             val action = { onSave(type, amount, cat, note, date, edit); show = false; Unit }
             val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
             if (duplicate) { pendingSave = action; duplicateWarning = true } else action()
+        }, saveAsync = if (onSaveAsync == null) null else { type, amount, cat, note, date ->
+            val duplicate = items.any { it.id != edit?.id && it.type == type && it.amountMinor == amount && it.category.equals(cat, true) && it.date == date }
+            val approved = if (duplicate) {
+                val decision = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                duplicateDecision = decision
+                duplicateWarning = true
+                try { decision.await() } finally { duplicateDecision = null; duplicateWarning = false }
+            } else true
+            if (approved) { onSaveAsync(type, amount, cat, note, date, edit); show = false }
         }, onAdvanced = onDetailedEntry?.let { action -> { draft:TransactionEntity -> show=false;edit=null;action(draft) } }, initialType = quickTemplate?.type ?: "EXPENSE", initialCategory = quickTemplate?.category ?: "", initialAmount = quickTemplate?.let { plainAmount(it.amountMinor) } ?: "")
         }
     }

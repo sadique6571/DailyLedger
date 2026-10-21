@@ -38,6 +38,8 @@ fun LedgerEntrySheet(
     // The callback identity must not change while typing: it is a sheet-state key.
     // Validation only approves/vetoes a transition; dismissal belongs to the
     // actual close event, never to an anchor/layout validation during typing.
+    val compactForm = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360 || LocalDensity.current.fontScale >= 1.4f
+    val sidePadding = if (compactForm) 12.dp else 20.dp
     val keyboard = LocalSoftwareKeyboardController.current
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
@@ -71,14 +73,14 @@ fun LedgerEntrySheet(
                 .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = .28f), Color.Transparent)))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .testTag("ledger-entry-sheet")) {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 4.dp)) {
                     ProvideTextStyle(MaterialTheme.typography.titleLarge) { title() }
                 }
                 val body = Modifier.weight(1f).fillMaxWidth()
                 Box((if (scrollBody) body.verticalScroll(rememberScrollState()) else body)
-                    .padding(horizontal = 20.dp).testTag("ledger-entry-body")) { text() }
+                    .padding(horizontal = sidePadding).testTag("ledger-entry-body")) { text() }
                 HorizontalDivider(Modifier.padding(top = 8.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     dismissButton?.invoke()

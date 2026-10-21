@@ -32,6 +32,7 @@ fun LedgerDateField(
     val invalid = !(optional && value.isBlank()) && !isValidDate(value)
     LedgerTextField(value, onValueChange, modifier.fillMaxWidth(), enabled = enabled,
         label = { Text(label) }, singleLine = true, isError = invalid,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
         placeholder = { Text("YYYY-MM-DD", translate = false) },
         supportingText = { Text(if (invalid) "Use a valid YYYY-MM-DD date" else if (optional) "Optional • YYYY-MM-DD" else "YYYY-MM-DD") },
         trailingIcon = {

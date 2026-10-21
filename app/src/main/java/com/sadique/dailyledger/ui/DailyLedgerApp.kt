@@ -556,6 +556,14 @@ fun DailyLedgerApp(
                     initialQuery = historyQuery, initialFilter = historyFilter,
                     onAutoFill = { run { aiEntryOpen = true } },
                     onDetailedEntry = { detailedDraft=it },
+                    onSaveAsync = { t, a, c, n, d, e ->
+                        vm.saveChange {
+                            if (e != null && e.type == t && e.category != c && n.isNotBlank()) updateLearning { it.remember(t, n, c) }
+                            saveTransaction(t, a, c, n, d, e)
+                        }
+                        if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                        savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
+                    },
                     onSave = { t, a, c, n, d, e ->
                         vm.launch(onSuccess = {
                             if (transactionSounds) TransactionSoundPlayer.play(context, t)
@@ -676,11 +684,11 @@ fun DailyLedgerApp(
             initialType = entry.type,
             initialCategory = entry.category, initialNote = entry.note, initialAmount = entry.amount,
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
-            save = { t, a, c, n, d ->
-                vm.launch(onSuccess = {
-                    if (transactionSounds) TransactionSoundPlayer.play(context, t)
-                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
-                }) { saveTransaction(t, a, c, n, d) }
+            save = { _, _, _, _, _ -> },
+            saveAsync = { t, a, c, n, d ->
+                vm.saveChange { saveTransaction(t, a, c, n, d) }
+                if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
                 quickTransaction = null
             },
         )

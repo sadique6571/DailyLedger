@@ -12,6 +12,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,6 +52,7 @@ fun TransactionDialog(
     initialAmount: String = "",
     onHistory: ((String, String) -> Unit)? = null,
     onAdvanced: ((TransactionEntity) -> Unit)? = null,
+    saveAsync: (suspend (String, Long, String, String, String) -> Unit)? = null,
 ) {
     var type by rememberSaveable { mutableStateOf(x?.type ?: initialType) }
     var amount by rememberSaveable { mutableStateOf(x?.let { plainAmount(it.amountMinor) } ?: initialAmount) }
@@ -56,11 +60,16 @@ fun TransactionDialog(
     var note by rememberSaveable { mutableStateOf(x?.note ?: initialNote) }
     var date by rememberSaveable { mutableStateOf(x?.date ?: LedgerRepository.today()) }
     var discardWarning by rememberSaveable { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    val saveScope = rememberCoroutineScope()
+    val compactForm = LocalConfiguration.current.screenWidthDp < 360 || LocalDensity.current.fontScale >= 1.4f
+    val sidePadding = if (compactForm) 12.dp else 20.dp
     val originalAmount = x?.let { plainAmount(it.amountMinor) } ?: initialAmount
     val dirty = amount != originalAmount || type != (x?.type ?: initialType) || cat != (x?.category ?: initialCategory) || note != (x?.note ?: initialNote) || date != (x?.date ?: LedgerRepository.today())
     val keyboard = LocalSoftwareKeyboardController.current
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val safeDismiss = { if (dirty) discardWarning = true else dismiss() }
+    val safeDismiss = { if (!busy) { if (dirty) discardWarning = true else dismiss() } }
     val latestKeyboardVisible = rememberUpdatedState(keyboardVisible)
     if (discardWarning) AlertDialog(
         onDismissRequest = { discardWarning = false },
@@ -73,9 +82,12 @@ fun TransactionDialog(
     // reading current draft state; a new callback on each keystroke recreates the
     // sheet at Hidden and replays its opening animation.
     val latestDirty = rememberUpdatedState(dirty)
+    val latestBusy = rememberUpdatedState(busy)
     val confirmSheetChange: (SheetValue) -> Boolean = remember {
         { target ->
-            if (target == SheetValue.Hidden && latestKeyboardVisible.value) {
+            if (target == SheetValue.Hidden && latestBusy.value) {
+                false
+            } else if (target == SheetValue.Hidden && latestKeyboardVisible.value) {
                 keyboard?.hide()
                 false
             } else if (target == SheetValue.Hidden && latestDirty.value) {
@@ -103,32 +115,32 @@ fun TransactionDialog(
             .testTag("wide-transaction-entry")) {
             Text(if (x != null) "Edit transaction" else if (initialCategory == "Salary") "Add salary" else "Add transaction",
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                modifier = Modifier.padding(horizontal = sidePadding, vertical = 4.dp))
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                .padding(horizontal = sidePadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row {
-                    FilterChip(type == "EXPENSE", { type = "EXPENSE"; cat = "" }, { Text("Expense") })
+                    FilterChip(type == "EXPENSE", { type = "EXPENSE"; cat = "" }, { Text("Expense") }, enabled = !busy)
                     Spacer(Modifier.width(8.dp))
-                    FilterChip(type == "INCOME", { type = "INCOME"; cat = "" }, { Text("Income") })
+                    FilterChip(type == "INCOME", { type = "INCOME"; cat = "" }, { Text("Income") }, enabled = !busy)
                 }
                 if (type == "INCOME") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(cat.equals("Salary", true), { cat = "Salary" }, { Text("Salary") })
-                        FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") })
+                        FilterChip(cat.equals("Salary", true), { cat = "Salary" }, { Text("Salary") }, enabled = !busy)
+                        FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") }, enabled = !busy)
                     }
                 }
-                OutlinedTextField(amount, { amount = it }, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
+                OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseMinor(amount) ?: 0) <= 0, supportingText = { Text("Enter an amount greater than zero") })
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("100", "500", "1000", "5000").forEach { preset ->
-                        AssistChip(onClick = { amount = preset }, label = { Text("Rs $preset") })
+                        AssistChip(enabled = !busy, onClick = { amount = preset }, label = { Text("Rs $preset") })
                     }
                 }
-                onAdvanced?.let { action -> TextButton(onClick = {
+                onAdvanced?.let { action -> TextButton(enabled = !busy, onClick = {
                     action((x ?: TransactionEntity("","",type,parseMinor(amount) ?: 0,cat,note,date,0,0)).copy(type=type,amountMinor=parseMinor(amount) ?: 0,category=cat,note=note,date=date))
                 }) { Text("Quantity, account & privacy options") } }
-                CategoryDropdown(type, cat, { cat = it }, inlineResults = true)
-                onHistory?.let { history -> TextButton(onClick = { history(type, cat) }) { Text("View history") } }
-                OutlinedTextField(note, { note = it }, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
+                CategoryDropdown(type, cat, { cat = it }, inlineResults = true, enabled = !busy)
+                onHistory?.let { history -> TextButton(enabled = !busy, onClick = { history(type, cat) }) { Text("View history") } }
+                OutlinedTextField(note, { note = it }, enabled = !busy, label = { Text("Note") }, modifier = Modifier.fillMaxWidth())
                 Text("Quick notes", style = MaterialTheme.typography.labelMedium)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Monthly", "Weekly", "Cash", "Online").forEach { preset ->
@@ -140,26 +152,43 @@ fun TransactionDialog(
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    TextButton(onClick = { date = LocalDate.now().toString() },
+                    TextButton(enabled = !busy, onClick = { date = LocalDate.now().toString() },
                         contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Today") }
                     TextButton(onClick = { date = LocalDate.now().minusDays(1).toString() },
                         contentPadding = PaddingValues(horizontal = 6.dp)) { Text("Yesterday") }
                 }
-                LedgerDateField(date, { date = it }, label = if (type == "INCOME" && cat.equals("Salary", true)) "Salary date" else "Entry date", calendarTag = "transaction-calendar")
+                LedgerDateField(date, { date = it }, enabled = !busy, label = if (type == "INCOME" && cat.equals("Salary", true)) "Salary date" else "Entry date", calendarTag = "transaction-calendar")
             }
+            saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = sidePadding).testTag("transaction-save-error")) }
             HorizontalDivider(Modifier.padding(top = 8.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = if (compactForm) 8.dp else 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = safeDismiss) { Text("Cancel") }
+                TextButton(onClick = safeDismiss, enabled = !busy) { Text("Cancel") }
                 Button(
                     modifier = Modifier.weight(1f).heightIn(min = 50.dp).testTag("transaction-save"),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
+                    enabled = !busy && isValidDate(date) && (parseMinor(amount) ?: 0) > 0 && cat.isNotBlank(),
                     onClick = {
-                        parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { save(type, it, cat, note, date.trim()) }
+                        if (!busy) parseMinor(amount)?.takeIf { it > 0 && cat.isNotBlank() }?.let { parsed ->
+                            val async = saveAsync
+                            if (async == null) save(type, parsed, cat, note, date.trim())
+                            else {
+                                // Lock synchronously, before another tap can enqueue a save.
+                                busy = true
+                                saveError = null
+                                val draft = listOf(type, cat, note, date.trim())
+                                keyboard?.hide()
+                                saveScope.launch {
+                                    try { async(draft[0], parsed, draft[1], draft[2], draft[3]) }
+                                    catch (e: CancellationException) { throw e }
+                                    catch (e: Exception) { saveError = e.message ?: "Could not save. Please try again." }
+                                    finally { busy = false }
+                                }
+                            }
+                        }
                     },
-                ) { Text("Save") }
+                ) { Text(if (busy) "Saving…" else "Save") }
             }
         }
     }
