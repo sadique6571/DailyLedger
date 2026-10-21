@@ -38,10 +38,19 @@ class EntrySheetTest {
         compose.waitForIdle()
         if (withKeyboard) {
             if (transaction) {
-                compose.onNodeWithTag("transaction-note").performScrollTo().performTextInput("Keep this draft")
+                compose.onNodeWithTag("transaction-note").performScrollTo().performClick().performTextInput("Keep this draft")
             } else {
-                compose.onNodeWithText("Regression note").performScrollTo().performTextInput("Keep this draft")
+                compose.onNodeWithText("Regression note").performScrollTo().performClick().performTextInput("Keep this draft")
                 compose.waitUntil(5000) { imeBottom > 0 }
+            }
+            compose.waitUntil(5000) {
+                var visible = false
+                androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    visible = android.view.inspector.WindowInspector.getGlobalWindowViews().any { view ->
+                        androidx.core.view.ViewCompat.getRootWindowInsets(view)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+                    }
+                }
+                visible
             }
             compose.waitForIdle()
         }
@@ -77,7 +86,9 @@ class EntrySheetTest {
 
     @Test fun fullscreenTransactionScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(true, false)
     @Test fun fullscreenSharedScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(false, false)
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
     @Test fun fullscreenTransactionKeyboardScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(true, true)
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
     @Test fun fullscreenSharedKeyboardScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(false, true)
 
     @Test fun plusShowsOnlyFiveShortcutsAndRetractsAtTheSamePosition() {
