@@ -23,7 +23,7 @@ android {
         applicationId = "com.sadique.dailyledger"
         minSdk = 26
         targetSdk = 36
-        versionCode = 47
+        versionCode = 48
         versionName = "2.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
@@ -119,7 +119,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.6.0")
 
     implementation("androidx.biometric:biometric:1.1.0")
-    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
