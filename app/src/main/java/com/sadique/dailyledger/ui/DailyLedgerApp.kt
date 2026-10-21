@@ -346,6 +346,7 @@ fun DailyLedgerApp(
             onBack = { aiEntryOpen = false }, generate = vm::autoFill,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
+                savedNotice("AI entries", drafts.sumOf { it.amountMinor })
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
             }, onSaved = { aiEntryOpen = false }, onLearnCategory = vm::rememberCategory,
             embedded = true, onBusyChanged = { aiEntryBusy = it },
@@ -664,6 +665,7 @@ fun DailyLedgerApp(
         com.sadique.dailyledger.ui.screens.FinanceEntryEditor(user.id,accountNames,
             draft.takeIf { it.id.isNotBlank() },draft.takeIf { it.id.isBlank() },false,{detailedDraft=null}) { row ->
             vm.saveChange { saveTransactionRow(row,draft.takeIf { it.id.isNotBlank() }?.updatedAt) }
+            savedNotice("Entry", row.amountMinor)
         }
     }
     quickTransaction?.let { entry ->
