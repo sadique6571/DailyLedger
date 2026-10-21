@@ -42,7 +42,7 @@ fun LedgerTextField(
         onNext = { focus.moveFocus(FocusDirection.Next) },
         onDone = { focus.clearFocus(); keyboard?.hide() },
     )
-    val options = if (singleLine && keyboardOptions.imeAction == ImeAction.Default)
+    val options = if (singleLine && (keyboardOptions.imeAction == ImeAction.Default || keyboardOptions.imeAction == ImeAction.Unspecified))
         keyboardOptions.copy(imeAction = ImeAction.Next) else keyboardOptions
     OutlinedTextField(
         value = value, onValueChange = onValueChange, modifier = if (LocalEntrySheet.current) modifier.fillMaxWidth() else modifier,
