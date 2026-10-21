@@ -98,7 +98,7 @@ class EntrySaveAndKeyboardTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             TransactionDialog(null, {}, { _, _, _, _, _ -> }, initialAmount = "150", initialCategory = "Milk")
         } }
-        val sheet = compose.onNodeWithTag("transaction-bottom-sheet")
+        val sheet = compose.onNodeWithTag("wide-transaction-entry")
         compose.onNodeWithTag("transaction-note").performScrollTo().performClick().performTextInput("Keep my note")
         compose.waitUntil(5000) {
             var visible = false
@@ -122,9 +122,9 @@ class EntrySaveAndKeyboardTest {
             compose.waitForIdle()
             assertEquals("Keyboard scrolling must not drag the sheet", top, sheet.fetchSemanticsNode().boundsInRoot.top, 1f)
         }
-        compose.onNodeWithTag("entry-sheet-handle").performClick()
-        compose.waitForIdle()
-        assertTrue("Handle must expand the form", sheet.fetchSemanticsNode().boundsInRoot.top < top)
+        val heightBefore = sheet.fetchSemanticsNode().boundsInRoot.height
+        compose.onNodeWithTag("entry-sheet-handle").performTouchInput { swipeUp(endY = -100f) }
+        compose.waitUntil(5000) { sheet.fetchSemanticsNode().boundsInRoot.height > heightBefore + 1f }
         compose.onNodeWithTag("transaction-note").performScrollTo().assertTextContains("Keep my note")
         compose.onNodeWithTag("transaction-save").assertIsDisplayed()
     }

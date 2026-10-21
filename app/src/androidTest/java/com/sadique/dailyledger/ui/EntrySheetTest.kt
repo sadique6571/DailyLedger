@@ -142,9 +142,9 @@ class EntrySheetTest {
         sheet.assertIsDisplayed()
         field.assertTextContains("123")
         // Dismiss via a downward gesture; the form remains while its save guard is busy.
-        sheet.performTouchInput { swipeDown() }
+        compose.onNodeWithTag("entry-sheet-handle").performTouchInput { swipeDown(endY = height + 200f) }
         compose.runOnIdle { assertFalse(closed); busy = false }
-        sheet.performTouchInput { swipeDown() }
+        compose.onNodeWithTag("entry-sheet-handle").performTouchInput { swipeDown(endY = height + 200f) }
         compose.waitUntil(5000) { closed }
     }
 }
