@@ -58,7 +58,8 @@ class EntrySaveAndKeyboardTest {
             }
         } }
         compose.onNodeWithTag("ime-amount").performClick().performImeAction()
-        compose.onNodeWithTag("ime-date").assertIsFocused().performImeAction().assertIsNotFocused()
+        compose.onNodeWithTag("ime-date").assertIsFocused().performImeAction()
+        compose.onNodeWithTag("ime-date").assertIsNotFocused()
     }
 
     @Test fun largeFontEntryKeepsSaveAndScrollableDateReachable() {
