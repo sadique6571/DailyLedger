@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -48,9 +47,9 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
     Row(Modifier.testTag("quick-entry-dial"),
         verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         AnimatedVisibility(visible = expanded,
-            enter = slideInHorizontally(tween(280)) { it } + fadeIn(tween(200)),
-            exit = slideOutHorizontally(tween(220)) { it } + fadeOut(tween(180))) {
-            Surface(modifier = Modifier.widthIn(max = 220.dp).testTag("quick-entry-glass"),
+            enter = fadeIn(tween(120)),
+            exit = fadeOut(tween(100, delayMillis = 420))) {
+            Surface(modifier = Modifier.width(IntrinsicSize.Max).widthIn(min = 128.dp, max = 164.dp).testTag("quick-entry-glass"),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surface.copy(alpha = .82f),
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -59,16 +58,22 @@ internal fun QuickEntryDial(onSelect: (String) -> Unit) {
                 Column(Modifier.heightIn(max = 310.dp).verticalScroll(rememberScrollState())
                     .background(Brush.verticalGradient(listOf(
                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = .25f), Color.Transparent)))
-                    .padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    quickEntryActions.forEach { action ->
+                    .padding(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    quickEntryActions.forEachIndexed { index, action ->
                         TextButton(onClick = { expanded = false; onSelect(action.id) },
+                            enabled = expanded,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .animateEnterExit(
+                                    enter = slideInHorizontally(tween(220, delayMillis = index * 60)) { it } +
+                                        fadeIn(tween(180, delayMillis = index * 60)),
+                                    exit = slideOutHorizontally(tween(180, delayMillis = (quickEntryActions.lastIndex - index) * 60)) { it } +
+                                        fadeOut(tween(140, delayMillis = (quickEntryActions.lastIndex - index) * 60)))
                                 .testTag("quick-entry-${action.id}"),
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
                             Icon(action.icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text(action.label, fontSize = 13.sp, maxLines = 1)
-                            Spacer(Modifier.weight(1f))
                         }
                     }
                 }
