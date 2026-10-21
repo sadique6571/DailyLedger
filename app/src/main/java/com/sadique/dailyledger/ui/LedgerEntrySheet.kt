@@ -63,7 +63,9 @@ fun LedgerEntrySheet(
     ModalBottomSheet(
         onDismissRequest = dismissSafely,
         sheetState = state,
-        sheetGesturesEnabled = !keyboardVisible && canDismiss,
+        // Fullscreen body scrolling must never hand a boundary fling to the sheet.
+        // The dedicated handle still controls expand/reduce and dismissal.
+        sheetGesturesEnabled = !fullScreen && !keyboardVisible && canDismiss,
         dragHandle = { LedgerSheetHandle(fullScreen, { fullScreen = it }, dismissSafely) },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
