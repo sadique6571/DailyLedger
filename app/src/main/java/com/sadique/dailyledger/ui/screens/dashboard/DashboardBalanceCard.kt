@@ -61,8 +61,6 @@ internal fun DashboardBalanceCard(
                 livingAnim.animateTo(0f, androidx.compose.animation.core.tween(5200))
             }
         }
-                val appCtx = androidx.compose.ui.platform.LocalContext.current
-        val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
         if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
                 shineAnim.animateTo(1.45f, androidx.compose.animation.core.tween(3400, delayMillis = 2400))
