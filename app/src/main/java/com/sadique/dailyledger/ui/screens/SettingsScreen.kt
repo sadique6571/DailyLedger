@@ -578,7 +578,7 @@ fun SettingsScreen(
                 var aiTesting by remember { mutableStateOf(false) }
                 OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text("Gemini API key (free)") }, singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-                Text("Free key aistudio.google.com → Get API key se banta hai — card nahi chahiye. Key sirf is phone mein mehfooz rehti hai, sirf Google ko jati hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("AI tayyar hai — app ek mehfooz proxy se chalti hai, key dalne ki zaroorat nahi. Agar apni alag free key (aistudio.google.com se) lagani ho to laga sakte hain; personal key sirf is phone mein rehti hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); aiKeyMsg = "Save ho gaya." }) { Text("Save") }

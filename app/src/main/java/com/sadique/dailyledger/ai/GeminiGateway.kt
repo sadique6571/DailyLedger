@@ -15,6 +15,9 @@ internal object GeminiGateway {
     // Flash-Lite model with a Gemini Developer API free tier.
     const val MODEL = "gemini-3.5-flash-lite"
     const val DEFAULT_BASE = "https://generativelanguage.googleapis.com"
+    /** Shared proxy holding the owner's key server-side, so app users never enter a key. */
+    const val BUILT_IN_PROXY = "https://dailyledger-ai.sadique6571.workers.dev"
+    const val APP_TOKEN = "dlgr-proxy-786-okara-22"
 
     private fun draftSchema(): JSONObject = JSONObject()
         .put("type", "OBJECT")
@@ -43,7 +46,12 @@ internal object GeminiGateway {
         .put("required", JSONArray(listOf("suggestions")))
 
     suspend fun generate(request: AiModelRequest, apiKey: String, proxyBase: String): String = withContext(Dispatchers.IO) {
-        val base = proxyBase.trim().trimEnd('/').ifBlank { DEFAULT_BASE }
+        val useBuiltInProxy = proxyBase.isBlank() && apiKey.isBlank()
+        val base = when {
+            proxyBase.isNotBlank() -> proxyBase.trim().trimEnd('/')
+            apiKey.isNotBlank() -> DEFAULT_BASE
+            else -> BUILT_IN_PROXY
+        }
         val url = URL("$base/v1beta/models/$MODEL:generateContent")
         val generation = JSONObject().put("maxOutputTokens", when (request.task) {
             AiTask.AUTOFILL -> 6_000
@@ -66,6 +74,7 @@ internal object GeminiGateway {
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
             if (proxyBase.isBlank() && apiKey.isNotBlank()) setRequestProperty("x-goog-api-key", apiKey)
+            if (useBuiltInProxy) setRequestProperty("x-app-token", APP_TOKEN)
         }
         try {
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }

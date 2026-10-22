@@ -13,9 +13,8 @@ class AiService(private val context: Context, private val owner: String) {
     private val runner = AiRequestRunner(
         checkAccess = ::checkAccess,
         prepare = {
-            if (keyStore.key.isBlank() && preferences.proxyBase.isBlank()) {
-                throw AiException("Pehle Settings → Mini AI & Auto Fill mein apni free Gemini API key lagayein. [AI_KEY]")
-            }
+            // No key needed on the device: the built-in proxy holds the owner's key.
+            // A personal key or custom proxy saved in Settings takes precedence when present.
         },
         reserve = { preferences.reserve(it) },
         generate = { GeminiGateway.generate(it, keyStore.key, preferences.proxyBase) },
