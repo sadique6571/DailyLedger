@@ -4,8 +4,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeout
 
-internal enum class AiTask { AUTOFILL, INSIGHTS, TEXT }
-internal data class AiModelRequest(val task: AiTask, val instruction: String, val input: String)
+enum class AiTask { AUTOFILL, INSIGHTS, TEXT }
+data class AiModelRequest(val task: AiTask, val instruction: String, val input: String)
 
 /** Re-check account and consent across every suspension before sending or accepting data. */
 internal class AiRequestRunner(

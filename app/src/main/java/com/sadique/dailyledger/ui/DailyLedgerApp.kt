@@ -372,7 +372,7 @@ fun DailyLedgerApp(
             PlannerMath.budgets(user.id, planning.budgets, tx, java.time.YearMonth.from(today)))
     }
     var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
-    var duplicateConfirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var duplicateConfirm by remember { mutableStateOf<Pair<String, suspend () -> Unit>?>(null) }
     var entryRequest by remember { mutableStateOf<String?>(null) }
     if (aiEntryOpen) LedgerEntrySheet(
         onDismissRequest = { aiEntryOpen = false }, canDismiss = !aiEntryBusy,
@@ -749,7 +749,7 @@ fun DailyLedgerApp(
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
             save = { _, _, _, _, _ -> },
             saveAsync = { t, a, c, n, d ->
-                val doSave: () -> Unit = {
+                val doSave: suspend () -> Unit = {
                     vm.saveChange { saveTransaction(t, a, c, n, d) }
                     if (transactionSounds) TransactionSoundPlayer.play(context, t)
                     savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
@@ -763,7 +763,7 @@ fun DailyLedgerApp(
     duplicateConfirm?.let { (warning, action) ->
         AlertDialog(onDismissRequest = { duplicateConfirm = null }, title = { Text("Dobara entry?") },
             text = { Text(warning) },
-            confirmButton = { TextButton(onClick = { duplicateConfirm = null; action() }) { Text("Phir bhi save karein") } },
+            confirmButton = { TextButton(onClick = { duplicateConfirm = null; scope.launch { action() } }) { Text("Phir bhi save karein") } },
             dismissButton = { TextButton(onClick = { duplicateConfirm = null }) { Text("Cancel") } })
     }
 }
