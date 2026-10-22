@@ -91,7 +91,7 @@ class EntrySheetTest {
     @androidx.test.filters.SdkSuppress(minSdkVersion = 29)
     @Test fun fullscreenSharedKeyboardScrollHasNoSheetBounce() = fullScreenScrollStaysFixed(false, true)
 
-    @Test fun plusShowsOnlyFiveShortcutsAndRetractsAtTheSamePosition() {
+    @Test fun plusShowsOnlySixShortcutsAndRetractsAtTheSamePosition() {
         var selected = ""
         compose.setContent { DailyLedgerTheme("LIGHT") {
             androidx.compose.material3.Scaffold(floatingActionButton = { QuickEntryDial { selected = it } }) { _ -> }
@@ -102,7 +102,7 @@ class EntrySheetTest {
         quickEntryActions.forEach { compose.onNodeWithTag("quick-entry-${it.id}").assertIsDisplayed() }
         compose.onNodeWithTag("quick-entry-saving").assertDoesNotExist()
         compose.onNodeWithTag("quick-entry-budget").assertDoesNotExist()
-        assertEquals(5, quickEntryActions.size)
+        assertEquals(6, quickEntryActions.size)
         val bounds = quickEntryActions.map { compose.onNodeWithTag("quick-entry-${it.id}").fetchSemanticsNode().boundsInRoot }
         bounds.zipWithNext().forEach { (upper, lower) ->
             assertTrue("Shortcuts must form a vertical list", upper.bottom <= lower.top)
@@ -115,7 +115,7 @@ class EntrySheetTest {
         assertEquals(before, toggle.fetchSemanticsNode().boundsInRoot)
         compose.waitForIdle()
         val shot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
-            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-five-action-dial.png")
+            .executeShellCommand("screencap -p /data/local/tmp/dailyledger-six-action-dial.png")
         android.os.ParcelFileDescriptor.AutoCloseInputStream(shot).use { it.readBytes() }
         toggle.performClick()
         compose.onNodeWithTag("quick-entry-ai").assertDoesNotExist()
