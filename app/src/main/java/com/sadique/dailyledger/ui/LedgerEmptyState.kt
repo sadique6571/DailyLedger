@@ -14,7 +14,16 @@ import kotlin.math.roundToInt
 fun LedgerEmptyState(title: String, description: String, actionLabel: String, icon: ImageVector,
     modifier: Modifier = Modifier, onAction: () -> Unit) {
     LedgerCard(modifier.fillMaxWidth().testTag("ledger-empty-state"), contentSpacing = LedgerTokens.Space8) {
-        GlowIcon(icon, MaterialTheme.colorScheme.primary, size = 40.dp)
+        val floatAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-5f) }
+                val appCtx = androidx.compose.ui.platform.LocalContext.current
+        val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
+        if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) {
+                floatAnim.animateTo(5f, androidx.compose.animation.core.tween(1500))
+                floatAnim.animateTo(-5f, androidx.compose.animation.core.tween(1500))
+            }
+        }
+        GlowIcon(icon, MaterialTheme.colorScheme.primary, modifier = Modifier.offset { androidx.compose.ui.unit.IntOffset(0, floatAnim.value.roundToInt()) }, size = 40.dp)
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FilledTonalButton(onClick = onAction, shape = LedgerTokens.ShapeSmall, modifier = Modifier.heightIn(min = 48.dp)) { Text(actionLabel) }

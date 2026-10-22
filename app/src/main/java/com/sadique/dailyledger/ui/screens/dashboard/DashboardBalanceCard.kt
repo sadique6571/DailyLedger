@@ -51,7 +51,29 @@ internal fun DashboardBalanceCard(
 ) {
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
-        val gradColors = listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75))
+        val livingAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+        val shineAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-0.45f) }
+                val appCtx = androidx.compose.ui.platform.LocalContext.current
+        val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
+        if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) {
+                livingAnim.animateTo(1f, androidx.compose.animation.core.tween(5200))
+                livingAnim.animateTo(0f, androidx.compose.animation.core.tween(5200))
+            }
+        }
+                val appCtx = androidx.compose.ui.platform.LocalContext.current
+        val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
+        if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) {
+                shineAnim.animateTo(1.45f, androidx.compose.animation.core.tween(3400, delayMillis = 2400))
+                shineAnim.snapTo(-0.45f)
+            }
+        }
+        val gradColors = listOf(
+            androidx.compose.ui.graphics.lerp(Color(0xFF087FAE), Color(0xFF0B5E91), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF004664), Color(0xFF003A5C), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF006D75), Color(0xFF00586E), livingAnim.value),
+        )
         Box(Modifier.fillMaxWidth().background(Brush.linearGradient(gradColors)).padding(14.dp)) {
             WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -159,6 +181,11 @@ internal fun DashboardBalanceCard(
                         }
                     }
                 }
+            }
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxHeight().width(90.dp)
+                    .graphicsLayer { translationX = shineAnim.value * 1100f; rotationZ = 16f }
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.12f), Color.Transparent))))
             }
         }
     }
