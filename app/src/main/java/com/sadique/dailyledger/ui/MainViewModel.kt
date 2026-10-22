@@ -93,7 +93,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     fun saveAiProviderModel(value:String){aiPrefs.providerModel=value}
     fun aiProviderBase():String=aiPrefs.providerBase
     fun saveAiProviderBase(value:String){aiPrefs.providerBase=value}
-    suspend fun testAiConnection():String{checkAccount();return aiService.advise(AiModelRequest(AiTask.TEXT,"Reply with exactly this word: OK","ping")).also{checkAccount()}}
+    suspend fun testAiConnection():String{checkAccount();return aiService.testConnection().also{checkAccount()}}
     suspend fun aiAdvise(request:AiModelRequest):String{checkAccount();return aiService.advise(request).also{checkAccount()}}
     suspend fun importStatement(text:String):AiDraftResult = withContext(Dispatchers.Default) {
         checkAccount()

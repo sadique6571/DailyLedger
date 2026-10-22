@@ -16,19 +16,37 @@ class AiService(private val context: Context, private val owner: String) {
             // No key needed on the device: the built-in proxy holds the owner's key.
             // A personal key or custom proxy saved in Settings takes precedence when present.
         },
-        reserve = { preferences.reserve(it) },
-        generate = { request ->
-            val key = keyStore.key
-            val provider = AiProviders.byId(preferences.providerId)
-            if (key.isNotBlank() && preferences.proxyBase.isBlank() && !provider.geminiNative) {
-                // Personal key of another AI service (OpenAI-compatible chat API).
-                OpenAiGateway.generate(request, provider, key, preferences.providerModel, preferences.providerBase)
-            } else {
-                // Gemini key directly, the user's own proxy, or the built-in proxy.
-                GeminiGateway.generate(request, key, preferences.proxyBase)
-            }
+        reserve = { task ->
+            // The on-device daily cap protects the SHARED built-in proxy quota only.
+            // A personal key or the user's own proxy spends their own quota — no cap here.
+            if (usesBuiltInProxy()) preferences.reserve(task) else true
         },
+        generate = { request -> route(request) },
     )
+
+    /** True when this request would spend the shared built-in proxy quota. */
+    private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
+
+    private suspend fun route(request: AiModelRequest): String {
+        val key = keyStore.key
+        val provider = AiProviders.byId(preferences.providerId)
+        return if (key.isNotBlank() && preferences.proxyBase.isBlank() && !provider.geminiNative) {
+            // Personal key of another AI service (OpenAI-compatible chat API).
+            OpenAiGateway.generate(request, provider, key, preferences.providerModel, preferences.providerBase)
+        } else {
+            // Gemini key directly, the user's own proxy, or the built-in proxy.
+            GeminiGateway.generate(request, key, preferences.proxyBase)
+        }
+    }
+
+    /** Settings "Connection test": same routing as real calls, but never consumes any daily quota. */
+    suspend fun testConnection(): String = try {
+        checkAccess()
+        route(AiModelRequest(AiTask.TEXT, "Reply with exactly this word: OK", "ping")).trim()
+    } catch (e: TimeoutCancellationException) {
+        throw AiException("AI ne jawab dene mein bohat der kar di. Dobara koshish karein. Nothing was saved. [AI_TIMEOUT]")
+    } catch (e: CancellationException) { throw e }
+    catch (e: Exception) { throw AiFailures.describe(e) }
 
     private fun checkAccess() {
         if (!preferences.enabled) throw AiException("Enable Cloud AI in Settings before sending a request. [AI_CONSENT]")

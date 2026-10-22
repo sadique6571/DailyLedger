@@ -552,7 +552,7 @@ fun SettingsScreen(
                 var aiKeyText by remember { mutableStateOf(vm.aiKey()) }
                 var aiProxyText by remember { mutableStateOf(vm.aiProxy()) }
                 var aiProviderId by remember { mutableStateOf(vm.aiProvider()) }
-                var aiModelText by remember { mutableStateOf(vm.aiProviderModel()) }
+                var aiModelText by remember { mutableStateOf(vm.aiProviderModel().ifBlank { val p0 = com.sadique.dailyledger.ai.AiProviders.byId(vm.aiProvider()); if (p0.geminiNative || p0.id == "custom") "" else p0.defaultModel }) }
                 var aiBaseText by remember { mutableStateOf(vm.aiProviderBase()) }
                 var aiKeyMsg by remember { mutableStateOf("") }
                 var aiTesting by remember { mutableStateOf(false) }
@@ -564,7 +564,7 @@ fun SettingsScreen(
                     OutlinedButton(onClick = { providerMenu = true }) { Text(aiProvider.label + "  ▾") }
                     androidx.compose.material3.DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
                         com.sadique.dailyledger.ai.AiProviders.ALL.forEach { p ->
-                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { aiProviderId = p.id; providerMenu = false })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { aiProviderId = p.id; if (!p.geminiNative && p.id != "custom") aiModelText = p.defaultModel; providerMenu = false })
                         }
                     }
                 }
@@ -574,9 +574,9 @@ fun SettingsScreen(
                     if (aiProvider.id == "custom") {
                         OutlinedTextField(aiBaseText, { aiBaseText = it }, label = { Text("Base URL (masalan https://.../v1)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
-                    OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model (khali = default: " + aiProvider.defaultModel + ")") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
-                Text("AI tayyar hai — app built-in proxy (Gemini) se chalti hai, key dalne ki zaroorat nahi. Chahein to apni personal API key laga sakte hain — Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral ya koi bhi OpenAI-compatible service. Personal key sirf is phone mein mehfooz rehti hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("AI tayyar hai — app built-in proxy (Gemini) se chalti hai, key dalne ki zaroorat nahi. Chahein to apni personal API key laga sakte hain — Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral ya koi bhi OpenAI-compatible service. Personal key sirf is phone mein mehfooz rehti hai — aur personal key ke saath is phone wali rozana AI limit bhi nahi lagti.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { saveAiFields(); aiKeyMsg = "Save ho gaya." }) { Text("Save") }
