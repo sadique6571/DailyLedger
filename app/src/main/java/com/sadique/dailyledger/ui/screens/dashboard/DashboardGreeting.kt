@@ -47,7 +47,7 @@ internal fun DashboardGreetingSection(
                 Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(12.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     val weatherAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-2.5f) }
-                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                    if (!androidx.compose.ui.platform.LocalInspectionMode.current) androidx.compose.runtime.LaunchedEffect(Unit) {
                         while (true) {
                             weatherAnim.animateTo(2.5f, androidx.compose.animation.core.tween(1700))
                             weatherAnim.animateTo(-2.5f, androidx.compose.animation.core.tween(1700))

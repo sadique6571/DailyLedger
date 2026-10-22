@@ -53,13 +53,13 @@ internal fun DashboardBalanceCard(
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
         val livingAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
         val shineAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-0.45f) }
-        androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!androidx.compose.ui.platform.LocalInspectionMode.current) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
                 livingAnim.animateTo(1f, androidx.compose.animation.core.tween(5200))
                 livingAnim.animateTo(0f, androidx.compose.animation.core.tween(5200))
             }
         }
-        androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!androidx.compose.ui.platform.LocalInspectionMode.current) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
                 shineAnim.animateTo(1.45f, androidx.compose.animation.core.tween(3400, delayMillis = 2400))
                 shineAnim.snapTo(-0.45f)
