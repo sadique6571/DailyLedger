@@ -16,23 +16,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'backend/**'
-      - 'functions/**'
-      - 'ai-service.json'
-      - 'wrangler.jsonc'
-      - '.dev.vars.example'
-      - 'firebase.json'
-      - '.firebaserc'
-      - 'firestore.indexes.json'
-      - 'firestore.rules'
-      - 'storage.rules'
-      - 'package.json'
-      - 'local.properties.example'
-      - 'tests/firestore-rules.test.mjs'
-      - 'tests/storage-rules.test.mjs'
-      - 'tests/release-smoke.sh'
-      - 'app/src/main/java/com/sadique/dailyledger/ui/screens/AppVerificationCard.kt'
-
+      
 permissions:
   contents: read
 
