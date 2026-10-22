@@ -157,13 +157,13 @@ fun SettingsScreen(
     val backupReady = lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
     var cityEditor by rememberSaveable { mutableStateOf(false) }
-    fun export(pdf: Boolean, previewOnly: Boolean = false) {
+    fun export(pdf: Boolean, previewOnly: Boolean = false, periodOverride: ExportPeriod? = null) {
         if (busy) return
         busy = true
         message = null
         scope.launch {
             try {
-                val (from, through) = when (exportPeriod) {
+                val (from, through) = when (periodOverride ?: exportPeriod) {
                     ExportPeriod.CURRENT_MONTH -> {
                         val month = YearMonth.now()
                         month.atDay(1) to month.atEndOfMonth()
@@ -466,6 +466,38 @@ fun SettingsScreen(
             }
             if (categoryEditorOpen) CategoryVisualEditorDialog(onDismiss = { categoryEditorOpen = false })
         }
+        if (matchesSetting("Your categories custom add")) enteringItem(key = "settings-custom-categories", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Your categories", "Add your own categories — they appear in the category list right away") {
+                var newCatName by remember { mutableStateOf("") }
+                var newCatType by remember { mutableStateOf("EXPENSE") }
+                display.customCategories.forEach { entry ->
+                    val parts = entry.split("|", limit = 2)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(parts.getOrNull(1) ?: entry, Modifier.weight(1f))
+                        Text(if (parts.getOrNull(0) == "INCOME") "Income" else "Expense", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IconButton(onClick = { display.removeCustomCategory(entry) }) { Icon(Icons.Rounded.DeleteOutline, "Remove category") }
+                    }
+                }
+                if (display.customCategories.isEmpty()) Text("No custom categories yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(newCatName, { newCatName = it }, label = { Text("New category name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(newCatType == "EXPENSE", { newCatType = "EXPENSE" }, { Text("Expense") })
+                    FilterChip(newCatType == "INCOME", { newCatType = "INCOME" }, { Text("Income") })
+                }
+                GradientButton("Add category", { display.addCustomCategory(newCatType, newCatName); newCatName = "" }, Modifier.fillMaxWidth(), enabled = newCatName.isNotBlank())
+            }
+        }
+        if (matchesSetting("Widget balance home screen")) enteringItem(key = "settings-widget", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Home screen widget", "Widget kya dikhaye, tumhare ikhtiyar mein") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Widget par balance dikhao")
+                        Text("On ho to home-screen widget par balance aur Udhar/Kameti dues nazar ayenge. Privacy mode on ho to balance phir bhi chhupa rahega.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = display.widgetShowBalance, onCheckedChange = { display.updateWidgetShowBalance(it); com.sadique.dailyledger.widget.LedgerWidget.refresh(context) })
+                }
+            }
+        }
         if (matchesSetting("Salary calendar next expected date")) enteringItem(key = "settings-salary", index = 3, entranceKey = entranceVisit) {
             SalarySettingsCard(vm.salarySchedule, salaryTransactions)
         }
@@ -670,6 +702,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (busy) Text("Working on your request…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 if (exportPdf) OutlinedButton(onClick = { export(true, previewOnly = true) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("export-preview")) { Text("Preview & share PDF") }
+                OutlinedButton(onClick = { export(true, periodOverride = ExportPeriod.CURRENT_MONTH) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("export-monthly-pdf")) { Text("Monthly PDF report (this month)") }
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

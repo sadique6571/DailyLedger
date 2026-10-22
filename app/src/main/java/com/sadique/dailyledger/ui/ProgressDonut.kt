@@ -28,12 +28,13 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 @Composable
 fun ProgressDonut(
     progress: Float,
-    centerLabel: String,
+    centerLabel: String = "",
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
     size: Dp = 96.dp,
     strokeWidth: Dp = 12.dp,
     subLabel: String? = null,
+    centerPercent: Int? = null,
 ) {
     val target = progress.coerceIn(0f, 1f)
     val animated by animateFloatAsState(target, tween(700), label = "progress-donut")
@@ -49,7 +50,7 @@ fun ProgressDonut(
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(centerLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(if (centerPercent != null) "${(animated * 100).toInt()}%" else centerLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (subLabel != null) Text(subLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

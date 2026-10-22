@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -16,7 +15,7 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 /** "What's New" changelog shown from Settings → App info (Round 2, #13). Static content per release. */
 @Composable
 fun WhatsNewDialog(onDismiss: () -> Unit) {
-    AlertDialog(
+    com.sadique.dailyledger.ui.PopAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("What's New") },
         text = {

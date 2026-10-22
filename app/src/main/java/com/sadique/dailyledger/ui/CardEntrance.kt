@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 /** One entrance per page/item, independent of amounts and normal recomposition.
  * rememberSaveable also prevents a LazyColumn item replaying as it scrolls back in.
@@ -41,16 +42,18 @@ fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int
     }) { content() }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 fun LazyListScope.enteringItem(key: Any? = null, index: Int = 0, entranceKey: Int = 0, content: @Composable LazyItemScope.() -> Unit) {
     item(key = key) {
         val scope = this
-        CardEntrance(index, entranceKey = entranceKey) { scope.content() }
+        CardEntrance(index, modifier = Modifier.animateItem(), entranceKey = entranceKey) { scope.content() }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 fun <T> LazyListScope.enteringItems(items: List<T>, key: (T) -> Any, content: @Composable LazyItemScope.(T) -> Unit) {
     itemsIndexed(items, key = { _, value -> key(value) }) { index, value ->
         val scope = this
-        CardEntrance(index) { scope.content(value) }
+        CardEntrance(index, modifier = Modifier.animateItem()) { scope.content(value) }
     }
 }

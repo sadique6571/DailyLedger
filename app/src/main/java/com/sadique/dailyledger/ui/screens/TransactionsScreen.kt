@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
@@ -209,6 +210,7 @@ fun TransactionsScreen(
                                 Icon(
                                     if (direction == SwipeToDismissBoxValue.EndToStart) Icons.Rounded.Delete else Icons.Rounded.Edit,
                                     null,
+                                    Modifier.graphicsLayer { val s = 0.6f + 0.5f * swipeState.progress.coerceIn(0f, 1f); scaleX = s; scaleY = s },
                                     tint = if (direction == SwipeToDismissBoxValue.EndToStart) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                                 )
                             }

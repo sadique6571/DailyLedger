@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -77,7 +78,16 @@ import java.util.UUID
     },enabled=total?.let{it>0}==true && isValidDate(date)) { busy ->
         if(initial?.refundOf.isNullOrBlank())FinanceSelect("Entry type",type,listOf("EXPENSE","INCOME"),{type=it;if(it=="INCOME"){quantity="";unit="";rate=""}},!busy)
         FinanceSelect("Account",account,accounts,{account=it},!busy)
-        LedgerTextField(amount,{amount=it},readOnly=quantity.isNotBlank(),label={Text("Amount PKR")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
+        val amountPulse = remember { androidx.compose.animation.core.Animatable(1f) }
+        LaunchedEffect(amount) {
+            if (amount.isNotBlank()) {
+                amountPulse.snapTo(1.04f)
+                amountPulse.animateTo(1f, androidx.compose.animation.core.tween(160))
+            }
+        }
+        LedgerTextField(amount,{amount=it},readOnly=quantity.isNotBlank(),label={Text("Amount PKR")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth().graphicsLayer { scaleX = amountPulse.value; scaleY = amountPulse.value })
+        val parsedFormAmount = com.sadique.dailyledger.ui.parseAmountExpression(amount)
+        if (parsedFormAmount != null && parsedFormAmount > 0) Text("Alfaz mein: ${com.sadique.dailyledger.ui.amountInWords(parsedFormAmount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         CategoryDropdown(type,category,{category=it},enabled=!busy && initial?.refundOf.isNullOrBlank())
         LedgerTextField(note,{note=it},singleLine=true,label={Text("Item / note")},enabled=!busy,modifier=Modifier.fillMaxWidth())
         if(type=="EXPENSE" && initial?.refundOf.isNullOrBlank()){

@@ -29,6 +29,26 @@ class DisplayPreferences(context: Context) {
     var accentColor by mutableStateOf(store.getInt("accent_color", 0))
         private set
     fun updateAccent(value: Int) { accentColor = value; store.edit().putInt("accent_color", value).apply() }
+    // User's own categories (Round 4), stored as "TYPE|Name" lines.
+    var customCategories by mutableStateOf(store.getString("custom_categories", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList())
+        private set
+    fun addCustomCategory(type: String, name: String) {
+        val clean = name.trim().replace("|", " ").replace("\n", " ")
+        if (clean.isBlank()) return
+        val entry = "$type|$clean"
+        if (customCategories.any { it.equals(entry, ignoreCase = true) }) return
+        customCategories = customCategories + entry
+        store.edit().putString("custom_categories", customCategories.joinToString("\n")).apply()
+    }
+    fun removeCustomCategory(entry: String) {
+        customCategories = customCategories - entry
+        store.edit().putString("custom_categories", customCategories.joinToString("\n")).apply()
+    }
+    // Home-screen widget may show the balance (default on — placing the widget is the user's choice).
+    // Privacy mode still hides it regardless of this toggle.
+    var widgetShowBalance by mutableStateOf(store.getBoolean("widget_show_balance", true))
+        private set
+    fun updateWidgetShowBalance(value: Boolean) { widgetShowBalance = value; store.edit().putBoolean("widget_show_balance", value).apply() }
     val iconSize = 1
     val cardSize = 0
     val compact = true
@@ -69,6 +89,7 @@ class DisplayPreferences(context: Context) {
     fun updateSavingsFirst(value: Boolean) { savingsFirst = value; store.edit().putBoolean("savings_first", value).apply() }
     fun reset() {
         updateFontSize(1); updateAccent(0)
+        customCategories = emptyList(); store.edit().remove("custom_categories").apply()
         updateSecureScreens(false); updatePrivateAmounts(false); updateShowSpending(true); updateShowFrequent(true); updateShowRecent(true)
         updateShowSpaces(true); updateShowInsights(true); updateSavingsFirst(true); resetDashboardOrder()
     }

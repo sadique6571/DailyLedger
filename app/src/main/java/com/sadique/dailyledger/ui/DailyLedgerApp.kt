@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.ui.screens.MoreScreen
@@ -223,10 +224,14 @@ fun DailyLedgerApp(
     }
     val categoryOptions = remember(user.id) { mutableStateOf<Map<String, CategoryOptions>?>(null) }
     val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
-    LaunchedEffect(user.id, tx, categoryStrings) {
+    val displayPrefs = LocalDisplayPreferences.current
+    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories) {
         categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text)
+            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text, displayPrefs?.customCategories ?: emptyList())
         }
+    }
+    LaunchedEffect(planning.budgets, tx) {
+        com.sadique.dailyledger.notifications.BudgetNotifier.check(context, user.id, planning.budgets, tx.filterNot { it.privateEntry })
     }
     CompositionLocalProvider(LocalCategoryHistory provides tx.filterNot { it.privateEntry }, LocalCategoryOptions provides categoryOptions.value) {
     val settingsOpen = tab == SETTINGS
@@ -529,7 +534,8 @@ fun DailyLedgerApp(
             )
         },
     ) { pad ->
-        Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
+        val dialBlur = androidx.compose.animation.core.animateDpAsState(if (entryMenuExpanded.value) 9.dp else 0.dp, tween(220), label = "dial-blur").value
+        Box(Modifier.padding(pad).consumeWindowInsets(pad).blur(dialBlur)) {
           AnimatedContent(targetState = tab, transitionSpec = { (fadeIn(tween(200)) + slideInHorizontally(tween(200)) { w -> w / 14 }).togetherWith(fadeOut(tween(140))) }, label = "tab-content") { targetTab ->
           settingsState.SaveableStateProvider("screen-${user.id}-$targetTab") {
             when (targetTab) {

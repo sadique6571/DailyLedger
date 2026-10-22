@@ -13,7 +13,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -235,12 +238,32 @@ fun DailyLedgerTheme(
             surfaceContainerHigh = lerp(readable.surface, accent, 0.22f),
             surfaceContainerHighest = lerp(readable.surface, accent, 0.28f))
     }
+    // Smooth color crossfade when the theme or accent changes (Round 2 animations).
+    val aPrimary by animateColorAsState(themed.primary, tween(450), label = "th-primary")
+    val aOnPrimary by animateColorAsState(themed.onPrimary, tween(450), label = "th-onprimary")
+    val aPrimaryContainer by animateColorAsState(themed.primaryContainer, tween(450), label = "th-pcontainer")
+    val aOnPrimaryContainer by animateColorAsState(themed.onPrimaryContainer, tween(450), label = "th-onpcontainer")
+    val aSecondary by animateColorAsState(themed.secondary, tween(450), label = "th-secondary")
+    val aBackground by animateColorAsState(themed.background, tween(450), label = "th-bg")
+    val aOnBackground by animateColorAsState(themed.onBackground, tween(450), label = "th-onbg")
+    val aSurface by animateColorAsState(themed.surface, tween(450), label = "th-surface")
+    val aOnSurface by animateColorAsState(themed.onSurface, tween(450), label = "th-onsurface")
+    val aSurfaceLow by animateColorAsState(themed.surfaceContainerLow, tween(450), label = "th-sclow")
+    val aSurfaceCont by animateColorAsState(themed.surfaceContainer, tween(450), label = "th-sc")
+    val aSurfaceHigh by animateColorAsState(themed.surfaceContainerHigh, tween(450), label = "th-schigh")
+    val aSurfaceHighest by animateColorAsState(themed.surfaceContainerHighest, tween(450), label = "th-schighest")
+    val aError by animateColorAsState(themed.error, tween(450), label = "th-error")
+    val animatedScheme = themed.copy(
+        primary = aPrimary, onPrimary = aOnPrimary, primaryContainer = aPrimaryContainer, onPrimaryContainer = aOnPrimaryContainer,
+        secondary = aSecondary, background = aBackground, onBackground = aOnBackground, surface = aSurface, onSurface = aOnSurface,
+        surfaceContainerLow = aSurfaceLow, surfaceContainer = aSurfaceCont, surfaceContainerHigh = aSurfaceHigh,
+        surfaceContainerHighest = aSurfaceHighest, error = aError)
     val translations = remember(appContext) { com.sadique.dailyledger.i18n.LedgerStrings.load(appContext) }
     val strings = remember(displayPrefs.language, translations) { com.sadique.dailyledger.i18n.LedgerStrings(displayPrefs.language == "ur", translations) }
     CompositionLocalProvider(LocalDisplayPreferences provides displayPrefs, LocalDensity provides adjustedDensity,
         com.sadique.dailyledger.i18n.LocalStrings provides strings,
         androidx.compose.ui.platform.LocalLayoutDirection provides if (strings.urdu) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr) {
-    MaterialTheme(colorScheme = themed,
+    MaterialTheme(colorScheme = animatedScheme,
         shapes = Shapes(small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         typography = Typography(
             headlineLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),

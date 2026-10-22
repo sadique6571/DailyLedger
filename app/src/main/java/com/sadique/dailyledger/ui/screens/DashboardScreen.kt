@@ -76,6 +76,16 @@ fun DashboardScreen(
     val categories = grouped.map { it.key to it.value }
     var balanceDetails by remember { mutableStateOf(false) }
     var showBalance by remember { mutableStateOf(true) }
+    // Salary celebration (Round 4): burst over the balance card when a NEW salary entry appears.
+    val latestSalaryId = tx.filter { it.type == "INCOME" && it.category.equals("Salary", true) }.maxByOrNull { it.createdAt }?.id
+    var salarySeenInit by remember { mutableStateOf(false) }
+    var salarySeenId by remember { mutableStateOf("") }
+    var salaryCelebrate by remember { mutableStateOf(false) }
+    LaunchedEffect(latestSalaryId) {
+        if (!salarySeenInit) { salarySeenInit = true; salarySeenId = latestSalaryId ?: "" }
+        else if (latestSalaryId != null && latestSalaryId != salarySeenId) { salarySeenId = latestSalaryId; salaryCelebrate = true }
+    }
+    LaunchedEffect(salaryCelebrate) { if (salaryCelebrate) { kotlinx.coroutines.delay(1100); salaryCelebrate = false } }
     var salaryOptionsOpen by remember { mutableStateOf(false) }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
     var frequentExpanded by rememberSaveable { mutableStateOf(true) }
@@ -92,7 +102,16 @@ fun DashboardScreen(
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = rememberLazyListState(), contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 88.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 10.dp else 12.dp)) {
+        val dashListState = rememberLazyListState()
+        // Backup ring (Round 4): brief spinning ring whenever a backup lands (lastSync changes).
+        var backupRing by remember { mutableStateOf(false) }
+        var backupRingInit by remember { mutableStateOf(false) }
+        LaunchedEffect(lastSync) {
+            if (!backupRingInit) backupRingInit = true
+            else if (lastSync > 0) { backupRing = true; kotlinx.coroutines.delay(2500); backupRing = false }
+        }
+        val greetingCompact = dashListState.firstVisibleItemIndex > 0 || dashListState.firstVisibleItemScrollOffset > 140
+        LazyColumn(Modifier.fillMaxSize().testTag("dashboard-list"), state = dashListState, contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 0.dp, bottom = 88.dp), verticalArrangement = Arrangement.spacedBy(if (display.compact) 10.dp else 12.dp)) {
             val sections = DashboardSections()
             with(sections) {
             enteringItem(key = "greeting", index = 0) {
@@ -100,9 +119,11 @@ fun DashboardScreen(
                     userName = userName, month = month, cycleStartLabel = cycleStartLabel,
                     weatherEnabled = weatherEnabled, weatherCity = weatherCity,
                     weatherTemperature = weatherTemperature, weatherCondition = weatherCondition,
+                    compact = greetingCompact,
                 )
             }
             enteringItem(key = "balance", index = 1) {
+                Box {
                 DashboardBalanceCard(
                     summary = summary, guide = guide,
                     availableForCycle = availableForCycle, spentRatio = spentRatio, spentPct = spentPct,
@@ -110,10 +131,13 @@ fun DashboardScreen(
                     onOpenDetails = { balanceDetails = true },
                     salaryDay = salaryDay, plannedSalaryDate = plannedSalaryDate, money = visibleMoney,
                 )
+                if (salaryCelebrate) com.sadique.dailyledger.ui.CelebrationBurst(active = true, modifier = Modifier.matchParentSize())
+                }
             }
             enteringItem(key = "backup-status", index = 2) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(if (driveEnabled && lastSync > 0) Icons.Rounded.CloudSync else Icons.Rounded.Cloud, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (backupRing) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                    else Icon(if (driveEnabled && lastSync > 0) Icons.Rounded.CloudSync else Icons.Rounded.Cloud, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         when {
                             !driveEnabled -> "Google Drive backup is off"

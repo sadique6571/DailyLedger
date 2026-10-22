@@ -61,6 +61,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                 Text(row.category, style = MaterialTheme.typography.titleLarge)
                 Text("Spent: ${visibleAmount(row.spent)}"); Text("Monthly limit: ${visibleAmount(row.limit)}")
                 val percentUsed = if (row.limit > 0L) (row.spent.toDouble() / row.limit * 100.0).roundToInt() else 0
+                val animatedFraction = com.sadique.dailyledger.ui.animatedProgress(percentUsed / 100f)
                 Row(
                     Modifier.fillMaxWidth().padding(top = 4.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -68,7 +69,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                 ) {
                     Text("Spent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        com.sadique.dailyledger.i18n.progressPercent(percentUsed),
+                        com.sadique.dailyledger.i18n.progressPercent((animatedFraction * 100).roundToInt()),
                         Modifier.testTag("budget-progress-percent-${row.category}"),
                         translate = false, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, softWrap = false,
@@ -76,7 +77,7 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                     )
                 }
                 LinearProgressIndicator(
-                    progress = { row.fraction },
+                    progress = { animatedFraction },
                     modifier = Modifier.fillMaxWidth().height(16.dp)
                         .testTag("budget-progress-track-${row.category}"),
                     color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,

@@ -7,10 +7,14 @@ import com.sadique.dailyledger.data.TransactionEntity
 
 data class CategoryOptions(val indexed: List<Pair<LedgerCategory, String>>, val frequent: List<String>) {
     companion object {
-        fun build(catalog: List<LedgerCategory>, history: List<TransactionEntity>, translate: (String) -> String): Map<String, CategoryOptions> =
+        fun build(catalog: List<LedgerCategory>, history: List<TransactionEntity>, translate: (String) -> String, customs: List<String> = emptyList()): Map<String, CategoryOptions> =
             listOf("INCOME", "EXPENSE").associateWith { type ->
                 val rows = history.filter { it.type == type }
-                val categories = (catalog.filter { it.type == type } + rows.map {
+                val customRows = customs.mapNotNull { entry ->
+                    val parts = entry.split("|", limit = 2)
+                    if (parts.size == 2 && parts[0] == type && parts[1].isNotBlank()) LedgerCategory("Your categories", parts[1], type, emptyList()) else null
+                }
+                val categories = (catalog.filter { it.type == type } + customRows + rows.map {
                     LedgerCategory("Your categories", it.category, type, emptyList())
                 }).filter { it.label.isNotBlank() }.distinctBy { it.label.lowercase(java.util.Locale.ROOT) }
                 CategoryOptions(categories.map { category -> category to OfflineVocabulary.normalize(

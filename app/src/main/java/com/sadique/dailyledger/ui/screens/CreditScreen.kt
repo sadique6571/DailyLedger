@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.CreditDraft
@@ -118,14 +119,14 @@ fun CreditScreen(
                         }
                         Column(Modifier.weight(1f)) {
                             Text("Total outstanding", style = MaterialTheme.typography.labelLarge)
-                            Text(money(outstanding), style = MaterialTheme.typography.headlineSmall)
+                            com.sadique.dailyledger.ui.AnimatedMoneyText(outstanding, { money(it) }, style = MaterialTheme.typography.headlineSmall)
                         }
                         val totalUdhar = visibleCredits.sumOf { it.amountMinor }
                         val paidUdhar = payments.filter { p -> visibleCredits.any { it.id == p.creditId } }.sumOf { it.amountMinor }
                         if (totalUdhar > 0) {
                             com.sadique.dailyledger.ui.ProgressDonut(
                                 progress = (paidUdhar.toFloat() / totalUdhar.toFloat()).coerceIn(0f, 1f),
-                                centerLabel = "${paidUdhar * 100 / totalUdhar}%",
+                                centerPercent = (paidUdhar * 100 / totalUdhar).toInt(),
                                 size = 62.dp, strokeWidth = 8.dp,
                             )
                         }
@@ -158,7 +159,7 @@ fun CreditScreen(
                     enableDismissFromStartToEnd = false,
                     backgroundContent = {
                         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, LedgerTokens.ShapeCard).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
-                            Icon(Icons.Rounded.DeleteOutline, "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
+                            Icon(Icons.Rounded.DeleteOutline, "Delete", Modifier.graphicsLayer { val s = 0.6f + 0.5f * swipeState.progress.coerceIn(0f, 1f); scaleX = s; scaleY = s }, tint = MaterialTheme.colorScheme.onErrorContainer)
                         }
                     },
                 ) {
@@ -188,7 +189,10 @@ fun CreditScreen(
                                         com.sadique.dailyledger.ui.DueDateBadge(it)
                                     }
                                 }
-                                Text("Paid ${money(paid)} • Remaining ${money(left)}")
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Paid ${money(paid)} • Remaining ")
+                                    com.sadique.dailyledger.ui.AnimatedMoneyText(left, { money(it) })
+                                }
                                 if (left == 0L || credit.closed) Text("Paid in full", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             }
                             IconButton(onClick = {

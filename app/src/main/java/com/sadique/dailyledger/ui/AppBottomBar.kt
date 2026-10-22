@@ -3,6 +3,14 @@ package com.sadique.dailyledger.ui
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,8 +30,10 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -61,12 +71,19 @@ fun AppBottomBar(
                 onClick = { haptics.tap(); onSelectTab(i) },
                 icon = {
                     val badgeCount = when (i) { 1 -> udharBadge; 2 -> kametiBadge; 4 -> moreBadge; else -> 0 }
-                    if (badgeCount > 0) {
-                        androidx.compose.material3.BadgedBox(badge = { androidx.compose.material3.Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) } }) {
-                            Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp))
+                    val bounce = remember { Animatable(1f) }
+                    LaunchedEffect(selected) {
+                        if (selected) {
+                            bounce.snapTo(0.72f)
+                            bounce.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
                         }
-                    } else {
-                        Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp))
+                    }
+                    androidx.compose.material3.BadgedBox(badge = {
+                        AnimatedVisibility(visible = badgeCount > 0, enter = scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn(), exit = scaleOut() + fadeOut()) {
+                            androidx.compose.material3.Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) }
+                        }
+                    }) {
+                        Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp).graphicsLayer { scaleX = bounce.value; scaleY = bounce.value })
                     }
                 },
                 label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },

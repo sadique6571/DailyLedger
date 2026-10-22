@@ -40,6 +40,7 @@ internal fun OrganizerCircleCard(
     val expected = Math.multiplyExact(circle.fullMonthlyMinor, circle.totalSlots.toLong())
     val monthPaid = collections.filter { it.circleId == circle.id && it.month == selectedMonth }.sumOf { it.amountMinor }
     val fraction = (monthPaid.toDouble() / expected).toFloat().coerceIn(0f, 1f)
+    val animatedFraction = com.sadique.dailyledger.ui.animatedProgress(fraction)
     Card(Modifier.fillMaxWidth(), accent = com.sadique.dailyledger.ui.ledgerCardAccent(circle.id), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -51,9 +52,9 @@ internal fun OrganizerCircleCard(
             Text("Full share: ${rowMoney(circle.fullMonthlyMinor)} / month • ${circle.totalSlots} turns")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Collected: ${rowMoney(monthPaid)}", style = MaterialTheme.typography.bodySmall)
-                Text("${(fraction * 100).toInt()}%", fontWeight = FontWeight.Bold)
+                Text("${(animatedFraction * 100).toInt()}%", fontWeight = FontWeight.Bold)
             }
-            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().height(16.dp).testTag("organizer-collection-progress"))
+            LinearProgressIndicator(progress = { animatedFraction }, modifier = Modifier.fillMaxWidth().height(16.dp).testTag("organizer-collection-progress"))
             Text("Monthly target: ${rowMoney(expected)} • Remaining: ${rowMoney((expected-monthPaid).coerceAtLeast(0L))}")
             Button(onClick = { onAddMember(circle) }, modifier = Modifier.fillMaxWidth()) { Text("+ Add member / 0.5 or full share") }
             var showReminders by remember { mutableStateOf(false) }
@@ -102,10 +103,10 @@ internal fun OrganizerCircleCard(
                             }
                             Text("Collected ${rowMoney(entry.collectedMinor)} / ${rowMoney(entry.expectedAssignedMinor)}",
                                 style = MaterialTheme.typography.bodySmall)
-                            LinearProgressIndicator(progress = {
-                                if (entry.expectedAssignedMinor == 0L) 0f
+                            val entryFraction = if (entry.expectedAssignedMinor == 0L) 0f
                                 else (entry.collectedMinor.toDouble() / entry.expectedAssignedMinor).toFloat().coerceIn(0f, 1f)
-                            }, modifier = Modifier.fillMaxWidth().height(6.dp))
+                            val animatedEntry = com.sadique.dailyledger.ui.animatedProgress(entryFraction)
+                            LinearProgressIndicator(progress = { animatedEntry }, modifier = Modifier.fillMaxWidth().height(6.dp))
                         }
                     }
                 }

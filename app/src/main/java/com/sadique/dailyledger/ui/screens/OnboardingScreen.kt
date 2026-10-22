@@ -42,18 +42,25 @@ private val OnboardingSlides = listOf(
 @Composable
 fun OnboardingScreen(onDone: () -> Unit) {
     var page by remember { mutableStateOf(0) }
-    val slide = OnboardingSlides[page]
     val last = page == OnboardingSlides.lastIndex
     Column(
         Modifier.fillMaxSize().padding(24.dp).testTag("onboarding"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(1f))
-        Icon(slide.icon, null, Modifier.size(84.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(24.dp))
-        Text(slide.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(10.dp))
-        Text(slide.body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.animation.AnimatedContent(targetState = page, transitionSpec = {
+            (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300)) { it / 2 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(300))) togetherWith
+                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(300)) { -it / 2 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)))
+        }, label = "onboarding-slide") { targetPage ->
+            val s = OnboardingSlides[targetPage]
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(s.icon, null, Modifier.size(84.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(24.dp))
+                Text(s.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+                Text(s.body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OnboardingSlides.indices.forEach { i ->

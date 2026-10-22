@@ -92,7 +92,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                             }
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
-                            Text(if (privacyEnabled) "Rs •••••" else displayMoney(total), fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                            com.sadique.dailyledger.ui.AnimatedMoneyText(total, { if (privacyEnabled) "Rs •••••" else displayMoney(it) }, style = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center))
                             Text("Total spent", fontSize = 11.sp)
                         }
                     }

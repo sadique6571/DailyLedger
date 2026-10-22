@@ -62,6 +62,7 @@ fun SavingsScreen(
             enteringItem {
                 val goal = display.savingsGoalMinor
                 val total = direct + leftover
+                Box {
                 com.sadique.dailyledger.ui.LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 6.dp) {
                     if (goal > 0) {
                         val pct = (total * 100 / goal).coerceIn(0, 100)
@@ -69,7 +70,7 @@ fun SavingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             com.sadique.dailyledger.ui.ProgressDonut(
                                 progress = (total.toFloat() / goal.toFloat()).coerceIn(0f, 1f),
-                                centerLabel = "$pct%",
+                                centerPercent = pct.toInt(),
                                 size = 92.dp, strokeWidth = 11.dp,
                                 modifier = Modifier.testTag("savings-goal-progress"),
                             )
@@ -88,6 +89,8 @@ fun SavingsScreen(
                         TextButton(onClick = { goalEditor = true }) { Text("Set a goal") }
                     }
                 }
+                if (goal > 0 && total >= goal) com.sadique.dailyledger.ui.CelebrationBurst(active = true, modifier = Modifier.matchParentSize())
+                }
             }
             if (savings.isEmpty()) enteringItem {
                 com.sadique.dailyledger.ui.LedgerEmptyState("No savings yet", "Keep direct and leftover savings separate from daily spending.",
@@ -100,7 +103,7 @@ fun SavingsScreen(
                             Text(if (saving.kind == "LEFTOVER") "Leftover saving" else "Direct saving")
                             Text("${saving.date} • ${saving.note}", translate = false, style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(visibleMoney(saving.amountMinor))
+                        com.sadique.dailyledger.ui.AnimatedMoneyText(saving.amountMinor, { visibleMoney(it) })
                         IconButton(onClick = { onDelete(saving) }) { Icon(Icons.Outlined.DeleteOutline, "Delete") }
                     }
                 }

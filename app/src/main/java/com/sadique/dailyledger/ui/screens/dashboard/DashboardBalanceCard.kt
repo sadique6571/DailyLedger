@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,9 +51,18 @@ internal fun DashboardBalanceCard(
 ) {
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
-        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF087FAE), Color(0xFF004664), Color(0xFF006D75)))).padding(14.dp)) {
+        val living = androidx.compose.animation.core.rememberInfiniteTransition(label = "balance-living")
+        val livingPhase = living.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(5200), androidx.compose.animation.core.RepeatMode.Reverse), label = "living-phase")
+        val shinePhase = living.animateFloat(-0.45f, 1.45f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(3400, delayMillis = 2400), androidx.compose.animation.core.RepeatMode.Restart), label = "shine-phase")
+        val gradColors = listOf(
+            androidx.compose.ui.graphics.lerp(Color(0xFF087FAE), Color(0xFF0B5E91), livingPhase.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF004664), Color(0xFF003A5C), livingPhase.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF006D75), Color(0xFF00586E), livingPhase.value),
+        )
+        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(gradColors)).padding(14.dp)) {
             WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val animatedRatio = com.sadique.dailyledger.ui.animatedProgress(spentRatio)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Remaining balance", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     IconButton(onClick = onToggleBalanceVisibility, Modifier.size(30.dp)) {
@@ -73,7 +83,7 @@ internal fun DashboardBalanceCard(
                     Text("Spent", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Surface(shape = CircleShape, color = Color.White) {
                         Text(
-                            com.sadique.dailyledger.i18n.progressPercent(spentPct),
+                            com.sadique.dailyledger.i18n.progressPercent((animatedRatio * 100).toInt()),
                             Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 .testTag("balance-progress-percent"),
                             translate = false, color = LedgerColors.Navy,
@@ -87,8 +97,8 @@ internal fun DashboardBalanceCard(
                         .clip(CircleShape).background(Color.White.copy(alpha = .25f))
                         .testTag("balance-progress-track"),
                 ) {
-                    if (spentRatio > 0f) Box(
-                        Modifier.fillMaxWidth(spentRatio).fillMaxHeight()
+                    if (animatedRatio > 0f) Box(
+                        Modifier.fillMaxWidth(animatedRatio.coerceIn(0f, 1f)).fillMaxHeight()
                             .background(Brush.horizontalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape),
                     )
                 }
@@ -156,6 +166,11 @@ internal fun DashboardBalanceCard(
                         }
                     }
                 }
+            }
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxHeight().width(90.dp)
+                    .graphicsLayer { translationX = shinePhase.value * 1100f; rotationZ = 16f }
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.12f), Color.Transparent))))
             }
         }
     }

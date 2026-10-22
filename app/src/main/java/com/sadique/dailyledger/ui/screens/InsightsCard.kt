@@ -57,9 +57,11 @@ fun InsightsCard(
             Text("Recorded data only • through ${snapshot.through}", style = MaterialTheme.typography.labelMedium)
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricChip("Money score", if (snapshot.count > 0 && snapshot.summary.salary > 0) "${snapshot.healthScore}/100" else "—", Modifier.weight(1f))
-                MetricChip("Saving rate", "${snapshot.savingRatePercent}%", Modifier.weight(1f))
-                MetricChip("Possible save", com.sadique.dailyledger.ui.visibleAmount(snapshot.potentialSaving), Modifier.weight(1f))
+                val animScore = androidx.compose.animation.core.animateIntAsState(snapshot.healthScore, androidx.compose.animation.core.tween(800), label = "money-score")
+                val animRate = androidx.compose.animation.core.animateIntAsState(snapshot.savingRatePercent, androidx.compose.animation.core.tween(800), label = "saving-rate")
+                MetricChip("Money score", if (snapshot.count > 0 && snapshot.summary.salary > 0) "${animScore.value}/100" else "—", Modifier.weight(1f))
+                MetricChip("Saving rate", "${animRate.value}%", Modifier.weight(1f))
+                MetricMoneyChip("Possible save", snapshot.potentialSaving, Modifier.weight(1f))
             }
 
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
@@ -112,6 +114,16 @@ private fun MetricChip(label: String, value: String, modifier: Modifier = Modifi
     }
 }
 
+@Composable
+private fun MetricMoneyChip(label: String, amount: Long, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall)
+            com.sadique.dailyledger.ui.AnimatedMoneyText(amount, { com.sadique.dailyledger.ui.visibleAmount(it) }, style = MaterialTheme.typography.titleSmall)
+        }
+    }
+}
+
 /** Bar chart of total expenses for the last six months, current month highlighted. */
 @Composable
 fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) {
@@ -138,10 +150,16 @@ fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) 
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                months.forEach { (m, total) ->
+                months.forEachIndexed { barIndex, (m, total) ->
                     val barHeight = (96f * total.toFloat() / max.toFloat()).dp
+                    val barStarted = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                    androidx.compose.runtime.LaunchedEffect(Unit) { barStarted.value = true }
+                    val animatedBarHeight = androidx.compose.animation.core.animateDpAsState(
+                        if (barStarted.value) barHeight else 0.dp,
+                        androidx.compose.animation.core.tween(650, delayMillis = barIndex * 80), label = "trend-bar",
+                    ).value
                     androidx.compose.foundation.layout.Box(
-                        Modifier.weight(1f).height(if (total > 0) barHeight.coerceAtLeast(4.dp) else 2.dp)
+                        Modifier.weight(1f).height(if (total > 0) animatedBarHeight.coerceAtLeast(4.dp) else 2.dp)
                             .background(
                                 if (m == currentMonth) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = .4f),
                                 RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),

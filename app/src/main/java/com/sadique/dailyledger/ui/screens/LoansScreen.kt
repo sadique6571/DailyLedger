@@ -17,6 +17,7 @@ import com.sadique.dailyledger.ui.enteringItems
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,7 @@ fun LoansScreen(
     val undoBar = remember { SnackbarHostState() }
     val undoScope = rememberCoroutineScope()
     val visibleLoans = loans.filter { it.id != pendingUndoDelete?.id }
+        .filter { loanQuery.isBlank() || it.person.contains(loanQuery, true) || it.note.contains(loanQuery, true) || it.phone.contains(loanQuery) }
     fun requestDelete(loan: LoanEntity) {
         if (pendingUndoDelete == loan) return
         pendingUndoDelete = loan
@@ -76,6 +79,7 @@ fun LoansScreen(
         }
     }
     var pickPayment by remember { mutableStateOf(false) }
+    var loanQuery by remember { mutableStateOf("") }
     LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
     if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
         loans.filter { row -> row.principalMinor > payments.filter { it.loanId == row.id }.sumOf { it.amountMinor } }
@@ -85,6 +89,12 @@ fun LoansScreen(
     Scaffold(snackbarHost = { SnackbarHost(undoBar) }, floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
+            enteringItem {
+                OutlinedTextField(loanQuery, { loanQuery = it }, placeholder = { Text("Search loans by name") }, leadingIcon = { Icon(Icons.Rounded.Search, null) }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+            }
+            if (loans.isNotEmpty() && visibleLoans.isEmpty()) enteringItem {
+                Text("No loans match your search.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             enteringItem {
                 val borrowedLeft = visibleLoans.filter { it.direction == "BORROWED" && !it.closed }.sumOf { l -> (l.principalMinor - payments.filter { it.loanId == l.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
                 val lentLeft = visibleLoans.filter { it.direction == "LENT" && !it.closed }.sumOf { l -> (l.principalMinor - payments.filter { it.loanId == l.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
@@ -102,7 +112,7 @@ fun LoansScreen(
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             com.sadique.dailyledger.ui.ProgressDonut(
                                 progress = (paidAll.toFloat() / principal.toFloat()).coerceIn(0f, 1f),
-                                centerLabel = "${paidAll * 100 / principal}%",
+                                centerPercent = (paidAll * 100 / principal).toInt(),
                                 size = 76.dp, strokeWidth = 10.dp,
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -122,13 +132,14 @@ fun LoansScreen(
                 val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
                 val left = (loan.principalMinor - paid).coerceAtLeast(0L)
                 val loanSwipe = rememberSwipeToDismissBoxState(confirmValueChange = { v -> if (v == SwipeToDismissBoxValue.EndToStart) { requestDelete(loan); false } else false })
+                Box {
                 SwipeToDismissBox(state = loanSwipe, enableDismissFromStartToEnd = false, backgroundContent = {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
-                        Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                        Icon(Icons.Rounded.Delete, null, Modifier.graphicsLayer { val s = 0.6f + 0.5f * loanSwipe.progress.coerceIn(0f, 1f); scaleX = s; scaleY = s }, tint = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }) {
                 com.sadique.dailyledger.ui.LedgerRecordCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(loan.id)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(14.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
                             Column(Modifier.weight(1f)) {
                                 Text("${loan.person} • ${com.sadique.dailyledger.i18n.LocalStrings.current.text(if (loan.direction == "BORROWED") "I borrowed" else "Borrowed from me")}", translate = false, style = MaterialTheme.typography.titleMedium)
@@ -151,16 +162,18 @@ fun LoansScreen(
                         Button(shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeSmall, onClick = { pay = loan }, enabled = left > 0, modifier = Modifier.fillMaxWidth()) { Text(if (loan.direction == "BORROWED") "Record my repayment" else "Record payment received") }
                         val allPayments = payments.filter { it.loanId == loan.id }
                         if (allPayments.size > 3) TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "Show recent payments" else "Show all ${allPayments.size} payments") }
-                        val history = if (showHistory) allPayments else allPayments.take(3)
-                        history.forEach { payment ->
-                            com.sadique.dailyledger.ui.LedgerHistoryCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(payment.id)) {
-                                PaymentRowWithProofs(payment.id, "loan", repo) {
-                                    Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
-                                }
+                        allPayments.take(3).forEach { payment -> LoanPaymentRow(payment, repo, visibleMoney) }
+                        androidx.compose.animation.AnimatedVisibility(visible = showHistory && allPayments.size > 3,
+                            enter = androidx.compose.animation.expandVertically(androidx.compose.animation.core.tween(260)) + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260)),
+                            exit = androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(200)) + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200))) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                allPayments.drop(3).forEach { payment -> LoanPaymentRow(payment, repo, visibleMoney) }
                             }
                         }
                     }
                 }
+                }
+                com.sadique.dailyledger.ui.CelebrationBurst(active = left <= 0L && loan.principalMinor > 0, modifier = Modifier.matchParentSize())
                 }
             }
         }
@@ -170,6 +183,15 @@ fun LoansScreen(
         val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
         val remaining = (loan.principalMinor - paid).coerceAtLeast(0L)
         PaymentDialog(loan, remaining, { pay = null }) { a,date,n,method -> onPayment(loan.id,a,date,n,method); pay=null }
+    }
+}
+
+@Composable
+private fun LoanPaymentRow(payment: LoanPaymentEntity, repo: LedgerRepository?, visibleMoney: (Long) -> String) {
+    com.sadique.dailyledger.ui.LedgerHistoryCard(accent = com.sadique.dailyledger.ui.ledgerCardAccent(payment.id)) {
+        PaymentRowWithProofs(payment.id, "loan", repo) {
+            Text("${payment.date} • ${visibleMoney(payment.amountMinor)} • ${payment.method}", Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
