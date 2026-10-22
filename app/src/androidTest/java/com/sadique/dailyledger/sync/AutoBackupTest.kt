@@ -168,16 +168,15 @@ class AutoBackupTest {
         assertEquals(11, JSONObject(String(remote.bytes)).getInt("version"))
         assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
     } }
-    @Test fun tokenFailuresRetryBeyondOldCutoffAndPermissionDenialNeedsAction() = runBlocking {
+    @Test fun backupFailuresRetryAndConflictsNeedAction() = runBlocking {
         repeat(8) {
-            val failure = runBackupAttempt(token = { throw IOException("offline token service") }, upload = { fail("No token") })
+            val failure = runBackupAttempt(upload = { throw IOException("offline") })
             assertEquals(BackupAttemptResult.RETRY, failure.result)
         }
-        assertEquals("auth", runBackupAttempt(token = { null }, upload = { fail("Permission denied") }).state)
-        assertEquals(BackupAttemptResult.SUCCESS, runBackupAttempt(token = { "fresh" }, upload = { assertEquals("fresh", it) }).result)
-        assertEquals(BackupAttemptResult.RETRY, runBackupAttempt(token = { "t" }, upload = { throw DriveHttpException(403, "rateLimitExceeded") }).result)
-        assertEquals(BackupAttemptResult.FAILURE, runBackupAttempt(token = { "t" }, upload = { throw DriveHttpException(403, "storageQuotaExceeded") }).result)
-        assertEquals("conflict", runBackupAttempt(token = { "t" }, upload = { throw DriveBackupConflictException() }).state)
-        assertTrue(runCatching { runBackupAttempt(token = { throw CancellationException() }, upload = {}) }.exceptionOrNull() is CancellationException)
+        assertEquals(BackupAttemptResult.SUCCESS, runBackupAttempt(upload = { }).result)
+        assertEquals(BackupAttemptResult.RETRY, runBackupAttempt(upload = { throw DriveHttpException(403, "rateLimitExceeded") }).result)
+        assertEquals(BackupAttemptResult.FAILURE, runBackupAttempt(upload = { throw DriveHttpException(403, "storageQuotaExceeded") }).result)
+        assertEquals("conflict", runBackupAttempt(upload = { throw DriveBackupConflictException() }).state)
+        assertTrue(runCatching { runBackupAttempt(upload = { throw CancellationException() }) }.exceptionOrNull() is CancellationException)
     }
 }

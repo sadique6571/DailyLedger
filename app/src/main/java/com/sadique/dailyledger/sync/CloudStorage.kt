@@ -17,7 +17,8 @@ class DriveBackupConflictException(
 ) : IllegalStateException(message)
 
 class DriveHttpException(val code: Int, val reason: String) : IOException("Cloud backup request failed (HTTP $code).") {
-    val retryable get() = code == 408 || code == 429 || code >= 500
+    val retryable get() = code == 408 || code == 429 || code >= 500 ||
+        (code == 403 && reason in setOf("rateLimitExceeded", "userRateLimitExceeded", "backendError"))
 }
 
 internal fun driveBackupHasConflict(expectedVersion: String, remoteVersion: String?, hasLocalRecords: Boolean = true): Boolean =
