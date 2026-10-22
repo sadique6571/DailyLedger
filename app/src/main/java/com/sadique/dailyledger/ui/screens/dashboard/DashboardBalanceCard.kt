@@ -194,10 +194,6 @@ internal fun DashboardBalanceCard(
                 }
                 if (summary.udharPayments > 0) Text("Udhar paid this cycle: ${money(summary.udharPayments)}", color = Color(0xFFC0FFEE), fontSize = 11.sp)
                 if (summary.otherIncome > 0) Text("Other income: ${money(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
-                // Spending guide folds away as the dashboard scrolls (O), giving the list room.
-                androidx.compose.animation.AnimatedVisibility(visible = !guideCollapsed,
-                    enter = androidx.compose.animation.expandVertically(androidx.compose.animation.core.tween(260)) + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260)),
-                    exit = androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(220))) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = .2f))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
@@ -232,7 +228,6 @@ internal fun DashboardBalanceCard(
                     Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                         color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
 
-                }
                 }
                 }
                 if (guide.lowBalance) {
