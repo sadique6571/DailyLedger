@@ -49,6 +49,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.testTag
 import com.sadique.dailyledger.ui.screens.CategoryOptions
+import com.sadique.dailyledger.ui.screens.AiChatScreen
 import com.sadique.dailyledger.ui.screens.LocalCategoryOptions
 import androidx.compose.ui.Alignment
 import com.sadique.dailyledger.ui.screens.LocalCategoryHistory
@@ -364,7 +365,14 @@ fun DailyLedgerApp(
     }
     var aiEntryOpen by remember { mutableStateOf(false) }
     var aiEntryBusy by remember { mutableStateOf(false) }
+    var aiChatOpen by remember { mutableStateOf(false) }
+    var aiChatBusy by remember { mutableStateOf(false) }
+    val aiContextJson = remember(tx, loans, lp, credits, creditPayments, committees, cp, savings, planning.budgets) {
+        buildAiContextJson(tx, loans, lp, credits, creditPayments, committees, cp, savings,
+            PlannerMath.budgets(user.id, planning.budgets, tx, java.time.YearMonth.from(today)))
+    }
     var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
+    var duplicateConfirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var entryRequest by remember { mutableStateOf<String?>(null) }
     if (aiEntryOpen) LedgerEntrySheet(
         onDismissRequest = { aiEntryOpen = false }, canDismiss = !aiEntryBusy,
@@ -378,8 +386,19 @@ fun DailyLedgerApp(
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
             }, onSaved = { aiEntryOpen = false }, onLearnCategory = vm::rememberCategory,
             embedded = true, onBusyChanged = { aiEntryBusy = it },
+            importGenerate = vm::importStatement,
         ) }, confirmButton = {},
         dismissButton = { TextButton(onClick = { aiEntryOpen = false }, enabled = !aiEntryBusy) { Text("Close") } },
+    )
+    if (aiChatOpen) LedgerEntrySheet(
+        onDismissRequest = { aiChatOpen = false }, canDismiss = !aiChatBusy,
+        title = { Text("AI Assistant") }, scrollBody = false,
+        text = { AiChatScreen(
+            contextJson = aiContextJson, advise = vm::aiAdvise,
+            onBack = { aiChatOpen = false },
+            embedded = true, onBusyChanged = { aiChatBusy = it },
+        ) }, confirmButton = {},
+        dismissButton = { TextButton(onClick = { aiChatOpen = false }, enabled = !aiChatBusy) { Text("Close") } },
     )
     if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, { drafts, batch -> vm.saveCreditDrafts(drafts, batch); savedNotice("Udhar", drafts.sumOf { it.amountMinor }) })
     if (addSaving) SavingDialog(
@@ -519,6 +538,7 @@ fun DailyLedgerApp(
             DashboardEntryDial(tab = tab, expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
                 when (action) {
                     "ai" -> aiEntryOpen = true
+                    "aichat" -> aiChatOpen = true
                     "expense" -> quickTransaction = EntryShortcut("EXPENSE")
                     "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
                     "kameti" -> { entryRequest = "kameti"; open(3) }
@@ -670,7 +690,8 @@ fun DailyLedgerApp(
                 7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false },
-                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null })
+                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null },
+                    onAiAdvise = vm::aiAdvise)
                 BUDGETS -> BudgetScreen(user.id, vm.planner, tx, requestAdd = entryRequest == "budget", onAddOpened = { entryRequest = null })
                 BILLS -> BillsScreen(vm, requestAdd = entryRequest == "reminder", onAddOpened = { entryRequest = null })
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
@@ -728,12 +749,104 @@ fun DailyLedgerApp(
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
             save = { _, _, _, _, _ -> },
             saveAsync = { t, a, c, n, d ->
-                vm.saveChange { saveTransaction(t, a, c, n, d) }
-                if (transactionSounds) TransactionSoundPlayer.play(context, t)
-                savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
-                quickTransaction = null
+                val doSave: () -> Unit = {
+                    vm.saveChange { saveTransaction(t, a, c, n, d) }
+                    if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
+                    quickTransaction = null
+                }
+                val warning = duplicateWarning(tx, t, a, c, d)
+                if (warning == null) doSave() else duplicateConfirm = warning to doSave
             },
         )
     }
+    duplicateConfirm?.let { (warning, action) ->
+        AlertDialog(onDismissRequest = { duplicateConfirm = null }, title = { Text("Dobara entry?") },
+            text = { Text(warning) },
+            confirmButton = { TextButton(onClick = { duplicateConfirm = null; action() }) { Text("Phir bhi save karein") } },
+            dismissButton = { TextButton(onClick = { duplicateConfirm = null }) { Text("Cancel") } })
+    }
 }
+}
+
+/** Compact totals-only snapshot for the AI Assistant. Notes and private entries are never included. */
+private fun buildAiContextJson(
+    tx: List<com.sadique.dailyledger.data.TransactionEntity>,
+    loans: List<com.sadique.dailyledger.data.LoanEntity>,
+    loanPayments: List<com.sadique.dailyledger.data.LoanPaymentEntity>,
+    credits: List<com.sadique.dailyledger.data.CreditPurchaseEntity>,
+    creditPayments: List<com.sadique.dailyledger.data.CreditPaymentEntity>,
+    committees: List<com.sadique.dailyledger.data.CommitteeEntity>,
+    committeePayments: List<com.sadique.dailyledger.data.CommitteePaymentEntity>,
+    savings: List<com.sadique.dailyledger.data.SavingEntity>,
+    budgets: List<com.sadique.dailyledger.planning.BudgetProgress>,
+): String {
+    fun money(v: Long) = java.math.BigDecimal.valueOf(v, 2).toPlainString()
+    val today = java.time.LocalDate.now()
+    val month = java.time.YearMonth.from(today)
+    val prev = month.minusMonths(1)
+    fun totals(ym: java.time.YearMonth): Pair<Long, Long> {
+        val rows = tx.filter { it.date.startsWith(ym.toString()) && !it.privateEntry }
+        return rows.filter { it.type == "INCOME" }.sumOf { it.amountMinor } to rows.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor }
+    }
+    val (income, expenses) = totals(month)
+    val (prevIncome, prevExpenses) = totals(prev)
+    val topCategories = tx.filter { it.date.startsWith(month.toString()) && it.type == "EXPENSE" && !it.privateEntry }
+        .groupBy { it.category }.mapValues { e -> e.value.sumOf { it.amountMinor } }.entries.sortedByDescending { it.value }.take(8)
+    val paidByLoan = loanPayments.groupBy { it.loanId }.mapValues { e -> e.value.sumOf { it.amountMinor } }
+    val paidByCredit = creditPayments.groupBy { it.creditId }.mapValues { e -> e.value.sumOf { it.amountMinor } }
+    val root = org.json.JSONObject()
+        .put("today", today.toString())
+        .put("this_month", org.json.JSONObject().put("income", money(income)).put("expenses", money(expenses)).put("remaining", money(income - expenses)))
+        .put("last_month", org.json.JSONObject().put("income", money(prevIncome)).put("expenses", money(prevExpenses)))
+        .put("top_expense_categories", org.json.JSONArray().apply { topCategories.forEach { (name, value) -> put(org.json.JSONObject().put("name", name.take(40)).put("amount", money(value))) } })
+        .put("udhar_to_pay", org.json.JSONArray().apply {
+            credits.filter { !it.closed }.groupBy { it.creditor }.forEach { (name, rows) ->
+                val remaining = rows.sumOf { it.amountMinor } - rows.sumOf { paidByCredit[it.id] ?: 0L }
+                if (remaining > 0) put(org.json.JSONObject().put("name", name.take(40)).put("remaining", money(remaining)).put("earliest_due", rows.mapNotNull { it.dueDate }.minOrNull() ?: ""))
+            }
+        })
+        .put("loans_borrowed", org.json.JSONArray().apply {
+            loans.filter { !it.closed && it.direction == "BORROWED" }.forEach { loan ->
+                val remaining = loan.principalMinor - (paidByLoan[loan.id] ?: 0L)
+                if (remaining > 0) put(org.json.JSONObject().put("person", loan.person.take(40)).put("remaining", money(remaining)).put("due", loan.dueDate ?: ""))
+            }
+        })
+        .put("loans_lent", org.json.JSONArray().apply {
+            loans.filter { !it.closed && it.direction == "LENT" }.forEach { loan ->
+                val remaining = loan.principalMinor - (paidByLoan[loan.id] ?: 0L)
+                if (remaining > 0) put(org.json.JSONObject().put("person", loan.person.take(40)).put("remaining", money(remaining)).put("due", loan.dueDate ?: ""))
+            }
+        })
+        .put("kameti", org.json.JSONArray().apply {
+            committees.filter { it.active }.forEach { committee ->
+                val paidCount = committeePayments.count { it.committeeId == committee.id }
+                val remainingCount = (committee.totalInstallments - paidCount).coerceAtLeast(0)
+                put(org.json.JSONObject().put("name", committee.name.take(40)).put("monthly", money(committee.monthlyAmountMinor)).put("paid_installments", paidCount).put("total_installments", committee.totalInstallments).put("remaining_amount", money(committee.monthlyAmountMinor * remainingCount)))
+            }
+        })
+        .put("savings_total", money(savings.sumOf { it.amountMinor }))
+        .put("budgets", org.json.JSONArray().apply { budgets.forEach { b -> put(org.json.JSONObject().put("category", b.category.take(40)).put("spent", money(b.spent)).put("limit", money(b.limit))) } })
+    return root.toString()
+}
+
+/** Warn before saving an exact duplicate, or an amount wildly out of line for its category. */
+private fun duplicateWarning(
+    tx: List<com.sadique.dailyledger.data.TransactionEntity>,
+    type: String,
+    amountMinor: Long,
+    category: String,
+    date: String,
+): String? {
+    if (tx.any { it.type == type && it.amountMinor == amountMinor && it.category.equals(category, ignoreCase = true) && it.date == date }) {
+        return "Isi tareekh par is category mein bilkul itni hi raqam ki entry pehle se maujood hai. Kahin dobara to nahi likh rahe?"
+    }
+    val history = tx.filter { it.type == type && it.category.equals(category, ignoreCase = true) }.map { it.amountMinor }.sorted()
+    if (history.size >= 3) {
+        val median = history[history.size / 2]
+        if (median > 0 && amountMinor >= median * 10) {
+            return "Ye raqam is category ki aam entry se bohat zyada hai — rakam dobara check kar lein. Phir bhi save karna hai to neeche wala button dabayein."
+        }
+    }
+    return null
 }

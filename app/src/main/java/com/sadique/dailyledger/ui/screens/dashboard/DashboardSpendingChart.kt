@@ -63,6 +63,15 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
         sweepAnim.snapTo(0f)
         sweepAnim.animateTo(1f, tween(900))
     }
+    // Continuous glint travelling around the ring (off where animations are disabled).
+    val donutAmbientOn = com.sadique.dailyledger.ui.rememberAmbientAnimationsOn()
+    val glintAnim = remember { Animatable(0f) }
+    LaunchedEffect(donutAmbientOn) {
+        if (donutAmbientOn) while (true) {
+            glintAnim.animateTo(360f, tween(7_000, easing = androidx.compose.animation.core.LinearEasing))
+            glintAnim.snapTo(0f)
+        }
+    }
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
@@ -90,6 +99,9 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 start += sweep
                                 budget -= drawn
                             }
+                            // A soft glint travels around the donut continuously.
+                            drawArc(Color.White.copy(alpha = 0.22f), glintAnim.value - 90f, 26f, false,
+                                Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
                             com.sadique.dailyledger.ui.AnimatedMoneyText(total, { if (privacyEnabled) "Rs •••••" else displayMoney(it) }, style = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center))

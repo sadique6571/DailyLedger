@@ -14,6 +14,10 @@ class AiPreferences(context:Context,owner:String) {
     var attemptedAt:Long
         get()=prefs.getLong(prefix+"attempt",0)
         set(value){prefs.edit().putLong(prefix+"attempt",value).apply()}
+    /** Optional proxy base URL (no trailing slash). When set, requests go to the proxy instead of Google directly and no key header is sent. */
+    var proxyBase:String
+        get()=prefs.getString(prefix+"proxy","").orEmpty()
+        set(value){prefs.edit().putString(prefix+"proxy",value.trim()).apply()}
     fun cached(hash:String):List<SpendingTip>?=runCatching {
         val bytes=cache.loadBytes()?:return null
         try { val record=JSONObject(String(bytes,Charsets.UTF_8)); if(record.getString("hash")!=hash)null else AiProtocol.decodeInsights(record.getString("response")) } finally { bytes.fill(0) }

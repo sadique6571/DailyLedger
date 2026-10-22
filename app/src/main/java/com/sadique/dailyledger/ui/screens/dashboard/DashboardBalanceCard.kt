@@ -53,24 +53,32 @@ internal fun DashboardBalanceCard(
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
         val livingAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
         val shineAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-0.45f) }
+        val barShineAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-0.35f) }
                 val appCtx = androidx.compose.ui.platform.LocalContext.current
         val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
         if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
-                livingAnim.animateTo(1f, androidx.compose.animation.core.tween(5200))
-                livingAnim.animateTo(0f, androidx.compose.animation.core.tween(5200))
+                livingAnim.animateTo(1f, androidx.compose.animation.core.tween(4200))
+                livingAnim.animateTo(0f, androidx.compose.animation.core.tween(4200))
             }
         }
         if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
-                shineAnim.animateTo(1.45f, androidx.compose.animation.core.tween(3400, delayMillis = 2400))
+                shineAnim.animateTo(1.45f, androidx.compose.animation.core.tween(2600, delayMillis = 900))
                 shineAnim.snapTo(-0.45f)
             }
         }
+        if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) {
+                barShineAnim.animateTo(1.35f, androidx.compose.animation.core.tween(2100, easing = androidx.compose.animation.core.LinearEasing))
+                barShineAnim.snapTo(-0.35f)
+                kotlinx.coroutines.delay(350)
+            }
+        }
         val gradColors = listOf(
-            androidx.compose.ui.graphics.lerp(Color(0xFF087FAE), Color(0xFF0B5E91), livingAnim.value),
-            androidx.compose.ui.graphics.lerp(Color(0xFF004664), Color(0xFF003A5C), livingAnim.value),
-            androidx.compose.ui.graphics.lerp(Color(0xFF006D75), Color(0xFF00586E), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF087FAE), Color(0xFF13A7C9), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF004664), Color(0xFF0B6182), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF006D75), Color(0xFF00A48F), livingAnim.value),
         )
         Box(Modifier.fillMaxWidth().background(Brush.linearGradient(gradColors)).padding(14.dp)) {
             WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp))
@@ -113,6 +121,12 @@ internal fun DashboardBalanceCard(
                     if (animatedRatio > 0f) Box(
                         Modifier.fillMaxWidth(animatedRatio.coerceIn(0f, 1f)).fillMaxHeight()
                             .background(Brush.horizontalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape),
+                    )
+                    // Always-on shine sweeping left to right across the bar (clipped by the track).
+                    if (ambientAnimationsOn) Box(
+                        Modifier.fillMaxHeight().fillMaxWidth(0.24f)
+                            .graphicsLayer { translationX = barShineAnim.value * 1500f }
+                            .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.38f), Color.Transparent))),
                     )
                 }
                 Row(
@@ -181,9 +195,9 @@ internal fun DashboardBalanceCard(
                 }
             }
             Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxHeight().width(90.dp)
+                Box(Modifier.fillMaxHeight().width(130.dp)
                     .graphicsLayer { translationX = shineAnim.value * 1100f; rotationZ = 16f }
-                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.12f), Color.Transparent))))
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.30f), Color.Transparent))))
             }
         }
     }

@@ -55,11 +55,28 @@ fun CreditScreen(
     requestPayment: Boolean = false, onPaymentOpened: () -> Unit = {},
     requestAdd: Boolean = false,
     onAddOpened: () -> Unit = {},
+    onAiAdvise: suspend (com.sadique.dailyledger.ai.AiModelRequest) -> String = { "" },
 ) {
     val context = LocalContext.current
     var add by remember { mutableStateOf(false) }
     LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var aiAdd by remember { mutableStateOf(false) }
+    var aiReminderFor by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
+    fun statementText(forCredit: CreditPurchaseEntity): String {
+        val personCredits = credits.filter { it.creditor.equals(forCredit.creditor, ignoreCase = true) }
+        return buildString {
+            appendLine("Udhar statement — ${forCredit.creditor}")
+            var totalLeft = 0L
+            personCredits.forEach { c ->
+                val p = payments.filter { it.creditId == c.id }.sumOf { it.amountMinor }
+                val l = (c.amountMinor - p).coerceAtLeast(0L)
+                totalLeft += l
+                appendLine("• ${c.item} (${c.purchaseDate}) — ${money(c.amountMinor)} · Paid ${money(p)} · Remaining ${money(l)}")
+            }
+            appendLine("Total remaining: ${money(totalLeft)}")
+            appendLine("— Daily Ledger")
+        }
+    }
     var deleting by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
     var pendingUndoDelete by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
     val undoBar = remember { SnackbarHostState() }
@@ -196,26 +213,36 @@ fun CreditScreen(
                                 if (left == 0L || credit.closed) Text("Paid in full", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             }
                             IconButton(onClick = {
-                                val personCredits = credits.filter { it.creditor.equals(credit.creditor, ignoreCase = true) }
-                                val text = buildString {
-                                    appendLine("Udhar statement — ${credit.creditor}")
-                                    var totalLeft = 0L
-                                    personCredits.forEach { c ->
-                                        val p = payments.filter { it.creditId == c.id }.sumOf { it.amountMinor }
-                                        val l = (c.amountMinor - p).coerceAtLeast(0L)
-                                        totalLeft += l
-                                        appendLine("• ${c.item} (${c.purchaseDate}) — ${money(c.amountMinor)} · Paid ${money(p)} · Remaining ${money(l)}")
-                                    }
-                                    appendLine("Total remaining: ${money(totalLeft)}")
-                                    appendLine("— Daily Ledger")
-                                }
-                                com.sadique.dailyledger.ui.shareText(context, "Share udhar statement", text)
+                                com.sadique.dailyledger.ui.shareText(context, "Share udhar statement", statementText(credit))
                             }) { Icon(Icons.Rounded.Share, "Share statement") }
+                            IconButton(onClick = {
+                                undoScope.launch {
+                                    val base = statementText(credit)
+                                    val summary = runCatching {
+                                        val personCredits = credits.filter { it.creditor.equals(credit.creditor, ignoreCase = true) }
+                                        val totalBought = personCredits.sumOf { it.amountMinor }
+                                        val totalPaid = personCredits.sumOf { c -> payments.filter { it.creditId == c.id }.sumOf { it.amountMinor } }
+                                        val json = org.json.JSONObject()
+                                            .put("person", credit.creditor)
+                                            .put("total_purchases", money(totalBought))
+                                            .put("total_paid", money(totalPaid))
+                                            .put("total_remaining", money((totalBought - totalPaid).coerceAtLeast(0L)))
+                                            .toString()
+                                        onAiAdvise(com.sadique.dailyledger.ai.AiPrompts.statementSummary(json))
+                                    }.getOrDefault("")
+                                    com.sadique.dailyledger.ui.shareText(context, "Share udhar statement", if (summary.isBlank()) base else summary + "\n\n" + base)
+                                }
+                            }) { Icon(Icons.Rounded.AutoAwesome, "AI summary ke saath share") }
                             IconButton(onClick = { deleting = credit }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
                         }
 
                         if (credit.phone.isNotBlank() || credit.whatsapp.isNotBlank()) {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                AssistChip(
+                                    onClick = { aiReminderFor = credit },
+                                    label = { Text("AI reminder") },
+                                    leadingIcon = { Icon(Icons.Rounded.AutoAwesome, null) },
+                                )
                                 if (credit.phone.isNotBlank()) {
                                     AssistChip(
                                         onClick = { context.openContactAction(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${credit.phone}"))) },
@@ -268,6 +295,15 @@ fun CreditScreen(
     }
 
     }
+    aiReminderFor?.let { credit ->
+        val paidForReminder = payments.filter { it.creditId == credit.id }.sumOf { it.amountMinor }
+        AiReminderDialog(
+            credit = credit,
+            left = (credit.amountMinor - paidForReminder).coerceAtLeast(0L),
+            onAiAdvise = onAiAdvise,
+            onDismiss = { aiReminderFor = null },
+        )
+    }
     deleting?.let { credit ->
         DeleteCreditDialog(
             credit = credit,
@@ -304,4 +340,69 @@ fun CreditScreen(
             },
         )
     }
+}
+
+/** AI-written udhar reminder: pick a tone, generate, then share or send on WhatsApp. */
+@Composable
+private fun AiReminderDialog(
+    credit: CreditPurchaseEntity,
+    left: Long,
+    onAiAdvise: suspend (com.sadique.dailyledger.ai.AiModelRequest) -> String,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var firm by remember { mutableStateOf(false) }
+    var generated by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("AI reminder — ${credit.creditor}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Remaining ${money(left)}")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    androidx.compose.material3.FilterChip(selected = !firm, onClick = { firm = false }, label = { Text("Naram") })
+                    androidx.compose.material3.FilterChip(selected = firm, onClick = { firm = true }, label = { Text("Sakht") })
+                }
+                androidx.compose.material3.Button(enabled = !busy, onClick = {
+                    busy = true; error = ""
+                    scope.launch {
+                        try {
+                            val json = org.json.JSONObject()
+                                .put("person", credit.creditor)
+                                .put("item", credit.item)
+                                .put("remaining", money(left))
+                                .put("due_date", credit.dueDate ?: "")
+                                .toString()
+                            generated = onAiAdvise(com.sadique.dailyledger.ai.AiPrompts.reminder(json, firm))
+                        } catch (e: Exception) { error = e.message ?: "AI fail ho gaya." }
+                        busy = false
+                    }
+                }) { Text(if (busy) "Likha ja raha hai..." else "Reminder likhein") }
+                if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
+                if (generated.isNotBlank()) Text(generated)
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (generated.isNotBlank()) {
+                    TextButton(onClick = { com.sadique.dailyledger.ui.shareText(context, "Udhar reminder", generated) }) { Text("Share") }
+                    val number = credit.whatsapp.ifBlank { credit.phone }
+                    if (number.isNotBlank()) TextButton(onClick = {
+                        val digits = number.filter { it.isDigit() }
+                        val intl = when {
+                            digits.startsWith("92") -> digits
+                            digits.startsWith("0") -> "92" + digits.drop(1)
+                            else -> digits
+                        }
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$intl?text=${java.net.URLEncoder.encode(generated, "UTF-8")}")))
+                    }) { Text("WhatsApp") }
+                }
+                TextButton(onClick = onDismiss) { Text("Band karein") }
+            }
+        },
+        dismissButton = {},
+    )
 }

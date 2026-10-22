@@ -36,6 +36,7 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 internal data class QuickEntryAction(val id: String, val label: String, val icon: ImageVector)
 internal val quickEntryActions = listOf(
     QuickEntryAction("ai", "AI", Icons.Rounded.AutoAwesome),
+    QuickEntryAction("aichat", "AI Chat", Icons.Rounded.Chat),
     QuickEntryAction("expense", "Expense", Icons.Rounded.ShoppingCart),
     QuickEntryAction("salary", "Salary", Icons.Rounded.Payments),
     QuickEntryAction("kameti", "Kameti", Icons.Rounded.Groups),

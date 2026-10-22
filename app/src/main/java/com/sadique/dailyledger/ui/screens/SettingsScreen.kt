@@ -572,6 +572,22 @@ fun SettingsScreen(
                     Text("Optional Cloud AI", Modifier.weight(1f))
                     Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
                 }
+                var aiKeyText by remember { mutableStateOf(vm.aiKey()) }
+                var aiProxyText by remember { mutableStateOf(vm.aiProxy()) }
+                var aiKeyMsg by remember { mutableStateOf("") }
+                var aiTesting by remember { mutableStateOf(false) }
+                OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text("Gemini API key (free)") }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Text("Free key aistudio.google.com → Get API key se banta hai — card nahi chahiye. Key sirf is phone mein mehfooz rehti hai, sirf Google ko jati hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); aiKeyMsg = "Save ho gaya." }) { Text("Save") }
+                    OutlinedButton(enabled = !aiTesting, onClick = {
+                        vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); aiTesting = true
+                        scope.launch { aiKeyMsg = try { vm.testAiConnection(); "Connection kamyab hai ✓" } catch (e: Exception) { e.message ?: "Connection fail ho gaya." }; aiTesting = false }
+                    }) { Text(if (aiTesting) "Check ho raha hai..." else "Connection test") }
+                }
+                if (aiKeyMsg.isNotBlank()) Text(aiKeyMsg, style = MaterialTheme.typography.bodySmall)
             }
         }
 

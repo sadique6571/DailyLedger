@@ -1,43 +1,27 @@
 package com.sadique.dailyledger.ai
 
 import android.content.Context
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.sadique.dailyledger.auth.FirebaseRuntime
-import com.sadique.dailyledger.auth.awaitResult
 import com.sadique.dailyledger.data.CategoryCatalog
+import com.sadique.dailyledger.data.TransactionDraft
 import kotlinx.coroutines.TimeoutCancellationException
 import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
 class AiService(private val context: Context, private val owner: String) {
     private val preferences = AiPreferences(context, owner)
+    private val keyStore = AiKeyStore(context, owner)
     private val runner = AiRequestRunner(
         checkAccess = ::checkAccess,
         prepare = {
-            val user = FirebaseRuntime.auth(context).currentUser
-                ?: throw AiException("Please sign in to use Gemini AI. [AI_SIGN_IN]")
-            try {
-                if (user.getIdToken(false).awaitResult().token.isNullOrBlank()) {
-                    throw AiException("Please sign in again to use Gemini AI. [AI_SIGN_IN]")
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { throw AiFailures.describe(e, AiStage.SIGN_IN) }
-            checkAccess()
-            FirebaseAiSetup.initialize(context)
-            try {
-                FirebaseAppCheck.getInstance().getAppCheckToken(false).awaitResult()
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { throw AiFailures.describe(e, AiStage.APP_CHECK) }
+            if (keyStore.key.isBlank() && preferences.proxyBase.isBlank()) {
+                throw AiException("Pehle Settings → Mini AI & Auto Fill mein apni free Gemini API key lagayein. [AI_KEY]")
+            }
         },
         reserve = { preferences.reserve(it) },
-        generate = { GeminiGateway.generate(it) },
+        generate = { GeminiGateway.generate(it, keyStore.key, preferences.proxyBase) },
     )
 
     private fun checkAccess() {
-        val user = FirebaseRuntime.auth(context).currentUser
-        if (user == null || user.uid != owner || user.isAnonymous) {
-            throw AiException("This account is no longer signed in. Please sign in again. [AI_SIGN_IN]")
-        }
         if (!preferences.enabled) throw AiException("Enable Gemini AI in Settings before sending a request. [AI_CONSENT]")
     }
 
@@ -62,5 +46,41 @@ class AiService(private val context: Context, private val owner: String) {
     suspend fun insights(snapshot: SpendingSnapshot): List<SpendingTip> {
         val request = AiPrompts.insights(snapshot, CategoryCatalog.load(context))
         return AiProtocol.decodeInsights(call(request))
+    }
+
+    /** Free-text Gemini answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
+    suspend fun advise(request: AiModelRequest): String {
+        require(request.task == AiTask.TEXT)
+        return call(request).trim()
+    }
+
+    /** Parse a pasted bank/wallet statement (plain text) into reviewable drafts, in chunks. */
+    suspend fun statementDrafts(fullText: String): AiDraftResult {
+        val text = fullText.trim()
+        require(text.isNotBlank()) { "Statement text khali hai." }
+        require(text.length <= 12_000) { "Statement bohat lamba hai — hisso mein paste karein (ek dafa mein ~12,000 characters)." }
+        val chunks = mutableListOf<String>()
+        val current = StringBuilder()
+        fun flush() { if (current.isNotEmpty()) { chunks += current.toString(); current.clear() } }
+        for (line in text.lineSequence()) {
+            if (line.length > 2_600) {
+                flush()
+                chunks += line.chunked(2_600)
+            } else {
+                if (current.length + line.length + 1 > 2_600) flush()
+                current.append(line).append('\n')
+            }
+        }
+        flush()
+        val today = LocalDate.now()
+        val catalog = CategoryCatalog.load(context)
+        val all = mutableListOf<TransactionDraft>()
+        for (chunk in chunks) {
+            val result = CategoryRules.normalizeResult(AiProtocol.decodeDrafts(call(AiPrompts.drafts(chunk, today, catalog))))
+            all += result.entries
+            if (all.size >= 90) break
+        }
+        if (all.isEmpty()) throw AiException("Statement se koi entry nahi mili. Text saaf paste karke dobara koshish karein.")
+        return AiDraftResult("Statement se ${all.size} entries mili hain — check karke Save karein.", all.take(90))
     }
 }
