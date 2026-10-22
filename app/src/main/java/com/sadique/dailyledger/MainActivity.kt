@@ -179,7 +179,7 @@ class MainActivity : FragmentActivity() {
         Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 androidx.compose.material3.Icon(
-                    androidx.compose.material.icons.Icons.Filled.LockOpen, null,
+                    androidx.compose.material.icons.Icons.Rounded.CheckCircle, null,
                     Modifier.size(72.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                     tint = MaterialTheme.colorScheme.primary,
                 )

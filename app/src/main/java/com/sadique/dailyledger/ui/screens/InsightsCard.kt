@@ -182,13 +182,22 @@ fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) 
                     val barH = if (total > 0) (size.height * total.toFloat() / max.toFloat()).coerceAtLeast(4.dp.toPx()) else 2.dp.toPx()
                     androidx.compose.ui.geometry.Offset(slot * i + (slot - gapPx) / 2f, size.height - barH)
                 }
-                clipRect(0f, 0f, size.width * lineReveal.value, size.height) {
+                // Draw only up to the reveal cutoff (interpolated on the crossing segment).
+                val cutoffX = size.width * lineReveal.value
+                val visiblePts = pts.filter { it.x <= cutoffX }
+                if (visiblePts.size > 1) {
                     val path = androidx.compose.ui.graphics.Path().apply {
-                        pts.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
+                        visiblePts.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
+                        val nextPt = pts.getOrNull(visiblePts.size)
+                        val lastPt = visiblePts.last()
+                        if (nextPt != null && nextPt.x > lastPt.x) {
+                            val t = (cutoffX - lastPt.x) / (nextPt.x - lastPt.x)
+                            lineTo(cutoffX, lastPt.y + (nextPt.y - lastPt.y) * t)
+                        }
                     }
                     drawPath(path, lineColor, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
-                    pts.forEach { drawCircle(lineColor, 3.dp.toPx(), it) }
                 }
+                visiblePts.forEach { drawCircle(lineColor, 3.dp.toPx(), it) }
             }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

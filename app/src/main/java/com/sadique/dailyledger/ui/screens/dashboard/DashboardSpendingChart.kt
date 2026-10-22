@@ -122,7 +122,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 val cxx = size.width / 2f; val cyy = size.height / 2f
                                 val dx = tap.x - cxx; val dy = tap.y - cyy
                                 val dist = kotlin.math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
-                                val outer = size.minDimension / 2f
+                                val outer = minOf(size.width, size.height).toFloat() / 2f
                                 if (dist > outer - 30.dp.toPx() && dist < outer + 4.dp.toPx()) {
                                     var ang = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
                                     if (ang < 0f) ang += 360f
