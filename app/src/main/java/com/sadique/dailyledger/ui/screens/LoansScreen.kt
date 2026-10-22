@@ -64,6 +64,9 @@ fun LoansScreen(
     var add by remember { mutableStateOf(false) }
     LaunchedEffect(requestAdd) { if (requestAdd) { add = true; onAddOpened() } }
     var pay by remember { mutableStateOf<LoanEntity?>(null) }
+    // PAID stamp (J): slams onto the loan card right after a payment is recorded.
+    var stampLoanId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(stampLoanId) { if (stampLoanId != null) { kotlinx.coroutines.delay(1500); stampLoanId = null } }
     var pendingUndoDelete by remember { mutableStateOf<LoanEntity?>(null) }
     val undoBar = remember { SnackbarHostState() }
     val undoScope = rememberCoroutineScope()
@@ -86,7 +89,7 @@ fun LoansScreen(
             .map { row -> row.person to { pay = row; pickPayment = false } },
         { pickPayment = false })
 
-    Scaffold(snackbarHost = { SnackbarHost(undoBar) }, floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
+    Scaffold(snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } }, floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add loan") } }) { p ->
         LazyColumn(Modifier.fillMaxSize().padding(p), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             enteringItem { Text("Loans", style = MaterialTheme.typography.headlineMedium); Text("Borrowed and lent money, contacts and repayments in one place.") }
             enteringItem {
@@ -174,6 +177,7 @@ fun LoansScreen(
                 }
                 }
                 com.sadique.dailyledger.ui.CelebrationBurst(active = left <= 0L && loan.principalMinor > 0, modifier = Modifier.matchParentSize())
+                com.sadique.dailyledger.ui.PaidStamp(visible = stampLoanId == loan.id, modifier = Modifier.matchParentSize())
                 }
             }
         }
@@ -182,7 +186,7 @@ fun LoansScreen(
     pay?.let { loan ->
         val paid = payments.filter { it.loanId == loan.id }.sumOf { it.amountMinor }
         val remaining = (loan.principalMinor - paid).coerceAtLeast(0L)
-        PaymentDialog(loan, remaining, { pay = null }) { a,date,n,method -> onPayment(loan.id,a,date,n,method); pay=null }
+        PaymentDialog(loan, remaining, { pay = null }) { a,date,n,method -> onPayment(loan.id,a,date,n,method); stampLoanId = loan.id; pay=null }
     }
 }
 

@@ -68,6 +68,12 @@ fun DashboardScreen(
     val currentMonthExpenses = remember(tx, month) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$month-") } }
     val prevMonth = month.minusMonths(1)
     val prevMonthExpensesTotal = remember(tx, prevMonth) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$prevMonth-") }.sumOf { it.expenseEffect() } }
+    val prevPrevMonth = month.minusMonths(2)
+    val prevPrevExpensesTotal = remember(tx, prevPrevMonth) { tx.filter { it.type == "EXPENSE" && it.date.startsWith("$prevPrevMonth-") }.sumOf { it.expenseEffect() } }
+    val prevMonthTopCategory = remember(tx, prevMonth) {
+        tx.filter { it.type == "EXPENSE" && it.date.startsWith("$prevMonth-") && !it.privateEntry }
+            .groupBy { it.category }.mapValues { e -> e.value.sumOf { it.expenseEffect() } }.maxByOrNull { it.value }
+    }
     val curMonthExpensesTotal = remember(currentMonthExpenses) { currentMonthExpenses.sumOf { it.expenseEffect() } }
     val frequentItems = remember(currentMonthExpenses) { currentMonthExpenses.filter { !it.privateEntry && it.refundOf.isBlank() }.groupBy { it.frequentPurchaseLabel().lowercase(Locale.ROOT) }
         .map { (_, purchases) -> purchases.first().frequentPurchaseLabel() to purchases.sumOf { it.amountMinor } }
@@ -86,6 +92,20 @@ fun DashboardScreen(
         else if (latestSalaryId != null && latestSalaryId != salarySeenId) { salarySeenId = latestSalaryId; salaryCelebrate = true }
     }
     LaunchedEffect(salaryCelebrate) { if (salaryCelebrate) { kotlinx.coroutines.delay(1100); salaryCelebrate = false } }
+    // Entry celebration (A + D): coin drop + tick when a brand-new entry lands.
+    val entryIds = tx.map { it.id }
+    var entrySeenInit by remember { mutableStateOf(false) }
+    var entrySeenIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var entryCelebrate by remember { mutableStateOf(false) }
+    LaunchedEffect(entryIds) {
+        if (!entrySeenInit) { entrySeenInit = true; entrySeenIds = entryIds.toSet() }
+        else {
+            val fresh = tx.filter { it.id !in entrySeenIds }
+            entrySeenIds = entryIds.toSet()
+            if (fresh.any { !it.category.equals("Salary", true) }) entryCelebrate = true
+        }
+    }
+    LaunchedEffect(entryCelebrate) { if (entryCelebrate) { delay(1150); entryCelebrate = false } }
     var salaryOptionsOpen by remember { mutableStateOf(false) }
     var selectedFrequentCategory by remember { mutableStateOf<String?>(null) }
     var frequentExpanded by rememberSaveable { mutableStateOf(true) }
@@ -101,6 +121,7 @@ fun DashboardScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
 
+    Box(Modifier.fillMaxSize()) {
     LedgerBackdrop(Modifier.fillMaxSize()) {
         val dashListState = rememberLazyListState()
         // Backup ring (Round 4): brief spinning ring whenever a backup lands (lastSync changes).
@@ -130,6 +151,7 @@ fun DashboardScreen(
                     showBalance = showBalance, onToggleBalanceVisibility = { showBalance = !showBalance },
                     onOpenDetails = { balanceDetails = true },
                     salaryDay = salaryDay, plannedSalaryDate = plannedSalaryDate, money = visibleMoney,
+                    guideCollapsed = greetingCompact,
                 )
                 if (salaryCelebrate) com.sadique.dailyledger.ui.CelebrationBurst(active = true, modifier = Modifier.matchParentSize())
                 }
@@ -184,6 +206,27 @@ fun DashboardScreen(
                 }
             }
 
+            if (today.dayOfMonth <= 3 && prevMonthExpensesTotal > 0) enteringItem(key = "month-wrap", index = 3) {
+                // Month-end wrap (M): last month's story, shown in the first days of the new month.
+                LedgerCard(Modifier.fillMaxWidth()) {
+                    Text("Last month wrap — ${prevMonth.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)}", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Total spent: ${visibleMoney(prevMonthExpensesTotal)}", style = MaterialTheme.typography.bodyMedium)
+                    if (prevPrevExpensesTotal > 0) {
+                        val dPct = ((prevMonthExpensesTotal - prevPrevExpensesTotal) * 100.0 / prevPrevExpensesTotal).roundToInt()
+                        Text(
+                            when {
+                                dPct > 0 -> "$dPct% zyada kharcha us se pichle mahine se"
+                                dPct < 0 -> "${-dPct}% kam kharcha — achi bachat!"
+                                else -> "Utna hi kharcha jitna us se pichla mahina"
+                            },
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    prevMonthTopCategory?.let { (catName, catTotal) ->
+                        Text("Sab se bara kharcha: $catName (${visibleMoney(catTotal)})", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             enteringItem(key = "salary-cycle-controls", index = 3) {
                 OutlinedButton(
                     onClick = { salaryOptionsOpen = true }, modifier = Modifier.fillMaxWidth().testTag("start-new-salary-month"),
@@ -231,6 +274,8 @@ fun DashboardScreen(
             }
             sections.render(this, DisplayPreferences.DEFAULT_ORDER)
         }
+    }
+    if (entryCelebrate) com.sadique.dailyledger.ui.EntrySavedCelebration(Modifier.align(Alignment.Center).size(128.dp))
     }
     if (balanceDetails) BalanceDetailsDialog(
         summary = summary, money = visibleMoney,

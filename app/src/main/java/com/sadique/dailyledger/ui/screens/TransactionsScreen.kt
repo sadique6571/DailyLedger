@@ -105,14 +105,30 @@ fun TransactionsScreen(
         else -> filtered.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.id })
     } }
 
+    // Entry celebration (A + D): coin drop + tick when a brand-new transaction lands.
+    val entryIds = items.map { it.id }
+    var entrySeenInit by remember { mutableStateOf(false) }
+    var entrySeenIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var entryCelebrate by remember { mutableStateOf(false) }
+    LaunchedEffect(entryIds) {
+        if (!entrySeenInit) { entrySeenInit = true; entrySeenIds = entryIds.toSet() }
+        else {
+            val fresh = items.filter { it.id !in entrySeenIds }
+            entrySeenIds = entryIds.toSet()
+            if (fresh.any { !it.category.equals("Salary", true) }) entryCelebrate = true
+        }
+    }
+    LaunchedEffect(entryCelebrate) { if (entryCelebrate) { kotlinx.coroutines.delay(1150); entryCelebrate = false } }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(undoBar) },
+        snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { edit = null; quickTemplate = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
         }
     ) { pad ->
+        Box(Modifier.fillMaxSize().padding(pad)) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(pad),
+            Modifier.fillMaxSize(),
             state = listState,
             contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -231,6 +247,8 @@ fun TransactionsScreen(
                     }
                 }
             }
+        }
+        if (entryCelebrate) com.sadique.dailyledger.ui.EntrySavedCelebration(Modifier.align(Alignment.Center).size(128.dp))
         }
     }
     showDetails?.let { detail ->

@@ -10,6 +10,7 @@ import com.sadique.dailyledger.ui.LedgerTextField as OutlinedTextField
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -76,12 +77,26 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
                         color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     )
                 }
-                LinearProgressIndicator(
-                    progress = { animatedFraction },
-                    modifier = Modifier.fillMaxWidth().height(16.dp)
-                        .testTag("budget-progress-track-${row.category}"),
-                    color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                )
+                Box(Modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    // Warning pulse (E): a soft red glow breathes behind the bar near/over the limit.
+                    if (row.nearLimit || row.exceeded) {
+                        val pulseAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0.20f) }
+                        val pulseOn = com.sadique.dailyledger.ui.rememberAmbientAnimationsOn()
+                        androidx.compose.runtime.LaunchedEffect(pulseOn) {
+                            if (pulseOn) while (true) {
+                                pulseAnim.animateTo(0.48f, androidx.compose.animation.core.tween(750))
+                                pulseAnim.animateTo(0.20f, androidx.compose.animation.core.tween(750))
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(24.dp).background(MaterialTheme.colorScheme.error.copy(alpha = pulseAnim.value), androidx.compose.foundation.shape.RoundedCornerShape(12.dp)))
+                    }
+                    LinearProgressIndicator(
+                        progress = { animatedFraction },
+                        modifier = Modifier.fillMaxWidth().height(16.dp)
+                            .testTag("budget-progress-track-${row.category}"),
+                        color = if (row.exceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Text(if (row.exceeded) "Budget limit reached" else if (row.nearLimit) "Approaching your budget limit" else "Within your budget", color = if (row.nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                 Row { TextButton(onClick = { edit = CategoryBudget(row.category, row.limit); adding = true }) { Text("Edit") }; TextButton(onClick = { pendingDelete = CategoryBudget(row.category, row.limit) }) { Text("Remove") } }
             }
@@ -91,16 +106,17 @@ fun BudgetScreen(owner: String, store: PlannerStore, transactions: List<Transact
         var category by remember(edit) { mutableStateOf(edit?.category ?: "") }
         var amount by remember(edit) { mutableStateOf(edit?.limitMinor?.let(::plainAmount) ?: "") }
         var error by remember { mutableStateOf<String?>(null) }
+        var errorTick by remember { mutableStateOf(0) }
         LedgerEntrySheet(onDismissRequest = { adding = false }, title = { Text("Monthly category budget") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CategoryDropdown("EXPENSE", category, { category = it }, enabled = edit == null)
-                OutlinedTextField(amount, { amount = it }, label = { Text("Monthly limit (Rs)") }, modifier = Modifier.testTag("budget-amount"))
+                OutlinedTextField(amount, { amount = it }, label = { Text("Monthly limit (Rs)") }, modifier = Modifier.testTag("budget-amount").animatedShake(errorTick))
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }, confirmButton = { TextButton(onClick = {
             scope.launch { saving = true
                 try { withContext(Dispatchers.IO) { store.setBudget(category, requireNotNull(parseMinor(amount)) { "Enter a valid amount." }) }; adding = false; message = "Budget saved" }
-                catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message } finally { saving = false }
+                catch (e: Exception) { if (e is kotlin.coroutines.cancellation.CancellationException) throw e; error = e.message; errorTick++ } finally { saving = false }
             }
         }, enabled = !saving) { Text(if (saving) "Saving…" else "Save") } }, dismissButton = { TextButton(onClick = { adding = false }) { Text("Cancel") } })
     }

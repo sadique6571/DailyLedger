@@ -93,6 +93,9 @@ fun CreditScreen(
     }
     val manualBatchId = remember(add) { UUID.randomUUID().toString() }
     var pay by remember { mutableStateOf<CreditPurchaseEntity?>(null) }
+    // PAID stamp (J): shown center-screen right after an udhar payment is recorded.
+    var stampCreditId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(stampCreditId) { if (stampCreditId != null) { kotlinx.coroutines.delay(1500); stampCreditId = null } }
     var pickPayment by remember { mutableStateOf(false) }
     LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onPaymentOpened() } }
     if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
@@ -108,7 +111,7 @@ fun CreditScreen(
     LedgerBackdrop(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        snackbarHost = { SnackbarHost(undoBar) },
+        snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } },
         floatingActionButton = { FloatingActionButton(onClick = { add = true }) { Icon(Icons.Default.Add, "Add udhar") } },
     ) { p ->
         LazyColumn(
@@ -336,10 +339,12 @@ fun CreditScreen(
             dismiss = { pay = null },
             save = { amount, date, note, method ->
                 onPayment(credit.id, amount, date, note, method)
+                stampCreditId = credit.id
                 pay = null
             },
         )
     }
+    com.sadique.dailyledger.ui.PaidStamp(visible = stampCreditId != null, modifier = Modifier.fillMaxSize())
 }
 
 /** AI-written udhar reminder: pick a tone, generate, then share or send on WhatsApp. */

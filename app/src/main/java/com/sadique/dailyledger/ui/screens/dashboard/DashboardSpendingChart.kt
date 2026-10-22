@@ -8,12 +8,18 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +53,9 @@ import kotlin.math.roundToInt
 @Composable
 internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    // Slice tap selection (H) and donut/bar view switch (X).
+    var selectedSlice by remember { mutableStateOf<Int?>(null) }
+    var barMode by rememberSaveable { mutableStateOf(false) }
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     val scheme = MaterialTheme.colorScheme
     // Keep neighboring slices distinguishable; a four-color theme palette caused repeated hues.
@@ -68,27 +78,64 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
     }
     // Smooth height when the legend expands/collapses; the toggle chevron turns with it.
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "chart-chevron")
-    // Continuous glint travelling around the ring (off where animations are disabled).
-    val donutAmbientOn = com.sadique.dailyledger.ui.rememberAmbientAnimationsOn()
-    val glintAnim = remember { Animatable(0f) }
-    LaunchedEffect(donutAmbientOn) {
-        if (donutAmbientOn) while (true) {
-            glintAnim.animateTo(360f, tween(7_000, easing = androidx.compose.animation.core.LinearEasing))
-            glintAnim.snapTo(0f)
-        }
-    }
+    // (The travelling glint was replaced 2026-10-22 at the user's request — he did
+    // not like the sparkle. A soft, still sheen now sits at the top of the ring.)
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
             Text("This cycle", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            if (categories.isNotEmpty()) IconButton(onClick = { barMode = !barMode }, modifier = Modifier.testTag("chart-view-toggle")) {
+                Icon(if (barMode) Icons.Rounded.DonutLarge else Icons.Rounded.BarChart, if (barMode) "Donut view" else "Bar view")
+            }
         }
         Spacer(Modifier.height(15.dp))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val compact = maxWidth < 350.dp
+            AnimatedContent(targetState = barMode, transitionSpec = {
+                (fadeIn(tween(220)) + scaleIn(tween(220), 0.97f)).togetherWith(fadeOut(tween(160)))
+            }, label = "chart-mode") { bars ->
+            if (bars) {
+                // Bar view (X): same categories as animated horizontal bars.
+                Column(Modifier.fillMaxWidth().testTag("chart-bars"), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
+                    val maxV = (categories.maxOfOrNull { it.second } ?: 1L).coerceAtLeast(1L)
+                    if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
+                    categories.forEachIndexed { i, (name, value) ->
+                        val tint = colorFor(i)
+                        val frac by animateFloatAsState(value.toFloat() / maxV.toFloat(), tween(600), label = "cat-bar")
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(if (privacyEnabled) "Rs •••••" else displayMoney(value), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(track)) {
+                                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(tint, CircleShape))
+                            }
+                        }
+                    }
+                }
+            } else {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Box(Modifier.size(if (compact) 180.dp else 200.dp).testTag("chart-total"), contentAlignment = Alignment.Center) {
-                        Canvas(Modifier.fillMaxSize()) {
+                        Canvas(Modifier.fillMaxSize().pointerInput(categories, total) {
+                            detectTapGestures { tap ->
+                                val cxx = size.width / 2f; val cyy = size.height / 2f
+                                val dx = tap.x - cxx; val dy = tap.y - cyy
+                                val dist = kotlin.math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+                                val outer = size.minDimension / 2f
+                                if (dist > outer - 30.dp.toPx() && dist < outer + 4.dp.toPx()) {
+                                    var ang = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+                                    if (ang < 0f) ang += 360f
+                                    var acc2 = 0f; var hit: Int? = null
+                                    categories.forEachIndexed { idx, (_, v) ->
+                                        val sw = if (total > 0) 360f * v / total else 0f
+                                        if (ang >= acc2 && ang < acc2 + sw) hit = idx
+                                        acc2 += sw
+                                    }
+                                    selectedSlice = if (selectedSlice == hit) null else hit
+                                }
+                            }
+                        }) {
                             val width = 26.dp.toPx()
                             val inset = width / 2
                             drawArc(track, 0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
@@ -98,14 +145,18 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 val sweep = if (total > 0) 360f * value / total else 0f
                                 val drawn = minOf(sweep, budget).coerceAtLeast(0f)
                                 if (drawn > 0f) {
+                                    val selOff = if (index == selectedSlice) {
+                                        val midRad = Math.toRadians((start + sweep / 2 - 90).toDouble())
+                                        Offset((5.dp.toPx() * kotlin.math.cos(midRad)).toFloat(), (5.dp.toPx() * kotlin.math.sin(midRad)).toFloat())
+                                    } else Offset.Zero
                                     drawArc(colorFor(index), start, (drawn - minOf(1.2f, drawn * .15f)).coerceAtLeast(0f), false,
-                                        Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width))
+                                        Offset(inset + selOff.x, inset + selOff.y), Size(size.width - width, size.height - width), style = Stroke(width))
                                 }
                                 start += sweep
                                 budget -= drawn
                             }
-                            // A soft glint travels around the donut continuously.
-                            drawArc(Color.White.copy(alpha = 0.22f), glintAnim.value - 90f, 26f, false,
+                            // Soft still sheen at the top of the ring, like light resting on it.
+                            drawArc(Color.White.copy(alpha = 0.10f), -118f, 52f, false,
                                 Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
@@ -122,7 +173,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 .testTag("chart-category-$name"),
                             shape = LedgerTokens.ShapeCard,
                             color = scheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, tint.copy(alpha = .29f)),
+                            border = androidx.compose.foundation.BorderStroke(if (i == selectedSlice) 2.dp else 1.dp, tint.copy(alpha = if (i == selectedSlice) .95f else .29f)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().clip(LedgerTokens.ShapeCard)
@@ -145,7 +196,14 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                         }
                     }
                 }
+                selectedSlice?.let { sel -> categories.getOrNull(sel)?.let { (selName, selValue) ->
+                    Text("$selName — ${if (privacyEnabled) "Rs •••••" else displayMoney(selValue)} • ${if (total > 0) (selValue * 100.0 / total).roundToInt() else 0}% of spending",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colorFor(sel),
+                        modifier = Modifier.testTag("chart-selected-detail"))
+                } }
             }
+            }
+        }
         }
         if (categories.size > 3) TextButton(
             onClick = { expanded = !expanded },

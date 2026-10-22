@@ -9,7 +9,9 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -146,8 +148,13 @@ fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) 
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Spending trend", style = MaterialTheme.typography.titleMedium)
+            // Trend line (R): draws itself left-to-right over the bars.
+            val lineReveal = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+            androidx.compose.runtime.LaunchedEffect(months) { lineReveal.snapTo(0f); lineReveal.animateTo(1f, androidx.compose.animation.core.tween(850)) }
+            val lineColor = MaterialTheme.colorScheme.primary
+            Box(Modifier.fillMaxWidth().height(96.dp)) {
             Row(
-                Modifier.fillMaxWidth().height(96.dp),
+                Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -167,6 +174,22 @@ fun SpendingTrendCard(tx: List<com.sadique.dailyledger.data.TransactionEntity>) 
                             ),
                     )
                 }
+            }
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                val gapPx = 8.dp.toPx()
+                val slot = (size.width + gapPx) / months.size
+                val pts = months.mapIndexed { i, (_, total) ->
+                    val barH = if (total > 0) (size.height * total.toFloat() / max.toFloat()).coerceAtLeast(4.dp.toPx()) else 2.dp.toPx()
+                    androidx.compose.ui.geometry.Offset(slot * i + (slot - gapPx) / 2f, size.height - barH)
+                }
+                clipRect(0f, 0f, size.width * lineReveal.value, size.height) {
+                    val path = androidx.compose.ui.graphics.Path().apply {
+                        pts.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
+                    }
+                    drawPath(path, lineColor, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                    pts.forEach { drawCircle(lineColor, 3.dp.toPx(), it) }
+                }
+            }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 months.forEach { (m, _) ->

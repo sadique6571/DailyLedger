@@ -10,6 +10,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,7 +57,19 @@ fun MonthCalendarView(items: List<TransactionEntity>, onDayClick: (LocalDate) ->
     val month = remember(monthText) { runCatching { YearMonth.parse(monthText) }.getOrDefault(YearMonth.now()) }
     val today = LocalDate.now()
 
-    com.sadique.dailyledger.ui.LedgerRaisedCard(Modifier.fillMaxWidth()) {
+    // Swipe sideways to change month (U); the grid slides in the swipe direction.
+    com.sadique.dailyledger.ui.LedgerRaisedCard(Modifier.fillMaxWidth().pointerInput(monthText) {
+        var acc = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { acc = 0f },
+            onHorizontalDrag = { _, amount -> acc += amount },
+            onDragEnd = {
+                val threshold = 44.dp.toPx()
+                if (acc < -threshold) monthText = month.plusMonths(1).toString()
+                else if (acc > threshold) monthText = month.minusMonths(1).toString()
+            },
+        )
+    }) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { monthText = month.minusMonths(1).toString() }) { Icon(Icons.Rounded.ChevronLeft, "Previous month") }

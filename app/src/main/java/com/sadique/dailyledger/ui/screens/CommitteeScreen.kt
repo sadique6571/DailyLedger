@@ -126,7 +126,7 @@ fun CommitteeScreen(
 
 
     Scaffold(
-        snackbarHost = { SnackbarHost(undoBar) },
+        snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { add = true }) { Icon(Icons.Rounded.Add, "New kameti") }
         },

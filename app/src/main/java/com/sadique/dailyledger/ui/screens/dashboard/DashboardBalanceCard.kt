@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +32,7 @@ import com.sadique.dailyledger.data.SalarySummary
 import com.sadique.dailyledger.ui.LedgerColors
 import com.sadique.dailyledger.ui.LedgerTokens
 import com.sadique.dailyledger.ui.WalletArtwork
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -49,6 +51,7 @@ internal fun DashboardBalanceCard(
     salaryDay: Int?,
     plannedSalaryDate: LocalDate?,
     money: (Long) -> String,
+    guideCollapsed: Boolean = false,
 ) {
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
@@ -76,13 +79,49 @@ internal fun DashboardBalanceCard(
                 kotlinx.coroutines.delay(350)
             }
         }
-        val gradColors = listOf(
+        // Touch tilt (F): the card leans toward the finger and springs back on release.
+        val tiltX = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+        val tiltY = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+        val tiltScope = androidx.compose.runtime.rememberCoroutineScope()
+        // Zero balance (Z): the card's colors go quiet when nothing is left.
+        val zeroBalance = summary.remaining <= 0L
+        val gradColors = if (zeroBalance) listOf(
+            androidx.compose.ui.graphics.lerp(Color(0xFF66727D), Color(0xFF79858F), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF3E4852), Color(0xFF4C5761), livingAnim.value),
+            androidx.compose.ui.graphics.lerp(Color(0xFF5B646B), Color(0xFF6D767E), livingAnim.value),
+        ) else listOf(
             androidx.compose.ui.graphics.lerp(Color(0xFF087FAE), Color(0xFF13A7C9), livingAnim.value),
             androidx.compose.ui.graphics.lerp(Color(0xFF004664), Color(0xFF0B6182), livingAnim.value),
             androidx.compose.ui.graphics.lerp(Color(0xFF006D75), Color(0xFF00A48F), livingAnim.value),
         )
-        Box(Modifier.fillMaxWidth().background(Brush.linearGradient(gradColors)).padding(14.dp)) {
-            WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp))
+        Box(Modifier.fillMaxWidth()
+            .graphicsLayer { rotationX = tiltX.value; rotationY = tiltY.value; cameraDistance = 13f * density }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: continue
+                        when (event.type) {
+                            androidx.compose.ui.input.pointer.PointerEventType.Release,
+                            androidx.compose.ui.input.pointer.PointerEventType.Exit -> tiltScope.launch {
+                                tiltX.animateTo(0f, androidx.compose.animation.core.tween(350))
+                                tiltY.animateTo(0f, androidx.compose.animation.core.tween(350))
+                            }
+                            else -> if (change.pressed && size.width > 0 && size.height > 0) {
+                                val fx = (change.position.x / size.width).coerceIn(0f, 1f)
+                                val fy = (change.position.y / size.height).coerceIn(0f, 1f)
+                                val angles = com.sadique.dailyledger.ui.tiltAngles(fx, fy)
+                                tiltScope.launch {
+                                    tiltX.animateTo(angles.first, androidx.compose.animation.core.tween(120))
+                                    tiltY.animateTo(angles.second, androidx.compose.animation.core.tween(120))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .background(Brush.linearGradient(gradColors)).padding(14.dp)) {
+            WalletArtwork(Modifier.align(Alignment.TopEnd).size(48.dp).graphicsLayer { alpha = if (zeroBalance) 0.45f else 1f })
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val animatedRatio = com.sadique.dailyledger.ui.animatedProgress(spentRatio)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -95,6 +134,7 @@ internal fun DashboardBalanceCard(
                     style = androidx.compose.ui.text.TextStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth(.77f))
                 if (summary.remaining < 0) Text("This salary cycle is over budget", color = Color.White, fontSize = 11.sp)
+                if (summary.remaining == 0L) Text("Balance khatam — jeb khali hai", color = Color.White, fontSize = 11.sp)
                 // Keep the percentage outside the track: an overlaid chip clips in
                 // Urdu RTL and with large system text on narrower devices.
                 Row(
@@ -154,6 +194,11 @@ internal fun DashboardBalanceCard(
                 }
                 if (summary.udharPayments > 0) Text("Udhar paid this cycle: ${money(summary.udharPayments)}", color = Color(0xFFC0FFEE), fontSize = 11.sp)
                 if (summary.otherIncome > 0) Text("Other income: ${money(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
+                // Spending guide folds away as the dashboard scrolls (O), giving the list room.
+                androidx.compose.animation.AnimatedVisibility(visible = !guideCollapsed,
+                    enter = androidx.compose.animation.expandVertically(androidx.compose.animation.core.tween(260)) + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(260)),
+                    exit = androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(220))) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = .2f))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                     Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = Color(0xFFB4FFF1))
@@ -187,6 +232,8 @@ internal fun DashboardBalanceCard(
                     Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                         color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
 
+                }
+                }
                 }
                 if (guide.lowBalance) {
                     Surface(color = Color(0xFFFFE5E8), shape = LedgerTokens.ShapeSmall, modifier = Modifier.fillMaxWidth().padding(top = LedgerTokens.Space4).testTag("low-balance-notice")) {

@@ -548,7 +548,7 @@ fun DailyLedgerApp(
     ) { pad ->
         val dialBlur = androidx.compose.animation.core.animateDpAsState(if (entryMenuExpanded.value) 9.dp else 0.dp, tween(220), label = "dial-blur").value
         Box(Modifier.padding(pad).consumeWindowInsets(pad).blur(dialBlur)) {
-          AnimatedContent(targetState = tab, transitionSpec = { (fadeIn(tween(200)) + slideInHorizontally(tween(200)) { w -> w / 14 }).togetherWith(fadeOut(tween(140))) }, label = "tab-content") { targetTab ->
+          AnimatedContent(targetState = tab, transitionSpec = { (fadeIn(tween(200)) + slideInHorizontally(tween(200)) { w -> w / 14 } + androidx.compose.animation.scaleIn(tween(220), initialScale = 0.965f)).togetherWith(fadeOut(tween(140)) + androidx.compose.animation.scaleOut(tween(140), targetScale = 1.02f)) }, label = "tab-content") { targetTab ->
           settingsState.SaveableStateProvider("screen-${user.id}-$targetTab") {
             when (targetTab) {
                 0 -> DashboardScreen(

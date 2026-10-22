@@ -377,12 +377,18 @@ fun SettingsScreen(
         }
         if (matchesSetting("Appearance theme text size font")) enteringItem(key = "settings-appearance", index = 2, entranceKey = entranceVisit) {
             SectionCard("Appearance", "Pick a theme and text size — changes apply right away") {
+                // Theme wave (S): a color ripple spreads over the tapped theme's preview.
+                var waveOption by remember { mutableStateOf<String?>(null) }
+                val waveAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+                androidx.compose.runtime.LaunchedEffect(waveOption) {
+                    if (waveOption != null) { waveAnim.snapTo(0f); waveAnim.animateTo(1f, androidx.compose.animation.core.tween(550)) }
+                }
                 LedgerThemeOptions.chunked(4).forEach { rowOptions ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                         rowOptions.forEach { option ->
                             val isSelected = theme.uppercase() == option.key
                             Column(
-                                modifier = Modifier.weight(1f).clickable { onTheme(option.key) }.testTag("theme-${option.key.lowercase()}"),
+                                modifier = Modifier.weight(1f).clickable { waveOption = option.key; onTheme(option.key) }.testTag("theme-${option.key.lowercase()}"),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
@@ -396,6 +402,10 @@ fun SettingsScreen(
                                         Box(Modifier.size(14.dp).background(option.primary, RoundedCornerShape(50)))
                                         Box(Modifier.size(14.dp).background(option.secondary, RoundedCornerShape(50)))
                                     }
+                                    if (waveOption == option.key) Box(
+                                        Modifier.align(Alignment.Center).size((10 + waveAnim.value * 95).dp)
+                                            .background(option.primary.copy(alpha = 0.45f * (1f - waveAnim.value)), androidx.compose.foundation.shape.CircleShape),
+                                    )
                                 }
                                 Text(option.label, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                             }
