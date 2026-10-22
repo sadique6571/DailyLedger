@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.animation.animateContentSize
 import com.sadique.dailyledger.ui.ledgerCardBrush
 import com.sadique.dailyledger.ui.LedgerColors
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,12 +15,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /** Compact greeting and live weather; no decorative card competes with the balance. */
 @Composable
@@ -43,25 +39,13 @@ internal fun DashboardGreetingSection(
             overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("greeting-name"))
         }
         if (weatherEnabled && weatherCity.isNotBlank() && !compact) {
-            Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(12.dp).testTag("weather-chip"),
+            Surface(modifier = Modifier.widthIn(max = 168.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
+                Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(10.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    val weatherAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-2.5f) }
-                                        val appCtx = androidx.compose.ui.platform.LocalContext.current
-                    val ambientAnimationsOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(appCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
-                    if (ambientAnimationsOn) androidx.compose.runtime.LaunchedEffect(Unit) {
-                        while (true) {
-                            weatherAnim.animateTo(2.5f, androidx.compose.animation.core.tween(1700))
-                            weatherAnim.animateTo(-2.5f, androidx.compose.animation.core.tween(1700))
-                        }
-                    }
-                    Text(when {
-                        weatherCondition.contains("storm", true) -> "⛈️"
-                        weatherCondition.contains("rain", true) -> "🌧️"
-                        weatherCondition.contains("cloud", true) -> "☁️"
-                        weatherCondition.contains("snow", true) -> "❄️"
-                        hour !in 6..18 -> "🌙"; else -> "☀️"
-                    }, fontSize = 15.sp, modifier = Modifier.offset { androidx.compose.ui.unit.IntOffset(0, weatherAnim.value.roundToInt()) })
+                    // Animated sky: the scene matches the live weather condition.
+                    WeatherScene(weatherCondition, isDay = hour in 6..18,
+                        modifier = Modifier.fillMaxWidth().height(56.dp))
+                    Spacer(Modifier.height(4.dp))
                     Text(weatherTemperature.ifBlank { weatherCity }, style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)

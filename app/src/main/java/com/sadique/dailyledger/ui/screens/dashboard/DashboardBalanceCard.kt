@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -118,16 +119,20 @@ internal fun DashboardBalanceCard(
                         .clip(CircleShape).background(Color.White.copy(alpha = .25f))
                         .testTag("balance-progress-track"),
                 ) {
+                    val fillWidthPx = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0f) }
                     if (animatedRatio > 0f) Box(
                         Modifier.fillMaxWidth(animatedRatio.coerceIn(0f, 1f)).fillMaxHeight()
-                            .background(Brush.horizontalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))), CircleShape),
-                    )
-                    // Always-on shine sweeping left to right across the bar (clipped by the track).
-                    if (ambientAnimationsOn) Box(
-                        Modifier.fillMaxHeight().fillMaxWidth(0.24f)
-                            .graphicsLayer { translationX = barShineAnim.value * 1500f }
-                            .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.38f), Color.Transparent))),
-                    )
+                            .clip(CircleShape)
+                            .background(Brush.horizontalGradient(listOf(Color(0xFFCDFFFF), Color(0xFF00C7E6))))
+                            .onSizeChanged { fillWidthPx.value = it.width.toFloat() },
+                    ) {
+                        // Windows-copy style: the shine sweeps only across the filled part of the bar.
+                        if (ambientAnimationsOn && fillWidthPx.value > 0f) Box(
+                            Modifier.fillMaxHeight().fillMaxWidth(0.32f)
+                                .graphicsLayer { translationX = barShineAnim.value * fillWidthPx.value }
+                                .background(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.38f), Color.Transparent))),
+                        )
+                    }
                 }
                 Row(
                     Modifier.fillMaxWidth(),

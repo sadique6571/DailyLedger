@@ -8,7 +8,9 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -26,6 +28,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +66,8 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
         sweepAnim.snapTo(0f)
         sweepAnim.animateTo(1f, tween(900))
     }
+    // Smooth height when the legend expands/collapses; the toggle chevron turns with it.
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "chart-chevron")
     // Continuous glint travelling around the ring (off where animations are disabled).
     val donutAmbientOn = com.sadique.dailyledger.ui.rememberAmbientAnimationsOn()
     val glintAnim = remember { Animatable(0f) }
@@ -108,7 +113,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                             Text("Total spent", fontSize = 11.sp)
                         }
                     }
-                Column(Modifier.fillMaxWidth().testTag("chart-legend"), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
+                Column(Modifier.fillMaxWidth().animateContentSize(tween(320)).testTag("chart-legend"), verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                     if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                     (if (expanded) categories else categories.take(3)).forEachIndexed { i, (name, value) ->
                         val tint = colorFor(i)
@@ -147,7 +152,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
             modifier = Modifier.fillMaxWidth().testTag("chart-toggle-categories"),
         ) {
             Text(if (expanded) "Show fewer categories" else "Show all categories")
-            Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
+            Icon(Icons.Rounded.ExpandMore, null, Modifier.graphicsLayer { rotationZ = chevronRotation })
         }
         TextButton(onClick = onHistory) { Text("View expense history") }
     }
