@@ -15,7 +15,7 @@ fun LedgerEmptyState(title: String, description: String, actionLabel: String, ic
     modifier: Modifier = Modifier, onAction: () -> Unit) {
     LedgerCard(modifier.fillMaxWidth().testTag("ledger-empty-state"), contentSpacing = LedgerTokens.Space8) {
         val floatAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-5f) }
-        if (!androidx.compose.ui.platform.LocalInspectionMode.current) androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!androidx.compose.ui.platform.LocalInspectionMode.current && !android.app.ActivityManager.isRunningInTestHarness()) androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
                 floatAnim.animateTo(5f, androidx.compose.animation.core.tween(1500))
                 floatAnim.animateTo(-5f, androidx.compose.animation.core.tween(1500))
