@@ -31,16 +31,16 @@ internal object AiFailures {
             has { it is PermissionMissingException } ->
                 "The AI service denied this request. Please try again later. [AI_ACCESS]"
             has { it is QuotaExceededException } ->
-                "Gemini's usage limit is reached. Try later; manual entries and local insights still work. [AI_QUOTA]"
+                "The AI usage limit is reached. Try later; manual entries and local insights still work. [AI_QUOTA]"
             has { it is UnsupportedUserLocationException } ->
-                "Gemini is not available for this account or region. Manual entries and local insights still work. [AI_REGION]"
+                "AI is not available for this account or region. Manual entries and local insights still work. [AI_REGION]"
             has { it is PromptBlockedException || it is ContentBlockedException || it is ResponseStoppedException } ->
-                "Gemini could not complete these entries. Try a short item-and-amount description. Nothing was saved. [AI_RESPONSE]"
+                "AI could not complete these entries. Try a short item-and-amount description. Nothing was saved. [AI_RESPONSE]"
             has { it is SerializationException } ->
-                "Gemini returned an unreadable response. Nothing was saved. [AI_RESPONSE]"
+                "AI returned an unreadable response. Nothing was saved. [AI_RESPONSE]"
             has { it is ServerException } ->
                 "The AI service could not complete the request. Please try again later. [AI_SERVICE]"
-            else -> "Gemini AI is unavailable right now. Nothing was saved. [AI_UNAVAILABLE]"
+            else -> "AI is unavailable right now. Nothing was saved. [AI_UNAVAILABLE]"
         }
         return AiException(message)
     }

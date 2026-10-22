@@ -24,7 +24,7 @@ internal class AiRequestRunner(
         currentCoroutineContext().ensureActive()
         checkAccess()
         if (response.isBlank() || response.length > 65_536) {
-            throw AiException("Gemini returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
+            throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
         }
         return response
     }

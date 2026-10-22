@@ -18,6 +18,18 @@ class AiPreferences(context:Context,owner:String) {
     var proxyBase:String
         get()=prefs.getString(prefix+"proxy","").orEmpty()
         set(value){prefs.edit().putString(prefix+"proxy",value.trim()).apply()}
+    /** Which AI service the personal key belongs to (see AiProviders). Default: Gemini. */
+    var providerId:String
+        get()=prefs.getString(prefix+"provider","gemini").orEmpty().ifBlank{"gemini"}
+        set(value){prefs.edit().putString(prefix+"provider",value.trim()).apply()}
+    /** Optional model override for the personal provider; blank = provider default. */
+    var providerModel:String
+        get()=prefs.getString(prefix+"pmodel","").orEmpty()
+        set(value){prefs.edit().putString(prefix+"pmodel",value.trim()).apply()}
+    /** Base URL used only by the "custom" provider. */
+    var providerBase:String
+        get()=prefs.getString(prefix+"pbase","").orEmpty()
+        set(value){prefs.edit().putString(prefix+"pbase",value.trim()).apply()}
     fun cached(hash:String):List<SpendingTip>?=runCatching {
         val bytes=cache.loadBytes()?:return null
         try { val record=JSONObject(String(bytes,Charsets.UTF_8)); if(record.getString("hash")!=hash)null else AiProtocol.decodeInsights(record.getString("response")) } finally { bytes.fill(0) }

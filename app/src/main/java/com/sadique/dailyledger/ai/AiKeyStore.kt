@@ -3,7 +3,7 @@ package com.sadique.dailyledger.ai
 import android.content.Context
 import com.sadique.dailyledger.security.SecureSecretStore
 
-/** The user's own free Gemini API key, encrypted on this device. It is sent only to Google (or the user's own proxy). */
+/** The user's own personal AI API key (any supported provider), encrypted on this device. It is sent only to the chosen provider (or the user's own proxy). */
 class AiKeyStore(context: Context, owner: String) {
     private val store = SecureSecretStore(context, "gemini-apikey:" + owner)
 

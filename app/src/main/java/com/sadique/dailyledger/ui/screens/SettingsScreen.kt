@@ -551,16 +551,37 @@ fun SettingsScreen(
                 }
                 var aiKeyText by remember { mutableStateOf(vm.aiKey()) }
                 var aiProxyText by remember { mutableStateOf(vm.aiProxy()) }
+                var aiProviderId by remember { mutableStateOf(vm.aiProvider()) }
+                var aiModelText by remember { mutableStateOf(vm.aiProviderModel()) }
+                var aiBaseText by remember { mutableStateOf(vm.aiProviderBase()) }
                 var aiKeyMsg by remember { mutableStateOf("") }
                 var aiTesting by remember { mutableStateOf(false) }
-                OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text("Gemini API key (free)") }, singleLine = true,
+                var providerMenu by remember { mutableStateOf(false) }
+                val aiProvider = com.sadique.dailyledger.ai.AiProviders.byId(aiProviderId)
+                fun saveAiFields() { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); vm.saveAiProvider(aiProviderId); vm.saveAiProviderModel(aiModelText); vm.saveAiProviderBase(aiBaseText) }
+                Text("Personal AI provider (agar apni key lagani ho)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.foundation.layout.Box {
+                    OutlinedButton(onClick = { providerMenu = true }) { Text(aiProvider.label + "  ▾") }
+                    androidx.compose.material3.DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
+                        com.sadique.dailyledger.ai.AiProviders.ALL.forEach { p ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { aiProviderId = p.id; providerMenu = false })
+                        }
+                    }
+                }
+                OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text(aiProvider.label + " API key") }, singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-                Text("AI tayyar hai — app ek mehfooz proxy se chalti hai, key dalne ki zaroorat nahi. Agar apni alag free key (aistudio.google.com se) lagani ho to laga sakte hain; personal key sirf is phone mein rehti hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!aiProvider.geminiNative) {
+                    if (aiProvider.id == "custom") {
+                        OutlinedTextField(aiBaseText, { aiBaseText = it }, label = { Text("Base URL (masalan https://.../v1)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                    OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model (khali = default: " + aiProvider.defaultModel + ")") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                Text("AI tayyar hai — app built-in proxy (Gemini) se chalti hai, key dalne ki zaroorat nahi. Chahein to apni personal API key laga sakte hain — Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral ya koi bhi OpenAI-compatible service. Personal key sirf is phone mein mehfooz rehti hai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); aiKeyMsg = "Save ho gaya." }) { Text("Save") }
+                    Button(onClick = { saveAiFields(); aiKeyMsg = "Save ho gaya." }) { Text("Save") }
                     OutlinedButton(enabled = !aiTesting, onClick = {
-                        vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); aiTesting = true
+                        saveAiFields(); aiTesting = true
                         scope.launch { aiKeyMsg = try { vm.testAiConnection(); "Connection kamyab hai ✓" } catch (e: Exception) { e.message ?: "Connection fail ho gaya." }; aiTesting = false }
                     }) { Text(if (aiTesting) "Check ho raha hai..." else "Connection test") }
                 }

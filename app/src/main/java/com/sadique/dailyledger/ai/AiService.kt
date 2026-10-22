@@ -17,17 +17,27 @@ class AiService(private val context: Context, private val owner: String) {
             // A personal key or custom proxy saved in Settings takes precedence when present.
         },
         reserve = { preferences.reserve(it) },
-        generate = { GeminiGateway.generate(it, keyStore.key, preferences.proxyBase) },
+        generate = { request ->
+            val key = keyStore.key
+            val provider = AiProviders.byId(preferences.providerId)
+            if (key.isNotBlank() && preferences.proxyBase.isBlank() && !provider.geminiNative) {
+                // Personal key of another AI service (OpenAI-compatible chat API).
+                OpenAiGateway.generate(request, provider, key, preferences.providerModel, preferences.providerBase)
+            } else {
+                // Gemini key directly, the user's own proxy, or the built-in proxy.
+                GeminiGateway.generate(request, key, preferences.proxyBase)
+            }
+        },
     )
 
     private fun checkAccess() {
-        if (!preferences.enabled) throw AiException("Enable Gemini AI in Settings before sending a request. [AI_CONSENT]")
+        if (!preferences.enabled) throw AiException("Enable Cloud AI in Settings before sending a request. [AI_CONSENT]")
     }
 
     private suspend fun call(request: AiModelRequest): String = try {
         runner.execute(request)
     } catch (e: TimeoutCancellationException) {
-        throw AiException("Gemini took too long to reply. Try again later. Nothing was saved. [AI_TIMEOUT]")
+        throw AiException("AI ne jawab dene mein bohat der kar di. Dobara koshish karein. Nothing was saved. [AI_TIMEOUT]")
     } catch (e: CancellationException) { throw e }
     catch (e: Exception) { throw AiFailures.describe(e) }
 
@@ -47,7 +57,7 @@ class AiService(private val context: Context, private val owner: String) {
         return AiProtocol.decodeInsights(call(request))
     }
 
-    /** Free-text Gemini answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
+    /** Free-text AI answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
     suspend fun advise(request: AiModelRequest): String {
         require(request.task == AiTask.TEXT)
         return call(request).trim()
