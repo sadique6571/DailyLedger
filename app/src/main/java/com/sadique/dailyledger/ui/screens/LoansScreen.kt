@@ -67,6 +67,7 @@ fun LoansScreen(
     var pendingUndoDelete by remember { mutableStateOf<LoanEntity?>(null) }
     val undoBar = remember { SnackbarHostState() }
     val undoScope = rememberCoroutineScope()
+    var loanQuery by remember { mutableStateOf("") }
     val visibleLoans = loans.filter { it.id != pendingUndoDelete?.id }
         .filter { loanQuery.isBlank() || it.person.contains(loanQuery, true) || it.note.contains(loanQuery, true) || it.phone.contains(loanQuery) }
     fun requestDelete(loan: LoanEntity) {
@@ -79,8 +80,7 @@ fun LoansScreen(
         }
     }
     var pickPayment by remember { mutableStateOf(false) }
-    var loanQuery by remember { mutableStateOf("") }
-    LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
+        LaunchedEffect(requestPayment) { if (requestPayment) { pickPayment = true; onAddOpened() } }
     if (pickPayment) com.sadique.dailyledger.ui.EntryRecordPicker("Choose payment record",
         loans.filter { row -> row.principalMinor > payments.filter { it.loanId == row.id }.sumOf { it.amountMinor } }
             .map { row -> row.person to { pay = row; pickPayment = false } },

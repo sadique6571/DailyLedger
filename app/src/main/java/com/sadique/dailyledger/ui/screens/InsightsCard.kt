@@ -116,10 +116,11 @@ private fun MetricChip(label: String, value: String, modifier: Modifier = Modifi
 
 @Composable
 private fun MetricMoneyChip(label: String, amount: Long, modifier: Modifier = Modifier) {
+    val hiddenAmounts = LocalDisplayPreferences.current?.privateAmounts == true
     Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall)
-            com.sadique.dailyledger.ui.AnimatedMoneyText(amount, { com.sadique.dailyledger.ui.visibleAmount(it) }, style = MaterialTheme.typography.titleSmall)
+            com.sadique.dailyledger.ui.AnimatedMoneyText(amount, { if (hiddenAmounts) "Rs •••••" else com.sadique.dailyledger.ui.money(it) }, style = MaterialTheme.typography.titleSmall)
         }
     }
 }

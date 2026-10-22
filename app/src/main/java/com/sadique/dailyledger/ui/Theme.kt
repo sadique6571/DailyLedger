@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.ColorScheme
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -182,6 +182,16 @@ val LedgerThemeOptions: List<LedgerThemeOption> = listOf(
     LedgerThemeOption("AMOLED", "AMOLED", LedgerDarkColors.primary, LedgerDarkColors.secondary, Color.Black),
 )
 
+/** Animate one scheme color channel-by-channel (animateColorAsState is not available in this Compose version). */
+@Composable
+private fun animatedSchemeColor(target: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
+    val r by animateFloatAsState(target.red, tween(450), label = "th-r")
+    val g by animateFloatAsState(target.green, tween(450), label = "th-g")
+    val b by animateFloatAsState(target.blue, tween(450), label = "th-b")
+    val a by animateFloatAsState(target.alpha, tween(450), label = "th-a")
+    return androidx.compose.ui.graphics.Color(r, g, b, a)
+}
+
 @Composable
 fun DailyLedgerTheme(
     mode: String,
@@ -239,20 +249,20 @@ fun DailyLedgerTheme(
             surfaceContainerHighest = lerp(readable.surface, accent, 0.28f))
     }
     // Smooth color crossfade when the theme or accent changes (Round 2 animations).
-    val aPrimary by animateColorAsState(themed.primary, tween(450), label = "th-primary")
-    val aOnPrimary by animateColorAsState(themed.onPrimary, tween(450), label = "th-onprimary")
-    val aPrimaryContainer by animateColorAsState(themed.primaryContainer, tween(450), label = "th-pcontainer")
-    val aOnPrimaryContainer by animateColorAsState(themed.onPrimaryContainer, tween(450), label = "th-onpcontainer")
-    val aSecondary by animateColorAsState(themed.secondary, tween(450), label = "th-secondary")
-    val aBackground by animateColorAsState(themed.background, tween(450), label = "th-bg")
-    val aOnBackground by animateColorAsState(themed.onBackground, tween(450), label = "th-onbg")
-    val aSurface by animateColorAsState(themed.surface, tween(450), label = "th-surface")
-    val aOnSurface by animateColorAsState(themed.onSurface, tween(450), label = "th-onsurface")
-    val aSurfaceLow by animateColorAsState(themed.surfaceContainerLow, tween(450), label = "th-sclow")
-    val aSurfaceCont by animateColorAsState(themed.surfaceContainer, tween(450), label = "th-sc")
-    val aSurfaceHigh by animateColorAsState(themed.surfaceContainerHigh, tween(450), label = "th-schigh")
-    val aSurfaceHighest by animateColorAsState(themed.surfaceContainerHighest, tween(450), label = "th-schighest")
-    val aError by animateColorAsState(themed.error, tween(450), label = "th-error")
+    val aPrimary by animatedSchemeColor(themed.primary)
+    val aOnPrimary by animatedSchemeColor(themed.onPrimary)
+    val aPrimaryContainer by animatedSchemeColor(themed.primaryContainer)
+    val aOnPrimaryContainer by animatedSchemeColor(themed.onPrimaryContainer)
+    val aSecondary by animatedSchemeColor(themed.secondary)
+    val aBackground by animatedSchemeColor(themed.background)
+    val aOnBackground by animatedSchemeColor(themed.onBackground)
+    val aSurface by animatedSchemeColor(themed.surface)
+    val aOnSurface by animatedSchemeColor(themed.onSurface)
+    val aSurfaceLow by animatedSchemeColor(themed.surfaceContainerLow)
+    val aSurfaceCont by animatedSchemeColor(themed.surfaceContainer)
+    val aSurfaceHigh by animatedSchemeColor(themed.surfaceContainerHigh)
+    val aSurfaceHighest by animatedSchemeColor(themed.surfaceContainerHighest)
+    val aError by animatedSchemeColor(themed.error)
     val animatedScheme = themed.copy(
         primary = aPrimary, onPrimary = aOnPrimary, primaryContainer = aPrimaryContainer, onPrimaryContainer = aOnPrimaryContainer,
         secondary = aSecondary, background = aBackground, onBackground = aOnBackground, surface = aSurface, onSurface = aOnSurface,

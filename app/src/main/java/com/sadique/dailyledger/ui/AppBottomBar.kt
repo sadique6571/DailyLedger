@@ -3,14 +3,9 @@ package com.sadique.dailyledger.ui
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -78,9 +73,10 @@ fun AppBottomBar(
                             bounce.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
                         }
                     }
+                    val badgeScale = androidx.compose.animation.core.animateFloatAsState(if (badgeCount > 0) 1f else 0.4f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "badge-pop")
                     androidx.compose.material3.BadgedBox(badge = {
-                        AnimatedVisibility(visible = badgeCount > 0, enter = scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn(), exit = scaleOut() + fadeOut()) {
-                            androidx.compose.material3.Badge { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) }
+                        if (badgeCount > 0) {
+                            androidx.compose.material3.Badge(Modifier.graphicsLayer { scaleX = badgeScale.value; scaleY = badgeScale.value }) { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) }
                         }
                     }) {
                         Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp).graphicsLayer { scaleX = bounce.value; scaleY = bounce.value })
