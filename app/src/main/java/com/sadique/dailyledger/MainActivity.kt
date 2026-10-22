@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -179,7 +181,7 @@ class MainActivity : FragmentActivity() {
         Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 androidx.compose.material3.Icon(
-                    androidx.compose.material.icons.Icons.Rounded.CheckCircle, null,
+                    Icons.Filled.LockOpen, null,
                     Modifier.size(72.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                     tint = MaterialTheme.colorScheme.primary,
                 )
