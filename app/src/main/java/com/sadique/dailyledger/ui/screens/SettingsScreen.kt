@@ -568,10 +568,6 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Firebase App verification")) enteringItem(key = "settings-verification", index = 6, entranceKey = entranceVisit) {
-            AppVerificationCard(context)
-        }
-
         if (matchesSetting("Security privacy screenshot biometric device lock")) enteringItem(key = "settings-security", index = 7, entranceKey = entranceVisit) {
             SectionCard("Security & privacy", null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
