@@ -46,11 +46,7 @@ fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int
 fun LazyListScope.enteringItem(key: Any? = null, index: Int = 0, entranceKey: Int = 0, content: @Composable LazyItemScope.() -> Unit) {
     item(key = key) {
         val scope = this
-        CardEntrance(index, modifier = Modifier.animateItem(
-            fadeInSpec = tween(250),
-            placementSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
-            fadeOutSpec = tween(300),
-        ), entranceKey = entranceKey) { scope.content() }
+        CardEntrance(index, modifier = Modifier.animateItem(), entranceKey = entranceKey) { scope.content() }
     }
 }
 
@@ -58,10 +54,6 @@ fun LazyListScope.enteringItem(key: Any? = null, index: Int = 0, entranceKey: In
 fun <T> LazyListScope.enteringItems(items: List<T>, key: (T) -> Any, content: @Composable LazyItemScope.(T) -> Unit) {
     itemsIndexed(items, key = { _, value -> key(value) }) { index, value ->
         val scope = this
-        CardEntrance(index, modifier = Modifier.animateItem(
-            fadeInSpec = tween(250),
-            placementSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
-            fadeOutSpec = tween(300),
-        )) { scope.content(value) }
+        CardEntrance(index, modifier = Modifier.animateItem()) { scope.content(value) }
     }
 }

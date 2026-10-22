@@ -4,6 +4,13 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -11,8 +18,10 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,13 +47,19 @@ internal fun DashboardFrequentSection(
     onSelectCategory: (String) -> Unit,
 ) {
     LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space12) {
+        val freqChevron by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "frequent-chevron")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Frequent purchases", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = onToggleExpanded) {
                 Text(if (expanded) "Collapse" else "Expand")
+                Icon(Icons.Rounded.ExpandMore, null, Modifier.graphicsLayer { rotationZ = freqChevron })
             }
         }
-        if (expanded) items.forEachIndexed { index, (label, total) ->
+        AnimatedVisibility(visible = expanded,
+            enter = expandVertically(tween(320)) + fadeIn(tween(320)),
+            exit = shrinkVertically(tween(260)) + fadeOut(tween(260))) {
+        Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space12)) {
+        items.forEachIndexed { index, (label, total) ->
             val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
             val visual = rememberCategoryVisual(label, "EXPENSE")
             LedgerCard(
@@ -65,6 +80,8 @@ internal fun DashboardFrequentSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+        }
         }
     }
 }

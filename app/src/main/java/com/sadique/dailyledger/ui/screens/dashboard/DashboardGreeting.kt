@@ -36,13 +36,18 @@ internal fun DashboardGreetingSection(
             in 17..20 -> "🌆 Good evening,"; else -> "🌙 Good night,"
         }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            // The hand actually waves once when the dashboard appears (W).
+            // The hand waves every few seconds so it is actually seen (W).
             val handWave = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                handWave.animateTo(0f, androidx.compose.animation.core.keyframes {
-                    durationMillis = 750
-                    0f at 0; 16f at 120; -10f at 280; 12f at 430; -5f at 580; 0f at 750
-                })
+            val waveCtx = androidx.compose.ui.platform.LocalContext.current
+            val waveAmbientOn = androidx.compose.runtime.remember { android.provider.Settings.Global.getFloat(waveCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
+            if (waveAmbientOn) androidx.compose.runtime.LaunchedEffect(Unit) {
+                while (true) {
+                    handWave.animateTo(0f, androidx.compose.animation.core.keyframes {
+                        durationMillis = 750
+                        0f at 0; 16f at 120; -10f at 280; 12f at 430; -5f at 580; 0f at 750
+                    })
+                    kotlinx.coroutines.delay(3400)
+                }
             }
             Text(userName.substringBefore(' ').ifBlank { "Friend" }, translate = false,
                 fontSize = if (compact) 19.sp else 25.sp, fontWeight = FontWeight.Bold, maxLines = 1,

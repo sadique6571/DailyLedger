@@ -78,8 +78,26 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
     }
     // Smooth height when the legend expands/collapses; the toggle chevron turns with it.
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "chart-chevron")
-    // (The travelling glint was replaced 2026-10-22 at the user's request — he did
-    // not like the sparkle. A soft, still sheen now sits at the top of the ring.)
+    // Travelling shine inside the ring — same recipe as the progress-bar shine
+    // (the user's pick for the donut too; the still sheen arc is gone).
+    val ringShine = remember { Animatable(0f) }
+    val shineCtx = androidx.compose.ui.platform.LocalContext.current
+    val shineAmbientOn = remember { android.provider.Settings.Global.getFloat(shineCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
+    if (shineAmbientOn) LaunchedEffect(Unit) {
+        while (true) {
+            ringShine.animateTo(360f, tween(6500, easing = androidx.compose.animation.core.LinearEasing))
+            ringShine.snapTo(0f)
+            kotlinx.coroutines.delay(600)
+        }
+    }
+    // Grow-in for the bar view: bars and their fill rise when the view opens.
+    val barGrow = remember { Animatable(0f) }
+    LaunchedEffect(barMode) {
+        if (barMode) {
+            barGrow.snapTo(0f)
+            if (shineAmbientOn) barGrow.animateTo(1f, tween(650)) else barGrow.snapTo(1f)
+        }
+    }
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Spending by category", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
@@ -108,7 +126,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 Text(if (privacyEnabled) "Rs •••••" else displayMoney(value), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(track)) {
-                                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(tint, CircleShape))
+                                Box(Modifier.fillMaxWidth(frac * barGrow.value).fillMaxHeight().background(tint, CircleShape))
                             }
                         }
                     }
@@ -155,9 +173,18 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 start += sweep
                                 budget -= drawn
                             }
-                            // Soft still sheen at the top of the ring, like light resting on it.
-                            drawArc(Color.White.copy(alpha = 0.10f), -118f, 52f, false,
-                                Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                            // Travelling shine inside the ring, like the progress bar's.
+                            if (shineAmbientOn) {
+                                withTransform({ rotate(ringShine.value, Offset(size.width / 2f, size.height / 2f)) }) {
+                                    drawArc(
+                                        brush = Brush.sweepGradient(
+                                            listOf(Color.Transparent, Color.White.copy(alpha = 0.20f), Color.Transparent, Color.Transparent),
+                                            Offset(size.width / 2f, size.height / 2f),
+                                        ),
+                                        0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width),
+                                    )
+                                }
+                            }
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
                             com.sadique.dailyledger.ui.AnimatedMoneyText(total, { if (privacyEnabled) "Rs •••••" else displayMoney(it) }, style = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center))
