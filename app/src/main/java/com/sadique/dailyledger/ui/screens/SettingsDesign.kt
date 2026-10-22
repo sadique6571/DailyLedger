@@ -41,6 +41,7 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
             Column(Modifier.weight(1f)) {
                 Text("Cloud Backup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("Restore with the same account", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Protected with 256-bit AES encryption", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = LedgerColors.Green)
             }
             Switch(enabled, onCheckedChange = onToggle, enabled = !busy, colors = SwitchDefaults.colors(checkedTrackColor = LedgerColors.Green, checkedThumbColor = Color.White))
         }

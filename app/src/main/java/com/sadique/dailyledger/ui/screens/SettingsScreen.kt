@@ -491,7 +491,7 @@ fun SettingsScreen(
 
         if (backupDetails && matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
             SectionCard("Cloud backup details", "Encrypted and stored on the Daily Ledger cloud backup service.") {
-                Text("Local records use SQLCipher encryption. Cloud backups are encrypted on the backup server before storage. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger account.", style = MaterialTheme.typography.bodySmall)
+                Text("Local records use SQLCipher encryption. Cloud backups are protected with 256-bit AES encryption on the backup server. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger account.", style = MaterialTheme.typography.bodySmall)
                 Text("Tap Back up now once. Later changes upload automatically when internet is available — edits queue a backup within about 15 minutes, with a background attempt every 3 hours and a catch-up check when the app opens. Use the same Daily Ledger account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
                 Text("Cloud backup is tied to your Daily Ledger account sign-in.", style = MaterialTheme.typography.bodySmall)
                 Text("Changes queue a backup when saved. Failed connections retry automatically, with a background attempt every 3 hours and a catch-up check when the app opens. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
