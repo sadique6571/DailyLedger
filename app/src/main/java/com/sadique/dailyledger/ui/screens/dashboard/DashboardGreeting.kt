@@ -46,20 +46,13 @@ internal fun DashboardGreetingSection(
             Surface(modifier = Modifier.widthIn(max = 130.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(12.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    val weatherAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(-2.5f) }
-                    if (!androidx.compose.ui.platform.LocalInspectionMode.current && !android.app.ActivityManager.isRunningInTestHarness()) androidx.compose.runtime.LaunchedEffect(Unit) {
-                        while (true) {
-                            weatherAnim.animateTo(2.5f, androidx.compose.animation.core.tween(1700))
-                            weatherAnim.animateTo(-2.5f, androidx.compose.animation.core.tween(1700))
-                        }
-                    }
                     Text(when {
                         weatherCondition.contains("storm", true) -> "⛈️"
                         weatherCondition.contains("rain", true) -> "🌧️"
                         weatherCondition.contains("cloud", true) -> "☁️"
                         weatherCondition.contains("snow", true) -> "❄️"
                         hour !in 6..18 -> "🌙"; else -> "☀️"
-                    }, fontSize = 15.sp, modifier = Modifier.offset { androidx.compose.ui.unit.IntOffset(0, weatherAnim.value.roundToInt()) })
+                    }, fontSize = 15.sp)
                     Text(weatherTemperature.ifBlank { weatherCity }, style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
