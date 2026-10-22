@@ -94,7 +94,6 @@ import com.sadique.dailyledger.auth.UserProfile
 import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
-import com.sadique.dailyledger.sync.DriveAuth
 import com.sadique.dailyledger.sync.DriveBackupInfo
 import com.sadique.dailyledger.sync.DriveSync
 import com.sadique.dailyledger.sync.SyncScheduler
@@ -284,19 +283,15 @@ fun DailyLedgerApp(
     LaunchedEffect(snapshot, aiEnabled) { vm.updateInsightContext(snapshot) }
     LaunchedEffect(user.id) {
         if (!vm.repo.hasRecords()) {
-            val driveEmail = user.googleEmail ?: user.email
             try {
-                val token = DriveAuth.silentToken(context, driveEmail)
-                if (token != null) {
-                    val info = DriveSync(context, user.id).backupInfo(token)
-                    if (info != null && settings.skippedDriveBackup(user.id) != info.version) {
-                        restoreInfo = info
-                    }
+                val info = DriveSync(context, user.id).backupInfo()
+                if (info != null && settings.skippedDriveBackup(user.id) != info.version) {
+                    restoreInfo = info
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                settings.setDriveStatus(user.id, e.message ?: "Could not check Google Drive for a backup.")
+                settings.setDriveStatus(user.id, e.message ?: "Could not check the cloud for a backup.")
             }
         }
     }
@@ -306,7 +301,7 @@ fun DailyLedgerApp(
             title = { Text("Backup found") },
             text = {
                 val whenText = runCatching { java.time.Instant.parse(info.modifiedTime).toString() }.getOrDefault("date unavailable")
-                Text("A Google Drive backup for ${user.email} was found ($whenText). Restore it to this phone, or Skip for now.")
+                Text("A cloud backup for ${user.email} was found ($whenText). Restore it to this phone, or Skip for now.")
             },
             confirmButton = {
                 TextButton(
@@ -315,12 +310,9 @@ fun DailyLedgerApp(
                         restoreBusy = true
                         scope.launch {
                             try {
-                                val driveEmail = user.googleEmail ?: user.email
-                                val token = DriveAuth.silentToken(context, driveEmail)
-                                    ?: error("Open Settings → Google Drive Backup, approve Drive access, then tap Restore data.")
-                                DriveSync(context, user.id).restore(token)
+                                DriveSync(context, user.id).restore()
                                 restoreInfo = null
-                                Toast.makeText(context, "Google Drive backup restored to this phone.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Cloud backup restored to this phone.", Toast.LENGTH_LONG).show()
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {

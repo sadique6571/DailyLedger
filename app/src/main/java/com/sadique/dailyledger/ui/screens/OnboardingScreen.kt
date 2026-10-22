@@ -35,7 +35,7 @@ private val OnboardingSlides = listOf(
     OnboardingSlide(
         Icons.Rounded.CloudSync,
         "Safe & backed up",
-        "Aap ka data phone par encrypted rehta hai, aur Google Drive backup se naye phone par bhi wapas mil jata hai.",
+        "Aap ka data phone par encrypted rehta hai, aur cloud backup se naye phone par bhi wapas mil jata hai.",
     ),
 )
 

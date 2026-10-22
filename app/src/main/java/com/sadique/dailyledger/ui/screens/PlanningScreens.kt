@@ -38,7 +38,7 @@ import java.util.UUID
 
 @Composable
 fun PlanningNotice() {
-    Text("Budgets, reminder schedules, salary calendar and AI learning are encrypted on this phone and included in your Google Drive backup.", style = MaterialTheme.typography.bodySmall)
+    Text("Budgets, reminder schedules, salary calendar and AI learning are encrypted on this phone and included in your cloud backup.", style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

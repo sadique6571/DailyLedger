@@ -140,7 +140,7 @@ fun DashboardScreen(
                     else Icon(if (driveEnabled && lastSync > 0) Icons.Rounded.CloudSync else Icons.Rounded.Cloud, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         when {
-                            !driveEnabled -> "Google Drive backup is off"
+                            !driveEnabled -> "Cloud backup is off"
                             lastSync > 0 -> "Last backup: ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(lastSync))}"
                             else -> "Not yet backed up"
                         },

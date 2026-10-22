@@ -53,16 +53,16 @@ class RefreshScreensTest {
             }
         } } }
         compose.onNodeWithText("Backup has not been verified yet").assertIsDisplayed()
-        compose.onNodeWithText("Google Drive backup verified").assertDoesNotExist()
+        compose.onNodeWithText("Cloud backup verified").assertDoesNotExist()
         compose.onNodeWithText("Restore data").performClick()
         assertEquals("restore", action)
         compose.onNodeWithText("Back up now").performClick()
         assertEquals("backup", action)
         compose.runOnIdle { knownBackup.value = true; backupState.value = "pending" }
         compose.onNodeWithText("Changes waiting for backup").assertIsDisplayed()
-        compose.onNodeWithText("Google Drive backup verified").assertDoesNotExist()
+        compose.onNodeWithText("Cloud backup verified").assertDoesNotExist()
         compose.runOnIdle { backupState.value = "verified" }
-        compose.onNodeWithText("Google Drive backup verified").assertIsDisplayed()
+        compose.onNodeWithText("Cloud backup verified").assertIsDisplayed()
         shot("aqua-settings")
         compose.onNodeWithText("Change").performScrollTo().performClick()
         assertEquals("location", action)

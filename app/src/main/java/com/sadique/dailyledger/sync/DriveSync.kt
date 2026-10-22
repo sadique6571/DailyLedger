@@ -14,22 +14,22 @@ class DriveSync internal constructor(
     private val context: Context, private val ownerId: String,
     private val repo: LedgerRepository,
     private val settings: SettingsStore,
-    private val apiFactory: (String) -> DriveStorage,
+    private val apiFactory: () -> DriveStorage,
     private val signedInOwner: () -> String?,
 ) {
     constructor(context: Context, ownerId: String) : this(context, ownerId,
         LedgerRepository(AppDatabase.get(context), ownerId) { com.sadique.dailyledger.ai.CategoryLearningStore(context, ownerId).snapshot() }, SettingsStore(context),
-        { DriveApi(it, ownerId) }, { FirebaseRuntime.auth(context).currentUser?.uid })
+        { CfStorage(ownerId) }, { FirebaseRuntime.auth(context).currentUser?.uid })
 
     private fun checkAccount() {
         check(signedInOwner() == ownerId) { "Please sign in again." }
     }
-    suspend fun backupInfo(token: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
-        checkAccount(); apiFactory(token).findBackup()
+    suspend fun backupInfo(): DriveBackupInfo? = withContext(Dispatchers.IO) {
+        checkAccount(); apiFactory().findBackup()
     }
-    suspend fun history(token: String): List<DriveRevision> = withContext(Dispatchers.IO) {
+    suspend fun history(): List<DriveRevision> = withContext(Dispatchers.IO) {
         checkAccount()
-        val api = apiFactory(token)
+        val api = apiFactory()
         val info = api.findBackup() ?: return@withContext emptyList()
         api.revisions(info).filter { it.checksum.isNotBlank() }
     }
@@ -38,11 +38,11 @@ class DriveSync internal constructor(
         val time = runCatching { java.time.Instant.parse(info.modifiedTime).toEpochMilli() }.getOrDefault(System.currentTimeMillis())
         settings.completeDriveBackup(ownerId, DriveCheckpoint(info.version, info.fileId, hash, info.checksum), time, status, enable)
     }
-    suspend fun upload(token: String, allowReplace: Boolean = false) = BackupLock.mutex.withLock {
+    suspend fun upload(allowReplace: Boolean = false) = BackupLock.mutex.withLock {
         withContext(Dispatchers.IO) {
             checkAccount()
             if (!allowReplace && settings.all.first().let { !it.driveEnabled || it.user?.id != ownerId }) return@withContext
-            val api = apiFactory(token)
+            val api = apiFactory()
             val existing = api.findBackup()
             var known = settings.driveCheckpoint(ownerId)
             val attempt = settings.driveUploadAttempt(ownerId)
@@ -56,7 +56,7 @@ class DriveSync internal constructor(
                 val remoteHash = if (!unchanged && (known.version != existing.version || known.fileId != existing.fileId))
                     driveContentHash(String(api.download(existing).data, Charsets.UTF_8)) else null
                 if (unchanged || remoteHash == hash) {
-                    verified(existing, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
+                    verified(existing, hash, "Cloud backup verified. All ledger changes are backed up.", allowReplace)
                     cleanHistory(api, existing)
                     return@withContext
                 }
@@ -68,16 +68,16 @@ class DriveSync internal constructor(
                     known = DriveCheckpoint(existing.version, existing.fileId, attempt.contentHash, existing.checksum)
                     val time = runCatching { java.time.Instant.parse(existing.modifiedTime).toEpochMilli() }.getOrDefault(System.currentTimeMillis())
                     settings.completeDriveBackup(ownerId, known, time,
-                        "Changes are saved on this phone. Waiting for Google Drive backup.", state = "pending")
+                        "Changes are saved on this phone. Waiting for cloud backup.", state = "pending")
                 }
             }
             if (!allowReplace && (driveBackupHasConflict(known.version, existing?.version, repo.hasRecords()) ||
                     (known.fileId.isNotBlank() && existing?.fileId != known.fileId))) throw DriveBackupConflictException()
             checkAccount()
-            settings.setDriveStatus(ownerId, "Backing up ledger changes to Google Drive...", "pending")
+            settings.setDriveStatus(ownerId, "Backing up ledger changes to the cloud...", "pending")
             settings.beginDriveUpload(ownerId, hash, existing?.fileId.orEmpty())
             val updated = api.upload(json.toByteArray(Charsets.UTF_8), existing)
-            verified(updated, hash, "Google Drive backup verified. All ledger changes are backed up.", allowReplace)
+            verified(updated, hash, "Cloud backup verified. All ledger changes are backed up.", allowReplace)
             cleanHistory(api, updated)
         }
     }
@@ -86,15 +86,15 @@ class DriveSync internal constructor(
         catch (e: CancellationException) { throw e }
         catch (_: Exception) { settings.setDriveStatus(ownerId, "Backup verified. Older copies were kept because history cleanup could not finish; cleanup will retry on the next check.", "verified") }
     }
-    suspend fun restore(token: String, revision: DriveRevision? = null) = BackupLock.mutex.withLock {
+    suspend fun restore(revision: DriveRevision? = null) = BackupLock.mutex.withLock {
         withContext(Dispatchers.IO) {
             checkAccount()
-            val api = apiFactory(token)
-            val info = api.findBackup() ?: error("No Daily Ledger backup was found in this Google Drive account.")
+            val api = apiFactory()
+            val info = api.findBackup() ?: error("No Daily Ledger cloud backup was found for this account.")
             val backup = if (revision == null) api.download(info) else api.downloadRevision(info, revision)
             val json = String(backup.data, Charsets.UTF_8)
             require(JSONObject(json).optString("ownerId") == ownerId) {
-                "This Drive backup belongs to a different Daily Ledger account. Your local records were not changed."
+                "This backup belongs to a different Daily Ledger account. Your local records were not changed."
             }
             checkAccount()
             // Pause first: process death after the DB commit must not upload a historical copy automatically.
@@ -103,7 +103,7 @@ class DriveSync internal constructor(
             if (revision == null || revision.id == info.headRevision) {
                 val remoteHash = driveContentHash(json)
                 val localHash = driveContentHash(repo.exportJson())
-                verified(info, remoteHash, "Google Drive backup restored to this phone.", true)
+                verified(info, remoteHash, "Cloud backup restored to this phone.", true)
                 if (localHash != remoteHash) {
                     settings.markDrivePending(ownerId)
                     runCatching { SyncScheduler.syncNow(context, ownerId) }

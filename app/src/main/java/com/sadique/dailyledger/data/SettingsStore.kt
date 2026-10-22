@@ -116,7 +116,7 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[driveStatus(owner)] = value; it[driveStateKey(owner)] = state }
     }
     suspend fun markDrivePending(owner: String) = setDriveStatus(owner,
-        "Changes are saved on this phone. Waiting for Google Drive backup.", "pending")
+        "Changes are saved on this phone. Waiting for cloud backup.", "pending")
     suspend fun pauseDriveBackup(owner: String, status: String) {
         context.dataStore.edit {
             it[drive(owner)] = false

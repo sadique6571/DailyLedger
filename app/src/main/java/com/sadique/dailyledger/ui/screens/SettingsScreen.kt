@@ -145,7 +145,6 @@ fun SettingsScreen(
     var resetStage by remember { mutableStateOf(0) }
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
-    var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
     var backupHistory by remember { mutableStateOf<List<DriveRevision>?>(null) }
     var selectedRevision by remember { mutableStateOf<DriveRevision?>(null) }
     var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
@@ -201,53 +200,31 @@ fun SettingsScreen(
             }
         }
     }
-    suspend fun runDrive(token: String, action: String) {
+    suspend fun runDrive(action: String) {
         try {
             if (action == "HISTORY") {
-                backupHistory = DriveSync(context, vm.ownerId).history(token)
+                backupHistory = DriveSync(context, vm.ownerId).history()
             } else if (action == "RESTORE" || action == "HISTORY_RESTORE") {
-                DriveSync(context, vm.ownerId).restore(token, if (action == "HISTORY_RESTORE") selectedRevision else null)
-                message = if (action == "HISTORY_RESTORE") "Backup copy restored. Check the backup status before making more changes." else "Google Drive backup restored to this phone."
+                DriveSync(context, vm.ownerId).restore(if (action == "HISTORY_RESTORE") selectedRevision else null)
+                message = if (action == "HISTORY_RESTORE") "Backup copy restored. Check the backup status before making more changes." else "Cloud backup restored to this phone."
                 selectedRevision = null
             } else {
-                DriveSync(context, vm.ownerId).upload(token, allowReplace = true)
-                message = "Backup saved to your Google Drive account."
+                DriveSync(context, vm.ownerId).upload(allowReplace = true)
+                message = "Backup saved to the cloud."
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            message = e.message ?: "Google Drive operation failed."
+            message = e.message ?: "Cloud backup operation failed."
             settingsStore.setDriveStatus(user.id, message.orEmpty())
         } finally {
             busy = false
         }
     }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val token = if (result.resultCode == Activity.RESULT_OK) DriveAuth.tokenFromResult(context, result.data) else null
-        if (token != null) scope.launch { runDrive(token, pendingDriveAction) }
-        else { busy = false; message = "Google Drive access was not granted. Your data is unchanged." }
-    }
     fun drive(action: String) {
-        val email = user.googleEmail ?: user.email
-        if (email.isBlank()) {
-            message = "Add a Google account to this phone before using Google Drive backup."
-            return
-        }
         if (busy) return
-        busy = true; pendingDriveAction = action; message = null
-        scope.launch {
-            try {
-                when (val result = DriveAuth.authorize(context.findActivity(), email)) {
-                    is DriveAuthOutcome.Token -> runDrive(result.value, action)
-                    is DriveAuthOutcome.Resolution -> launcher.launch(result.request)
-                    is DriveAuthOutcome.Error -> { busy = false; message = result.message }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                busy = false; message = e.message ?: "Google Drive access failed."
-            }
-        }
+        busy = true; message = null
+        scope.launch { runDrive(action) }
     }
 
     backupHistory?.let { copies ->
@@ -291,17 +268,17 @@ fun SettingsScreen(
             onDismissRequest = { confirmation = null },
             title = {
                 Text(
-                    if (restore) "Restore Google Drive backup?" else "Back up to Google Drive?"
+                    if (restore) "Restore cloud backup?" else "Back up to the cloud?"
                 )
             },
             text = {
                 Text(
                     if (action == "DRIVE_HISTORY_RESTORE")
-                        "This replaces this phone's ledger with the selected older copy. Automatic backup pauses after restoring an older copy so your latest Drive backup stays safe. Review the restored records before using Back up now."
+                        "This replaces this phone's ledger with the selected older copy. Automatic backup pauses after restoring an older copy so your latest cloud backup stays safe. Review the restored records before using Back up now."
                     else if (restore)
                         "This replaces the records for ${user.email} on this phone with the backup in the selected Google account. Export any changes you want to keep first."
                     else
-                        "This makes this phone's ledger the latest Google Drive backup. Only the latest verified backup is kept; older revisions are removed after upload verification."
+                        "This makes this phone's ledger the latest cloud backup. The latest three copies are kept."
                 )
             },
             confirmButton = {
@@ -322,7 +299,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { resetStage = 0 },
             title = { Text(if (resetStage == 1) "Reset local data?" else "Final confirmation") },
-            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. A Google Drive backup is kept separately and can be restored later." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
+            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. A cloud backup is kept separately and can be restored later." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
             confirmButton = {
                 TextButton(onClick = {
                     if (resetStage == 1) {
@@ -502,7 +479,7 @@ fun SettingsScreen(
             SalarySettingsCard(vm.salarySchedule, salaryTransactions)
         }
 
-        if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
+        if (matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
                 driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false }, backupState)
             TextButton(onClick = { drive("HISTORY") }, enabled = !busy, modifier = Modifier.testTag("backup-history")) {
@@ -512,13 +489,13 @@ fun SettingsScreen(
             }
         }
 
-        if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
-            SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
-                Text("Local records use SQLCipher encryption. Google Drive app-data backups are readable JSON, not end-to-end encrypted. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger and Google accounts.", style = MaterialTheme.typography.bodySmall)
-                Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available — edits queue a backup within about 15 minutes, with a background attempt every 3 hours and a catch-up check when the app opens. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
-                Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
+        if (backupDetails && matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Cloud backup details", "Encrypted and stored on the Daily Ledger cloud backup service.") {
+                Text("Local records use SQLCipher encryption. Cloud backups are encrypted on the backup server before storage. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger account.", style = MaterialTheme.typography.bodySmall)
+                Text("Tap Back up now once. Later changes upload automatically when internet is available — edits queue a backup within about 15 minutes, with a background attempt every 3 hours and a catch-up check when the app opens. Use the same Daily Ledger account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
+                Text("Cloud backup is tied to your Daily Ledger account sign-in.", style = MaterialTheme.typography.bodySmall)
                 Text("Changes queue a backup when saved. Failed connections retry automatically, with a background attempt every 3 hours and a catch-up check when the app opens. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
-                Text("One latest verified backup is kept. Budgets, bill reminders, handled occurrences, salary calendar and AI learning are included. Unchanged records are verified without an extra upload.", style = MaterialTheme.typography.bodySmall)
+                Text("The latest three copies are kept. Budgets, bill reminders, handled occurrences, salary calendar and AI learning are included. Unchanged records are verified without an extra upload.", style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -732,13 +709,13 @@ fun SettingsScreen(
         if (matchesSetting("App info version")) enteringItem(key = "settings-info", index = 9, entranceKey = entranceVisit) {
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
-                Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Records stay on this phone unless you use cloud backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = { showWhatsNew = true }, modifier = Modifier.fillMaxWidth().testTag("whats-new")) { Text("What's New") }
             }
         }
 
         if (matchesSetting("Reset local records")) enteringItem(key = "settings-reset", index = 10, entranceKey = entranceVisit) {
-            SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
+            SectionCard("Local data reset", "Permanent reset only on this phone. A cloud backup can still be restored later.") {
                 OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
             }
         }

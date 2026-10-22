@@ -70,100 +70,100 @@ class AutoBackupTest {
     }
     @Test fun lostAcknowledgementRecoversWithoutConflictOrDuplicateRevision() = runBlocking { fixture {
         add(); remote.loseAcknowledgement = true
-        assertTrue(runCatching { sync.upload("token") }.exceptionOrNull() is IOException)
+        assertTrue(runCatching { sync.upload() }.exceptionOrNull() is IOException)
         assertEquals(0L, state().lastSync)
         assertEquals("", settings.driveVersion(owner))
         // Simulate a restarted worker: it reads persistent settings and the already-written remote copy.
-        DriveSync(context, owner, repo, SettingsStore(context), { remote }, { signedIn }).upload("new-token")
+        DriveSync(context, owner, repo, SettingsStore(context), { remote }, { signedIn }).upload()
         assertEquals(1, remote.writes)
         assertEquals(remote.info!!.version, settings.driveVersion(owner))
         assertEquals("verified", state().driveState)
     } }
     @Test fun offlineEditsRemainPendingAndNextAttemptIncludesEverySavedEntry() = runBlocking { fixture {
         add(); remote.failBeforeUpload = true
-        runCatching { sync.upload("token") }
+        runCatching { sync.upload() }
         assertEquals("pending", state().driveState)
         assertEquals(0L, state().lastSync)
         add(20000); remote.failBeforeUpload = false
-        sync.upload("token")
+        sync.upload()
         assertEquals(2, JSONObject(String(remote.bytes)).getJSONArray("transactions").length())
         assertEquals("verified", state().driveState)
-        sync.upload("token")
+        sync.upload()
         assertEquals(1, remote.writes) // unchanged startup/periodic jobs do not upload again
     } }
     @Test fun lostResponseFollowedByMoreOfflineEditsContinuesAutomatically() = runBlocking { fixture {
         add(); remote.loseAcknowledgement = true
-        assertTrue(runCatching { sync.upload("token") }.isFailure)
+        assertTrue(runCatching { sync.upload() }.isFailure)
         add(30000)
-        sync.upload("new-token")
+        sync.upload()
         assertEquals(2, remote.writes)
         assertEquals(2, JSONObject(String(remote.bytes)).getJSONArray("transactions").length())
         assertEquals("verified", state().driveState)
         assertEquals("", settings.driveUploadAttempt(owner).contentHash)
     } }
     @Test fun newerRemoteCopyAndEmptyResetCannotBeOverwrittenAutomatically() = runBlocking { fixture {
-        add(); sync.upload("token")
+        add(); sync.upload()
         remote.set(String(remote.bytes).replace("10000", "99999"))
-        assertTrue(runCatching { sync.upload("token") }.exceptionOrNull() is DriveBackupConflictException)
+        assertTrue(runCatching { sync.upload() }.exceptionOrNull() is DriveBackupConflictException)
         assertEquals(1, remote.writes)
         repo.clearAllForOwner()
-        assertTrue(runCatching { sync.upload("token") }.exceptionOrNull() is DriveBackupConflictException)
+        assertTrue(runCatching { sync.upload() }.exceptionOrNull() is DriveBackupConflictException)
         assertEquals(1, remote.writes)
     } }
     @Test fun switchedAccountAndDisabledAutoBackupCannotUpload() = runBlocking { fixture {
         add(); signedIn = "someone-else"
-        assertTrue(runCatching { sync.upload("token") }.isFailure)
+        assertTrue(runCatching { sync.upload() }.isFailure)
         assertEquals(0, remote.writes)
         signedIn = owner; settings.setDriveEnabled(owner, false)
-        sync.upload("token")
+        sync.upload()
         assertEquals(0, remote.writes)
     } }
     @Test fun restoreRejectsOtherOwnerAndInvalidDataWithoutDeletingLocalRecords() = runBlocking { fixture {
         add(); val original = repo.exportJson()
         remote.set(original.replace(owner, "another-owner"))
-        assertTrue(runCatching { sync.restore("token") }.isFailure)
+        assertTrue(runCatching { sync.restore() }.isFailure)
         assertEquals(1, repo.transactions.first().size)
         remote.set(JSONObject(original).apply { remove("savings") }.toString())
-        assertTrue(runCatching { sync.restore("token") }.isFailure)
+        assertTrue(runCatching { sync.restore() }.isFailure)
         assertEquals(1, repo.transactions.first().size)
         assertFalse(state().driveEnabled)
     } }
     @Test fun historicalRestorePausesAndCannotOverwriteLatestByOnlyEnablingTheSwitch() = runBlocking { fixture {
-        add(); sync.upload("token"); remote.historical = remote.bytes.copyOf()
-        add(20000); sync.upload("token")
+        add(); sync.upload(); remote.historical = remote.bytes.copyOf()
+        add(20000); sync.upload()
         val latest = remote.bytes.copyOf()
-        sync.restore("token", remote.revisions(remote.info!!).single())
+        sync.restore(remote.revisions(remote.info!!).single())
         assertEquals(1, repo.transactions.first().size)
         assertArrayEquals(latest, remote.bytes)
         assertFalse(state().driveEnabled)
         assertEquals("paused", state().driveState)
         settings.setDriveEnabled(owner, true)
-        assertTrue(runCatching { sync.upload("token") }.exceptionOrNull() is DriveBackupConflictException)
+        assertTrue(runCatching { sync.upload() }.exceptionOrNull() is DriveBackupConflictException)
         assertArrayEquals(latest, remote.bytes)
-        sync.upload("token", allowReplace = true)
+        sync.upload(allowReplace = true)
         assertEquals(1, JSONObject(String(remote.bytes)).getJSONArray("transactions").length())
     } }
     @Test fun latestRestoreRecordsVerifiedCheckpointAndCleanupFailureKeepsSuccess() = runBlocking { fixture {
-        add(); remote.failCleanup = true; sync.upload("token")
+        add(); remote.failCleanup = true; sync.upload()
         assertEquals("verified", state().driveState)
         repo.clearAllForOwner()
-        sync.restore("token")
+        sync.restore()
         assertEquals(1, repo.transactions.first().size)
         assertTrue(state().driveEnabled)
-        sync.upload("token")
+        sync.upload()
         assertEquals(1, remote.writes)
     } }
     @Test fun learningChangesUploadAndOldBackupsDoNotFalselyVerifyMissingLearning() = runBlocking { fixture {
         add()
         repo.updateLearning { it.remember("EXPENSE", "dodh", "Milk") }
-        sync.upload("token")
+        sync.upload()
         assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
         val old = JSONObject(String(remote.bytes)).put("version", 7).apply { remove("aiLearning") }
         remote.set(old.toString())
-        sync.restore("token")
+        sync.restore()
         assertEquals(1, repo.learningSnapshot().rules.size)
         assertEquals("pending", state().driveState)
-        sync.upload("token")
+        sync.upload()
         assertEquals("verified", state().driveState)
         assertEquals(11, JSONObject(String(remote.bytes)).getInt("version"))
         assertEquals(1, JSONObject(String(remote.bytes)).getJSONObject("aiLearning").getJSONArray("rules").length())
