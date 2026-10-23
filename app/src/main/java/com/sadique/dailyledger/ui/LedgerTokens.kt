@@ -35,9 +35,9 @@ object LedgerTokens {
     val Elevation3: Dp = 8.dp
 
     // Entrance animation
-    const val EntranceDurationMs: Int = 260
-    const val EntranceStaggerMs: Int = 45
-    val EntranceDistance: Dp = 28.dp
+    const val EntranceDurationMs: Int = 220
+    const val EntranceStaggerMs: Int = 40
+    val EntranceDistance: Dp = 48.dp
 
     // Shape shortcuts
     val ShapeSmall = RoundedCornerShape(CornerSmall)

@@ -57,7 +57,7 @@ internal fun DashboardGreetingSection(
         }
         }
         if (weatherEnabled && weatherCity.isNotBlank() && !compact) {
-            Surface(modifier = Modifier.widthIn(max = 168.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
+            Surface(modifier = Modifier.widthIn(max = 192.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(10.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     // Animated sky: the scene matches the live weather condition.

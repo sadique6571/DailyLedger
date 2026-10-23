@@ -78,18 +78,10 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
     }
     // Smooth height when the legend expands/collapses; the toggle chevron turns with it.
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "chart-chevron")
-    // Travelling shine inside the ring — same recipe as the progress-bar shine
-    // (the user's pick for the donut too; the still sheen arc is gone).
-    val ringShine = remember { Animatable(0f) }
+    // (No shine on the donut at all — the travelling glint, the still sheen and
+    // the rotating arcs were each tried and rejected; the ring stays clean.)
     val shineCtx = androidx.compose.ui.platform.LocalContext.current
     val shineAmbientOn = remember { android.provider.Settings.Global.getFloat(shineCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
-    if (shineAmbientOn) LaunchedEffect(Unit) {
-        while (true) {
-            ringShine.animateTo(360f, tween(6500, easing = androidx.compose.animation.core.LinearEasing))
-            ringShine.snapTo(0f)
-            kotlinx.coroutines.delay(600)
-        }
-    }
     // Grow-in for the bar view: bars and their fill rise when the view opens.
     val barGrow = remember { Animatable(0f) }
     LaunchedEffect(barMode) {
@@ -172,17 +164,6 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 }
                                 start += sweep
                                 budget -= drawn
-                            }
-                            // Travelling shine inside the ring, like the progress bar's:
-                            // two soft arcs (wide faint + narrow brighter) riding around.
-                            if (shineAmbientOn) {
-                                val shineStart = -90f + ringShine.value
-                                drawArc(Color.White.copy(alpha = 0.10f), shineStart - 45f, 90f, false,
-                                    Offset(inset, inset), Size(size.width - width, size.height - width),
-                                    style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-                                drawArc(Color.White.copy(alpha = 0.16f), shineStart - 26f, 52f, false,
-                                    Offset(inset, inset), Size(size.width - width, size.height - width),
-                                    style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
                             }
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
