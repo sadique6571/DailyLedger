@@ -21,8 +21,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -86,6 +90,7 @@ class MainActivity : FragmentActivity() {
             val current = loaded
             LaunchedEffect(current?.user?.id, current?.biometric) { com.sadique.dailyledger.widget.LedgerWidget.refresh(applicationContext) }
             var unlocked by remember { mutableStateOf(false) }
+            var unlockParty by remember { mutableStateOf(false) }
             LaunchedEffect(current != null) {
                 if (current != null) unlocked = !current.biometric && current.pinHash.isBlank()
             }
@@ -115,7 +120,8 @@ class MainActivity : FragmentActivity() {
                         }
                         current == null || !sessionReady -> LoadingScreen()
                         current.user == null -> AuthGate()
-                        (current.biometric || current.pinHash.isNotBlank()) && !unlocked -> Locked(current.pinHash, current.biometric) { unlocked = true }
+                        unlockParty && !unlocked -> UnlockSuccess { unlocked = true; unlockParty = false }
+                        (current.biometric || current.pinHash.isNotBlank()) && !unlocked -> Locked(current.pinHash, current.biometric) { unlockParty = true }
                         !displayPrefs.onboardingSeen -> com.sadique.dailyledger.ui.screens.OnboardingScreen(onDone = { displayPrefs.updateOnboardingSeen(true) })
                         else -> DailyLedgerApp(
                             user = current.user,
@@ -146,10 +152,40 @@ class MainActivity : FragmentActivity() {
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp), contentAlignment = Alignment.Center) {
             CardEntrance {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    LedgerLogo(64.dp)
+                    // Coin flip (L): the logo spins like a tossed coin while things load.
+                    val flip = remember { androidx.compose.animation.core.Animatable(0f) }
+                    LaunchedEffect(Unit) { flip.animateTo(720f, androidx.compose.animation.core.tween(950)) }
+                    Box(Modifier.graphicsLayer { rotationY = flip.value; cameraDistance = 12f * density }) { LedgerLogo(64.dp) }
                     Text("Opening your ledger…", style = MaterialTheme.typography.titleMedium)
                     LinearProgressIndicator(Modifier.fillMaxWidth(.55f))
+                    // Skeleton shimmer (B): placeholder cards while data loads.
+                    Column(Modifier.fillMaxWidth(.8f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.sadique.dailyledger.ui.ShimmerBox(Modifier.fillMaxWidth().height(16.dp))
+                        com.sadique.dailyledger.ui.ShimmerBox(Modifier.fillMaxWidth(.85f).height(16.dp))
+                        com.sadique.dailyledger.ui.ShimmerBox(Modifier.fillMaxWidth(.6f).height(16.dp))
+                    }
                 }
+            }
+        }
+    }
+
+    /** Brief open-lock celebration between a successful unlock and the app (T). */
+    @Composable
+    private fun UnlockSuccess(onDone: () -> Unit) {
+        val pop = remember { androidx.compose.animation.core.Animatable(0.55f) }
+        LaunchedEffect(Unit) {
+            pop.animateTo(1f, androidx.compose.animation.core.tween(320))
+            kotlinx.coroutines.delay(480)
+            onDone()
+        }
+        Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.Icon(
+                    Icons.Filled.LockOpen, null,
+                    Modifier.size(72.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value },
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text("Welcome back", style = MaterialTheme.typography.headlineSmall)
             }
         }
     }

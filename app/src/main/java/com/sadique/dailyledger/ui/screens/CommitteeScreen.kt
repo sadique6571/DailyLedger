@@ -12,6 +12,8 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import com.sadique.dailyledger.ui.enteringItem
 import com.sadique.dailyledger.ui.enteringItems
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -123,7 +126,7 @@ fun CommitteeScreen(
 
 
     Scaffold(
-        snackbarHost = { SnackbarHost(undoBar) },
+        snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { add = true }) { Icon(Icons.Rounded.Add, "New kameti") }
         },
@@ -147,6 +150,31 @@ fun CommitteeScreen(
                     SummaryCard("Total received", receipts.sumOf { it.amountMinor }, Icons.Rounded.AccountBalanceWallet, Modifier.weight(1f))
                 }
             }
+            enteringItem {
+                val remainingToPay = visibleCommittees.filter { it.active }.sumOf { c -> (c.expectedPayout() - payments.filter { it.committeeId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }
+                val remainingToReceive = visibleCommittees.sumOf { committeeBalance(it, receipts).remaining }
+                SummaryCard("Remaining to pay", remainingToPay, Icons.Rounded.Payments, Modifier.fillMaxWidth(),
+                    detail = "Dena baqi: ${visibleMoney(remainingToPay)} • Milna baqi: ${visibleMoney(remainingToReceive)}")
+            }
+            enteringItem {
+                val totalExpected = visibleCommittees.filter { it.active }.sumOf { it.expectedPayout() }
+                val totalPaidK = payments.sumOf { it.amountMinor }
+                if (totalExpected > 0) {
+                    com.sadique.dailyledger.ui.LedgerRaisedCard(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            com.sadique.dailyledger.ui.ProgressDonut(
+                                progress = (totalPaidK.toFloat() / totalExpected.toFloat()).coerceIn(0f, 1f),
+                                centerPercent = (totalPaidK * 100 / totalExpected).toInt(),
+                                size = 76.dp, strokeWidth = 10.dp,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Kameti progress", style = MaterialTheme.typography.titleMedium)
+                                Text("Ada: ${visibleMoney(totalPaidK)} / Kul: ${visibleMoney(totalExpected)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
             if (visibleCommittees.isEmpty()) {
                 enteringItem { com.sadique.dailyledger.ui.LedgerEmptyState("No kameti yet",
                     "Kameti add karein. Start month aur installments se app automatically har turn ka month calculate karegi.",
@@ -162,13 +190,20 @@ fun CommitteeScreen(
                 var history by remember(committee.id) { mutableStateOf(false) }
                 var memberList by remember(committee.id) { mutableStateOf(true) }
 
+                val committeeSwipe = rememberSwipeToDismissBoxState(confirmValueChange = { v -> if (v == SwipeToDismissBoxValue.EndToStart) { deleteCommittee = committee; false } else false })
+                Box {
+                SwipeToDismissBox(state = committeeSwipe, enableDismissFromStartToEnd = false, backgroundContent = {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                        Icon(Icons.Rounded.Delete, null, Modifier.graphicsLayer { val s = 0.6f + 0.5f * committeeSwipe.progress.coerceIn(0f, 1f); scaleX = s; scaleY = s }, tint = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                }) {
                 Card(
                     Modifier.fillMaxWidth(),
                     accent = com.sadique.dailyledger.ui.ledgerCardAccent(committee.id), shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.padding(16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Groups, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(10.dp))
@@ -182,12 +217,13 @@ fun CommitteeScreen(
                         Text("Monthly payment: ${visibleMoney(committee.monthlyContribution())}", style = MaterialTheme.typography.titleSmall)
                         val paidCount = ps.map { it.installmentNumber }.distinct().size
                         val paidFraction = (paidCount.toFloat() / committee.totalInstallments.coerceAtLeast(1)).coerceIn(0f, 1f)
+                        val animatedPaid = com.sadique.dailyledger.ui.animatedProgress(paidFraction)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Installment progress", style = MaterialTheme.typography.bodySmall)
-                            Text("$paidCount / ${committee.totalInstallments} • ${(paidFraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                            Text("$paidCount / ${committee.totalInstallments} • ${(animatedPaid * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                         }
                         LinearProgressIndicator(
-                            progress = { paidFraction },
+                            progress = { animatedPaid },
                             modifier = Modifier.fillMaxWidth().height(12.dp).testTag("kameti-installment-progress"),
                         )
                         nextMonth?.let { month ->
@@ -207,8 +243,10 @@ fun CommitteeScreen(
                         BalanceRow("Expected receiving", balance.expected)
                         BalanceRow("Received", balance.received)
                         BalanceRow("Remaining", balance.remaining)
+                        val receivedFraction = if (balance.expected > 0) (balance.received.toFloat() / balance.expected).coerceIn(0f, 1f) else 0f
+                        val animatedReceived = com.sadique.dailyledger.ui.animatedProgress(receivedFraction)
                         LinearProgressIndicator(
-                            progress = { if (balance.expected > 0) (balance.received.toFloat() / balance.expected).coerceIn(0f, 1f) else 0f },
+                            progress = { animatedReceived },
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(20.dp)) {
@@ -319,6 +357,9 @@ fun CommitteeScreen(
                             }
                         }
                     }
+                }
+                }
+                com.sadique.dailyledger.ui.CelebrationBurst(active = committee.totalInstallments > 0 && ps.map { it.installmentNumber }.distinct().size >= committee.totalInstallments, modifier = Modifier.matchParentSize())
                 }
             }
         }

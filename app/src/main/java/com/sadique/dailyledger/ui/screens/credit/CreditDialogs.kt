@@ -244,7 +244,7 @@ internal fun DeleteCreditDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AlertDialog(
+    com.sadique.dailyledger.ui.PopAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete udhar record?") },
         text = { Text("${credit.item} and its payment history will be removed.") },

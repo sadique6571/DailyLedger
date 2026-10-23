@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -39,10 +40,13 @@ internal fun BalanceDetailsDialog(
     onDismiss: () -> Unit,
     onViewHistory: () -> Unit,
 ) {
+    // Details grow out of the card (N): a small scale-in when the dialog opens.
+    val pop = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0.86f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { pop.animateTo(1f, androidx.compose.animation.core.tween(190)) }
     AlertDialog(
         onDismissRequest = onDismiss, title = { Text("Balance breakdown") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
+            Column(Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value; alpha = pop.value }, verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space10)) {
                 listOf("Carried forward" to summary.openingBalanceMinor, "Salary" to summary.salary, "Other income" to summary.otherIncome,
                     "Expenses" to -summary.expenses, "Kameti charged this cycle" to -summary.committeeContributions,
                     "Savings set aside" to -summary.savingsContributions, "Udhar payments" to -summary.udharPayments, "Remaining balance" to summary.remaining).forEach { (label, amount) ->

@@ -7,6 +7,11 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.lerp
@@ -49,12 +56,16 @@ fun SummaryCard(
     }
     val shape = LedgerTokens.ShapeCard
     val cardFill = scheme.surface
+    val pressSource = remember { MutableInteractionSource() }
+    val isPressed by pressSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(if (isPressed && onClick != null) 0.965f else 1f, tween(120), label = "summary-press")
     val horizontal = if (compact) LedgerTokens.Space10 else LedgerTokens.Space12
     val vertical = if (compact) LedgerTokens.Space10 else LedgerTokens.Space12
     Card(
         modifier = modifier.fillMaxWidth()
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
             .then(if (isKameti) Modifier.testTag("kameti-paid-card") else Modifier)
-            .clickable(enabled = onClick != null) { onClick?.invoke() },
+            .clickable(interactionSource = pressSource, indication = androidx.compose.foundation.LocalIndication.current, enabled = onClick != null) { onClick?.invoke() },
         shape = shape,
         border = BorderStroke(
             1.dp,
@@ -77,8 +88,7 @@ fun SummaryCard(
                 color = scheme.onSurfaceVariant, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             val hidden = LocalDisplayPreferences.current?.privateAmounts == true
-            Text(if (hidden) "Rs •••••" else money(amount), style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            AnimatedMoneyText(amount, { if (hidden) "Rs •••••" else money(it) }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             detail?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall,
                     maxLines = 3, overflow = TextOverflow.Ellipsis, color = scheme.onSurfaceVariant)

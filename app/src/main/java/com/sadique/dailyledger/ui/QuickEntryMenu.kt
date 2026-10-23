@@ -36,6 +36,7 @@ import com.sadique.dailyledger.i18n.LocalizedText as Text
 internal data class QuickEntryAction(val id: String, val label: String, val icon: ImageVector)
 internal val quickEntryActions = listOf(
     QuickEntryAction("ai", "AI", Icons.Rounded.AutoAwesome),
+    QuickEntryAction("aichat", "AI Chat", Icons.Rounded.Chat),
     QuickEntryAction("expense", "Expense", Icons.Rounded.ShoppingCart),
     QuickEntryAction("salary", "Salary", Icons.Rounded.Payments),
     QuickEntryAction("kameti", "Kameti", Icons.Rounded.Groups),
@@ -109,8 +110,8 @@ internal fun QuickEntryDial(
                 contentDescription = if (expanded) "Close entry menu" else "Add entry"
                 stateDescription = if (expanded) "Expanded" else "Collapsed"
             }, containerColor = MaterialTheme.colorScheme.primary, contentColor = ink) {
-            Canvas(Modifier.size(29.dp).graphicsLayer { rotationZ = 180f * progress }) {
-                val stroke = 3.dp.toPx()
+            Canvas(Modifier.size(22.dp).graphicsLayer { rotationZ = 180f * progress }) {
+                val stroke = 2.5.dp.toPx()
                 drawLine(ink, Offset(0f,size.height/2), Offset(size.width,size.height/2), stroke, StrokeCap.Round)
                 drawLine(ink.copy(alpha = 1f-progress), Offset(size.width/2,0f), Offset(size.width/2,size.height), stroke, StrokeCap.Round)
             }

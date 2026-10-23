@@ -13,9 +13,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -178,6 +182,16 @@ val LedgerThemeOptions: List<LedgerThemeOption> = listOf(
     LedgerThemeOption("AMOLED", "AMOLED", LedgerDarkColors.primary, LedgerDarkColors.secondary, Color.Black),
 )
 
+/** Animate one scheme color channel-by-channel (animateColorAsState is not available in this Compose version). */
+@Composable
+private fun animatedSchemeColor(target: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
+    val r by animateFloatAsState(target.red, tween(450), label = "th-r")
+    val g by animateFloatAsState(target.green, tween(450), label = "th-g")
+    val b by animateFloatAsState(target.blue, tween(450), label = "th-b")
+    val a by animateFloatAsState(target.alpha, tween(450), label = "th-a")
+    return androidx.compose.ui.graphics.Color(r, g, b, a)
+}
+
 @Composable
 fun DailyLedgerTheme(
     mode: String,
@@ -219,12 +233,47 @@ fun DailyLedgerTheme(
         surfaceContainerHigh = lerp(scheme.surface, scheme.primaryContainer, 0.35f),
         surfaceContainerHighest = lerp(scheme.surface, scheme.primaryContainer, 0.45f),
         outline = lerp(scheme.onSurface, scheme.surface, 0.55f))
+    // User accent color (Round 2, #11): when picked, it overrides the theme's primary family.
+    val accentArgb = displayPrefs.accentColor
+    val themed = if (accentArgb == 0) readable else {
+        val accent = Color(accentArgb)
+        val onAccent = if (accent.luminance() > 0.45f) Color(0xFF1B1B1B) else Color.White
+        readable.copy(
+            primary = accent, onPrimary = onAccent,
+            primaryContainer = lerp(readable.surface, accent, if (dark) 0.38f else 0.20f),
+            onPrimaryContainer = readable.onSurface,
+            secondary = accent, onSecondary = onAccent,
+            surfaceContainerLow = lerp(readable.surface, accent, 0.10f),
+            surfaceContainer = lerp(readable.surface, accent, 0.16f),
+            surfaceContainerHigh = lerp(readable.surface, accent, 0.22f),
+            surfaceContainerHighest = lerp(readable.surface, accent, 0.28f))
+    }
+    // Smooth color crossfade when the theme or accent changes (Round 2 animations).
+    val aPrimary = animatedSchemeColor(themed.primary)
+    val aOnPrimary = animatedSchemeColor(themed.onPrimary)
+    val aPrimaryContainer = animatedSchemeColor(themed.primaryContainer)
+    val aOnPrimaryContainer = animatedSchemeColor(themed.onPrimaryContainer)
+    val aSecondary = animatedSchemeColor(themed.secondary)
+    val aBackground = animatedSchemeColor(themed.background)
+    val aOnBackground = animatedSchemeColor(themed.onBackground)
+    val aSurface = animatedSchemeColor(themed.surface)
+    val aOnSurface = animatedSchemeColor(themed.onSurface)
+    val aSurfaceLow = animatedSchemeColor(themed.surfaceContainerLow)
+    val aSurfaceCont = animatedSchemeColor(themed.surfaceContainer)
+    val aSurfaceHigh = animatedSchemeColor(themed.surfaceContainerHigh)
+    val aSurfaceHighest = animatedSchemeColor(themed.surfaceContainerHighest)
+    val aError = animatedSchemeColor(themed.error)
+    val animatedScheme = themed.copy(
+        primary = aPrimary, onPrimary = aOnPrimary, primaryContainer = aPrimaryContainer, onPrimaryContainer = aOnPrimaryContainer,
+        secondary = aSecondary, background = aBackground, onBackground = aOnBackground, surface = aSurface, onSurface = aOnSurface,
+        surfaceContainerLow = aSurfaceLow, surfaceContainer = aSurfaceCont, surfaceContainerHigh = aSurfaceHigh,
+        surfaceContainerHighest = aSurfaceHighest, error = aError)
     val translations = remember(appContext) { com.sadique.dailyledger.i18n.LedgerStrings.load(appContext) }
     val strings = remember(displayPrefs.language, translations) { com.sadique.dailyledger.i18n.LedgerStrings(displayPrefs.language == "ur", translations) }
     CompositionLocalProvider(LocalDisplayPreferences provides displayPrefs, LocalDensity provides adjustedDensity,
         com.sadique.dailyledger.i18n.LocalStrings provides strings,
         androidx.compose.ui.platform.LocalLayoutDirection provides if (strings.urdu) androidx.compose.ui.unit.LayoutDirection.Rtl else androidx.compose.ui.unit.LayoutDirection.Ltr) {
-    MaterialTheme(colorScheme = readable,
+    MaterialTheme(colorScheme = animatedScheme,
         shapes = Shapes(small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         typography = Typography(
             headlineLarge = TextStyle(fontFeatureSettings = "tnum", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 31.sp, lineHeight = 37.sp, letterSpacing = (-.6).sp),
@@ -242,3 +291,15 @@ fun DailyLedgerTheme(
         ), content = content)
     }
 }
+
+/** Accent color choices for Settings → Appearance (Round 2, #11). Stored as ARGB ints in DisplayPreferences. */
+val LedgerAccentColors: List<Pair<String, Color>> = listOf(
+    "Green" to Color(0xFF16A34A),
+    "Blue" to Color(0xFF2563EB),
+    "Purple" to Color(0xFF7C3AED),
+    "Pink" to Color(0xFFDB2777),
+    "Orange" to Color(0xFFEA580C),
+    "Red" to Color(0xFFDC2626),
+    "Teal" to Color(0xFF0D9488),
+    "Brown" to Color(0xFF92400E),
+)

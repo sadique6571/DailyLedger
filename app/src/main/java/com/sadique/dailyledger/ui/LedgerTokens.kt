@@ -34,10 +34,13 @@ object LedgerTokens {
     val Elevation2: Dp = 4.dp
     val Elevation3: Dp = 8.dp
 
-    // Entrance animation
-    const val EntranceDurationMs: Int = 260
-    const val EntranceStaggerMs: Int = 45
-    val EntranceDistance: Dp = 28.dp
+    // Entrance animation — values approved by the user from the demo video
+    // (~/workspace/your_files/DailyLedger-card-transition-demo.mp4):
+    // 550ms ease-out-cubic slide from fully off-screen left, 110ms stagger,
+    // replaying whenever a card scrolls back into view.
+    const val EntranceDurationMs: Int = 550
+    const val EntranceStaggerMs: Int = 110
+    val EntranceDistance: Dp = 48.dp
 
     // Shape shortcuts
     val ShapeSmall = RoundedCornerShape(CornerSmall)

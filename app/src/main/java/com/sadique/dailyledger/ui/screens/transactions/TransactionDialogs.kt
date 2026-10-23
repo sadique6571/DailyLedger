@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import java.time.LocalDate
 import com.sadique.dailyledger.data.LedgerRepository
 import com.sadique.dailyledger.data.TransactionEntity
+import com.sadique.dailyledger.ui.animatedShake
 import com.sadique.dailyledger.ui.isValidDate
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.parseMinor
@@ -63,6 +65,7 @@ fun TransactionDialog(
     var discardWarning by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
+    var saveErrorTick by remember { mutableStateOf(0) }
     val saveScope = rememberCoroutineScope()
     val compactForm = LocalConfiguration.current.screenWidthDp < 360 || LocalDensity.current.fontScale >= 1.4f
     val sidePadding = if (compactForm) 12.dp else 20.dp
@@ -137,10 +140,20 @@ fun TransactionDialog(
                         FilterChip(!cat.equals("Salary", true), { if (cat.equals("Salary", true)) cat = "Other income" }, { Text("Other income") }, enabled = !busy)
                     }
                 }
-                OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth(), isError = amount.isNotBlank() && (parseAmountExpression(amount) ?: 0) <= 0, supportingText = {
+                val amountPulse = remember { androidx.compose.animation.core.Animatable(1f) }
+                LaunchedEffect(amount) {
+                    if (amount.isNotBlank()) {
+                        amountPulse.snapTo(1.04f)
+                        amountPulse.animateTo(1f, androidx.compose.animation.core.tween(160))
+                    }
+                }
+                OutlinedTextField(amount, { amount = it }, enabled = !busy, label = { Text("Amount PKR") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth().animatedShake(saveErrorTick).graphicsLayer { scaleX = amountPulse.value; scaleY = amountPulse.value }, isError = amount.isNotBlank() && (parseAmountExpression(amount) ?: 0) <= 0, supportingText = {
                     val exprTotal = if (amount.contains('+') || amount.contains('-')) parseAmountExpression(amount) else null
-                    Text(if (exprTotal != null && exprTotal > 0) "= ${money(exprTotal)}" else "Enter an amount greater than zero")
+                    if (exprTotal != null && exprTotal > 0) com.sadique.dailyledger.ui.AnimatedMoneyText(exprTotal, { "= ${money(it)}" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Text("Enter an amount greater than zero")
                 })
+                val parsedAmount = parseAmountExpression(amount)
+                if (parsedAmount != null && parsedAmount > 0) Text("Alfaz mein: ${com.sadique.dailyledger.ui.amountInWords(parsedAmount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("100", "500", "1000", "5000").forEach { preset ->
                         AssistChip(enabled = !busy, onClick = { amount = preset }, label = { Text("Rs $preset") })
@@ -176,7 +189,7 @@ fun TransactionDialog(
                                 saveScope.launch {
                                     try { async(draft[0], parsed, draft[1], draft[2], draft[3]) }
                                     catch (e: CancellationException) { throw e }
-                                    catch (e: Exception) { saveError = e.message ?: "Could not save. Please try again." }
+                                    catch (e: Exception) { saveError = e.message ?: "Could not save. Please try again."; saveErrorTick++ }
                                     finally { busy = false }
                                 }
                             }

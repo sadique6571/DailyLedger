@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
@@ -64,6 +65,7 @@ fun TransactionsScreen(
     }
     var dateRange by rememberSaveable { mutableStateOf("ALL") }
     var selectedDay by rememberSaveable { mutableStateOf("") }
+    var calendarMode by rememberSaveable { mutableStateOf(false) }
     var sortOrder by rememberSaveable { mutableStateOf("NEWEST") }
     var expandedNoteId by rememberSaveable { mutableStateOf<String?>(null) }
     var compactRows by rememberSaveable { mutableStateOf(false) }
@@ -88,6 +90,14 @@ fun TransactionsScreen(
             }
     } }
 
+    // Same filters as the list, minus the date range — the calendar needs the whole month (Round 2, #2).
+    val calendarItems = remember(items, undoPendingId, favoritesOnly, favoriteIds, filter, query, searchStrings) { items.filter {
+        it.id != undoPendingId &&
+        (!favoritesOnly || it.id in favoriteIds) &&
+        (filter == "ALL" || it.type == filter) &&
+            (query.isBlank() || it.category.contains(query, true) || searchStrings.text(it.category).contains(query, true) || it.note.contains(query, true) || it.date.contains(query, true) || plainAmount(it.amountMinor).contains(query))
+    } }
+
     val sorted = remember(filtered, sortOrder) { when (sortOrder) {
         "OLDEST" -> filtered.sortedWith(compareBy<TransactionEntity> { it.date }.thenBy { it.id })
         "AMOUNT_HIGH" -> filtered.sortedByDescending { it.amountMinor }
@@ -95,14 +105,30 @@ fun TransactionsScreen(
         else -> filtered.sortedWith(compareByDescending<TransactionEntity> { it.date }.thenByDescending { it.id })
     } }
 
+    // Entry celebration (A + D): coin drop + tick when a brand-new transaction lands.
+    val entryIds = items.map { it.id }
+    var entrySeenInit by remember { mutableStateOf(false) }
+    var entrySeenIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var entryCelebrate by remember { mutableStateOf(false) }
+    LaunchedEffect(entryIds) {
+        if (!entrySeenInit) { entrySeenInit = true; entrySeenIds = entryIds.toSet() }
+        else {
+            val fresh = items.filter { it.id !in entrySeenIds }
+            entrySeenIds = entryIds.toSet()
+            if (fresh.any { !it.category.equals("Salary", true) }) entryCelebrate = true
+        }
+    }
+    LaunchedEffect(entryCelebrate) { if (entryCelebrate) { kotlinx.coroutines.delay(1150); entryCelebrate = false } }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(undoBar) },
+        snackbarHost = { SnackbarHost(undoBar) { data -> com.sadique.dailyledger.ui.UndoCountdownSnackbar(data) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { edit = null; quickTemplate = null; show = true }) { Icon(Icons.Default.Add, "Add transaction") }
         }
     ) { pad ->
+        Box(Modifier.fillMaxSize().padding(pad)) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(pad),
+            Modifier.fillMaxSize(),
             state = listState,
             contentPadding = PaddingValues(start = if (display.compact) 10.dp else 16.dp, end = if (display.compact) 10.dp else 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -133,7 +159,20 @@ fun TransactionsScreen(
                     today = today,
                 )
             }
-            if (filtered.isEmpty()) {
+            enteringItem {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !calendarMode, onClick = { calendarMode = false }, label = { Text("List") })
+                    FilterChip(selected = calendarMode, onClick = { calendarMode = true }, label = { Text("Calendar") })
+                }
+            }
+            if (calendarMode) {
+                enteringItem {
+                    MonthCalendarView(calendarItems) { day ->
+                        selectedDay = day.toString(); dateRange = "DAY"; calendarMode = false
+                    }
+                }
+            }
+            if (!calendarMode && filtered.isEmpty()) {
                 item { com.sadique.dailyledger.ui.LedgerEmptyState(
                     if (items.isEmpty()) "Start your ledger" else "No matching transactions",
                     if (items.isEmpty()) "No transactions yet. Tap + to add your first entry." else "No matching transactions. Try another search or filter.",
@@ -144,7 +183,7 @@ fun TransactionsScreen(
                     },
                 ) }
             }
-            sorted.forEachIndexed { index, x ->
+            if (!calendarMode) sorted.forEachIndexed { index, x ->
                 if (sortOrder in setOf("NEWEST", "OLDEST") && (index == 0 || sorted[index - 1].date != x.date)) {
                     stickyHeader(key = "transaction-date-${x.date}") {
                         Text(
@@ -187,6 +226,7 @@ fun TransactionsScreen(
                                 Icon(
                                     if (direction == SwipeToDismissBoxValue.EndToStart) Icons.Rounded.Delete else Icons.Rounded.Edit,
                                     null,
+                                    Modifier.graphicsLayer { val s = 0.6f + 0.5f * swipeState.progress.coerceIn(0f, 1f); scaleX = s; scaleY = s },
                                     tint = if (direction == SwipeToDismissBoxValue.EndToStart) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                                 )
                             }
@@ -207,6 +247,8 @@ fun TransactionsScreen(
                     }
                 }
             }
+        }
+        if (entryCelebrate) com.sadique.dailyledger.ui.EntrySavedCelebration(Modifier.align(Alignment.Center).size(128.dp))
         }
     }
     showDetails?.let { detail ->

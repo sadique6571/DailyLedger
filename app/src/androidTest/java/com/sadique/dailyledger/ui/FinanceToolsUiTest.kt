@@ -14,7 +14,7 @@ class FinanceToolsUiTest {
     @Test fun completeCategoryListCanScrollBeyondEightyAndSelectLastMatch(){
         var chosen=""
         val catalog=(1..240).map{LedgerCategory("Group ${(it-1)/40}","Item $it","EXPENSE",emptyList())}
-        val options=CategoryOptions.build(catalog,emptyList()){it}
+        val options=CategoryOptions.build(catalog,emptyList(),{it})
         compose.setContent{DailyLedgerTheme("LIGHT"){CompositionLocalProvider(LocalCategoryOptions provides options){CategoryDropdown("EXPENSE","",{chosen=it})}}}
         compose.onNodeWithTag("category-dropdown").performClick()
         compose.onNodeWithTag("category-results").performScrollToKey("category-EXPENSE-Item 240")

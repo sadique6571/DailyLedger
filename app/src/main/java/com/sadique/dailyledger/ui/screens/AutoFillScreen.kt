@@ -47,7 +47,8 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                    generate: suspend (String) -> AiDraftResult, save: suspend (List<TransactionDraft>, String) -> Unit,
                    onSaved: () -> Unit = {},
                    onLearnCategory: suspend (String, String, String) -> String? = { _, _, _ -> null },
-    embedded: Boolean = false, onBusyChanged: (Boolean) -> Unit = {}) {
+    embedded: Boolean = false, onBusyChanged: (Boolean) -> Unit = {},
+    importGenerate: (suspend (String) -> AiDraftResult)? = null) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -58,6 +59,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
     var batch by remember { mutableStateOf(UUID.randomUUID().toString()) }
     var editing by remember { mutableStateOf<Int?>(null) }
     var manual by remember { mutableStateOf(false) }
+    var statementMode by remember { mutableStateOf(false) }
     var manualCategory by remember { mutableStateOf("") }
     var allCategories by remember { mutableStateOf(false) }
     var reviewIssues by remember { mutableStateOf(emptyList<List<String>>()) }
@@ -85,8 +87,8 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
         focus.clearFocus(); busy = true; message = ""
         scope.launch {
             try {
-                DraftReviewPolicy.checkMissingDetails(input)
-                val result = generate(input)
+                if (!statementMode) DraftReviewPolicy.checkMissingDetails(input)
+                val result = (if (statementMode) importGenerate ?: generate else generate)(input)
                 entries = result.entries; reviewIssues = result.reviewIssues.ifEmpty { result.entries.map { DraftReviewPolicy.issues(input, it) } }; checked = emptySet(); message = result.message; batch = UUID.randomUUID().toString()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -113,22 +115,32 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                 enteringItem(key = "mode") {
                     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = .7f)) {
                         Row(Modifier.fillMaxWidth().padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            GradientButton("AI Quick Add", {}, Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome)
-                            TextButton(onClick = { manualCategory = ""; manual = true }, enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
-                                Icon(Icons.Rounded.Description, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Manual Entry", fontSize = 12.sp)
+                            if (statementMode) {
+                                TextButton(onClick = { statementMode = false }, enabled = !busy && entries.isEmpty(), modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
+                                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("AI Quick Add", fontSize = 12.sp)
+                                }
+                                GradientButton("Statement", {}, Modifier.weight(1f), icon = Icons.Rounded.ListAlt)
+                            } else {
+                                GradientButton("AI Quick Add", {}, Modifier.weight(1f), icon = Icons.Rounded.AutoAwesome)
+                                TextButton(onClick = { manualCategory = ""; manual = true }, enabled = !busy && entries.size < AiProtocol.MAX_DRAFTS, modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
+                                    Icon(Icons.Rounded.Description, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Manual Entry", fontSize = 12.sp)
+                                }
+                                if (importGenerate != null) TextButton(onClick = { statementMode = true }, enabled = !busy && entries.isEmpty(), modifier = Modifier.weight(1f).heightIn(min = 50.dp)) {
+                                    Icon(Icons.Rounded.ListAlt, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Statement", fontSize = 12.sp)
+                                }
                             }
                         }
                     }
                 }
                 enteringItem(key = "input") {
                     LedgerCard(Modifier.fillMaxWidth()) {
-                        OutlinedTextField(value = input, onValueChange = { input = it.take(AiProtocol.MAX_INPUT) },
+                        OutlinedTextField(value = input, onValueChange = { input = it.take(if (statementMode) 12_000 else AiProtocol.MAX_INPUT) },
                             modifier = Modifier.fillMaxWidth().testTag("autofill-input"),
-                            placeholder = { Text("Daal 500, petrol 2000, salary 35000", fontSize = 13.sp) },
-                            label = { Text("Expenses or income", fontSize = 12.sp) },
-                            minLines = 2, maxLines = 5,
+                            placeholder = { Text(if (statementMode) "Bank / wallet statement ka text yahan paste karein" else "Daal 500, petrol 2000, salary 35000", fontSize = 13.sp) },
+                            label = { Text(if (statementMode) "Statement text" else "Expenses or income", fontSize = 12.sp) },
+                            minLines = 2, maxLines = if (statementMode) 8 else 5,
                             enabled = !busy && entries.isEmpty(),
-                            supportingText = { Text("${input.length}/${AiProtocol.MAX_INPUT} • Roman Urdu, Urdu or English", fontSize = 10.sp) })
+                            supportingText = { Text("${input.length}/${if (statementMode) 12_000 else AiProtocol.MAX_INPUT} • Roman Urdu, Urdu or English", fontSize = 10.sp) })
                         Spacer(Modifier.height(7.dp))
                         GradientButton(if (busy) "Preparing…" else "Prepare entries", ::prepare,
                             Modifier.fillMaxWidth().testTag("autofill-generate"), !busy && input.isNotBlank() && entries.isEmpty(), Icons.AutoMirrored.Rounded.Send)

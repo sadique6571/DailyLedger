@@ -82,6 +82,28 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
+    private val aiKeyStore=AiKeyStore(app,ownerId)
+    fun aiKey():String=aiKeyStore.key
+    fun saveAiKey(value:String){aiKeyStore.key=value}
+    fun aiProxy():String=aiPrefs.proxyBase
+    fun saveAiProxy(value:String){aiPrefs.proxyBase=value}
+    fun aiProvider():String=aiPrefs.providerId
+    fun saveAiProvider(value:String){aiPrefs.providerId=value}
+    fun aiProviderModel():String=aiPrefs.providerModel
+    fun saveAiProviderModel(value:String){aiPrefs.providerModel=value}
+    fun aiProviderBase():String=aiPrefs.providerBase
+    fun saveAiProviderBase(value:String){aiPrefs.providerBase=value}
+    suspend fun testAiConnection():String{checkAccount();return aiService.testConnection().also{checkAccount()}}
+    suspend fun aiAdvise(request:AiModelRequest):String{checkAccount();return aiService.advise(request).also{checkAccount()}}
+    suspend fun importStatement(text:String):AiDraftResult = withContext(Dispatchers.Default) {
+        checkAccount()
+        val result = aiService.statementDrafts(text).also { checkAccount() }
+        val learned = repo.learningSnapshot()
+        val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
+        val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
+        val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
+        result.copy(entries = entries)
+    }
     val salarySchedule = SalaryScheduleStore(app, ownerId, viewModelScope)
     val planner = com.sadique.dailyledger.planning.PlannerStore(app, ownerId, viewModelScope)
     private val _learningError = MutableStateFlow<String?>(null)

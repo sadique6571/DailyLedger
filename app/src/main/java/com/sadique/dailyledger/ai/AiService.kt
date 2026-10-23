@@ -1,50 +1,61 @@
 package com.sadique.dailyledger.ai
 
 import android.content.Context
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.sadique.dailyledger.auth.FirebaseRuntime
-import com.sadique.dailyledger.auth.awaitResult
 import com.sadique.dailyledger.data.CategoryCatalog
+import com.sadique.dailyledger.data.TransactionDraft
 import kotlinx.coroutines.TimeoutCancellationException
 import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
 class AiService(private val context: Context, private val owner: String) {
     private val preferences = AiPreferences(context, owner)
+    private val keyStore = AiKeyStore(context, owner)
     private val runner = AiRequestRunner(
         checkAccess = ::checkAccess,
         prepare = {
-            val user = FirebaseRuntime.auth(context).currentUser
-                ?: throw AiException("Please sign in to use Gemini AI. [AI_SIGN_IN]")
-            try {
-                if (user.getIdToken(false).awaitResult().token.isNullOrBlank()) {
-                    throw AiException("Please sign in again to use Gemini AI. [AI_SIGN_IN]")
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { throw AiFailures.describe(e, AiStage.SIGN_IN) }
-            checkAccess()
-            FirebaseAiSetup.initialize(context)
-            try {
-                FirebaseAppCheck.getInstance().getAppCheckToken(false).awaitResult()
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { throw AiFailures.describe(e, AiStage.APP_CHECK) }
+            // No key needed on the device: the built-in proxy holds the owner's key.
+            // A personal key or custom proxy saved in Settings takes precedence when present.
         },
-        reserve = { preferences.reserve(it) },
-        generate = { GeminiGateway.generate(it) },
+        reserve = { task ->
+            // The on-device daily cap protects the SHARED built-in proxy quota only.
+            // A personal key or the user's own proxy spends their own quota — no cap here.
+            if (usesBuiltInProxy()) preferences.reserve(task) else true
+        },
+        generate = { request -> route(request) },
     )
 
-    private fun checkAccess() {
-        val user = FirebaseRuntime.auth(context).currentUser
-        if (user == null || user.uid != owner || user.isAnonymous) {
-            throw AiException("This account is no longer signed in. Please sign in again. [AI_SIGN_IN]")
+    /** True when this request would spend the shared built-in proxy quota. */
+    private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
+
+    private suspend fun route(request: AiModelRequest): String {
+        val key = keyStore.key
+        val provider = AiProviders.byId(preferences.providerId)
+        return if (key.isNotBlank() && preferences.proxyBase.isBlank() && !provider.geminiNative) {
+            // Personal key of another AI service (OpenAI-compatible chat API).
+            OpenAiGateway.generate(request, provider, key, preferences.providerModel, preferences.providerBase)
+        } else {
+            // Gemini key directly, the user's own proxy, or the built-in proxy.
+            GeminiGateway.generate(request, key, preferences.proxyBase)
         }
-        if (!preferences.enabled) throw AiException("Enable Gemini AI in Settings before sending a request. [AI_CONSENT]")
+    }
+
+    /** Settings "Connection test": same routing as real calls, but never consumes any daily quota. */
+    suspend fun testConnection(): String = try {
+        checkAccess()
+        route(AiModelRequest(AiTask.TEXT, "Reply with exactly this word: OK", "ping")).trim()
+    } catch (e: TimeoutCancellationException) {
+        throw AiException("AI ne jawab dene mein bohat der kar di. Dobara koshish karein. Nothing was saved. [AI_TIMEOUT]")
+    } catch (e: CancellationException) { throw e }
+    catch (e: Exception) { throw AiFailures.describe(e) }
+
+    private fun checkAccess() {
+        if (!preferences.enabled) throw AiException("Enable Cloud AI in Settings before sending a request. [AI_CONSENT]")
     }
 
     private suspend fun call(request: AiModelRequest): String = try {
         runner.execute(request)
     } catch (e: TimeoutCancellationException) {
-        throw AiException("Gemini took too long to reply. Try again later. Nothing was saved. [AI_TIMEOUT]")
+        throw AiException("AI ne jawab dene mein bohat der kar di. Dobara koshish karein. Nothing was saved. [AI_TIMEOUT]")
     } catch (e: CancellationException) { throw e }
     catch (e: Exception) { throw AiFailures.describe(e) }
 
@@ -62,5 +73,41 @@ class AiService(private val context: Context, private val owner: String) {
     suspend fun insights(snapshot: SpendingSnapshot): List<SpendingTip> {
         val request = AiPrompts.insights(snapshot, CategoryCatalog.load(context))
         return AiProtocol.decodeInsights(call(request))
+    }
+
+    /** Free-text AI answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
+    suspend fun advise(request: AiModelRequest): String {
+        require(request.task == AiTask.TEXT)
+        return call(request).trim()
+    }
+
+    /** Parse a pasted bank/wallet statement (plain text) into reviewable drafts, in chunks. */
+    suspend fun statementDrafts(fullText: String): AiDraftResult {
+        val text = fullText.trim()
+        require(text.isNotBlank()) { "Statement text khali hai." }
+        require(text.length <= 12_000) { "Statement bohat lamba hai — hisso mein paste karein (ek dafa mein ~12,000 characters)." }
+        val chunks = mutableListOf<String>()
+        val current = StringBuilder()
+        fun flush() { if (current.isNotEmpty()) { chunks += current.toString(); current.clear() } }
+        for (line in text.lineSequence()) {
+            if (line.length > 2_600) {
+                flush()
+                chunks += line.chunked(2_600)
+            } else {
+                if (current.length + line.length + 1 > 2_600) flush()
+                current.append(line).append('\n')
+            }
+        }
+        flush()
+        val today = LocalDate.now()
+        val catalog = CategoryCatalog.load(context)
+        val all = mutableListOf<TransactionDraft>()
+        for (chunk in chunks) {
+            val result = CategoryRules.normalizeResult(AiProtocol.decodeDrafts(call(AiPrompts.drafts(chunk, today, catalog))))
+            all += result.entries
+            if (all.size >= 90) break
+        }
+        if (all.isEmpty()) throw AiException("Statement se koi entry nahi mili. Text saaf paste karke dobara koshish karein.")
+        return AiDraftResult("Statement se ${all.size} entries mili hain — check karke Save karein.", all.take(90))
     }
 }

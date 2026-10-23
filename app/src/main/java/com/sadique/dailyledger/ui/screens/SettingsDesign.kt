@@ -32,15 +32,16 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
         !enabled -> "Automatic backup is off"
         backupState == "pending" -> "Changes waiting for backup"
         backupState in setOf("error", "auth", "conflict", "paused") -> "Backup needs attention"
-        verified -> "Google Drive backup verified"
+        verified -> "Cloud backup verified"
         else -> "Backup has not been verified yet"
     }
     LedgerCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GlowIcon(Icons.Rounded.CloudUpload, Color(0xFF468FFF), size = 49.dp)
             Column(Modifier.weight(1f)) {
-                Text("Google Drive Backup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Cloud Backup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("Restore with the same account", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Protected with 256-bit AES encryption", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = LedgerColors.Green)
             }
             Switch(enabled, onCheckedChange = onToggle, enabled = !busy, colors = SwitchDefaults.colors(checkedTrackColor = LedgerColors.Green, checkedThumbColor = Color.White))
         }
@@ -53,7 +54,7 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
                     Column(Modifier.weight(1f)) {
                         Text(title,
                             fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(if (knownBackup) "Last backup: $lastCheck" else if (enabled) "Approve Drive access with Back up now. Manual restore is also available." else "Automatic backup is off. Manual backup and restore are still available.",
+                        Text(if (knownBackup) "Last backup: $lastCheck" else if (enabled) "Tap Back up now once. Manual restore is also available." else "Automatic backup is off. Manual backup and restore are still available.",
                             fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box(Modifier.size(44.dp)) {

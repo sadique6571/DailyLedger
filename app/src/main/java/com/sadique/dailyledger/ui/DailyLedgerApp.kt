@@ -7,6 +7,12 @@ import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
 
 import com.sadique.dailyledger.ai.AiConsent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -22,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.ui.screens.MoreScreen
@@ -42,6 +49,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.testTag
 import com.sadique.dailyledger.ui.screens.CategoryOptions
+import com.sadique.dailyledger.ui.screens.AiChatScreen
 import com.sadique.dailyledger.ui.screens.LocalCategoryOptions
 import androidx.compose.ui.Alignment
 import com.sadique.dailyledger.ui.screens.LocalCategoryHistory
@@ -86,7 +94,6 @@ import com.sadique.dailyledger.auth.UserProfile
 import com.sadique.dailyledger.data.TransactionEntity
 import com.sadique.dailyledger.data.SettingsStore
 import com.sadique.dailyledger.security.Biometrics
-import com.sadique.dailyledger.sync.DriveAuth
 import com.sadique.dailyledger.sync.DriveBackupInfo
 import com.sadique.dailyledger.sync.DriveSync
 import com.sadique.dailyledger.sync.SyncScheduler
@@ -185,6 +192,23 @@ fun DailyLedgerApp(
     val organizerCircles = if (tab == KAMETI) vm.organizerCircles.collectAsState().value else emptyList()
     val organizerMembers = if (tab == KAMETI) vm.organizerMembers.collectAsState().value else emptyList()
     val organizerCollections = if (tab == KAMETI) vm.organizerCollections.collectAsState().value else emptyList()
+    // Due badges (Round 2, #9): counts of items due today or overdue, shown on the bottom tabs.
+    val badgeToday = java.time.LocalDate.now().toString()
+    val dueCreditCount = remember(credits, creditPayments, badgeToday) { credits.count { c -> !c.closed && c.dueDate != null && c.dueDate <= badgeToday && (c.amountMinor - creditPayments.filter { it.creditId == c.id }.sumOf { it.amountMinor }) > 0 } }
+    val dueLoanCount = remember(loans, lp, badgeToday) { loans.count { l -> !l.closed && l.dueDate != null && l.dueDate <= badgeToday && (l.principalMinor - lp.filter { it.loanId == l.id }.sumOf { it.amountMinor }) > 0 } }
+    val dueKametiCount = remember(committees, cp) {
+        val nowYm = java.time.YearMonth.now()
+        committees.count { c ->
+            if (!c.active) false else {
+                val startYm = runCatching { java.time.YearMonth.parse(c.startMonth) }.getOrNull()
+                if (startYm == null) false else {
+                    val elapsed = ((nowYm.year - startYm.year) * 12 + (nowYm.monthValue - startYm.monthValue) + 1).coerceIn(0, c.totalInstallments)
+                    val paidInstallments = cp.filter { it.committeeId == c.id }.map { it.installmentNumber }.distinct().size
+                    elapsed > 0 && paidInstallments < elapsed
+                }
+            }
+        }
+    }
     val organizerPayouts = if (tab == KAMETI) vm.organizerPayouts.collectAsState().value else emptyList()
     val savings by vm.savings.collectAsState()
     val ledgerCycle by vm.ledgerCycle.collectAsState()
@@ -200,10 +224,14 @@ fun DailyLedgerApp(
     }
     val categoryOptions = remember(user.id) { mutableStateOf<Map<String, CategoryOptions>?>(null) }
     val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
-    LaunchedEffect(user.id, tx, categoryStrings) {
+    val displayPrefs = LocalDisplayPreferences.current
+    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories) {
         categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text)
+            CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text, displayPrefs?.customCategories ?: emptyList())
         }
+    }
+    LaunchedEffect(planning.budgets, tx) {
+        com.sadique.dailyledger.notifications.BudgetNotifier.check(context, user.id, planning.budgets, tx.filterNot { it.privateEntry })
     }
     CompositionLocalProvider(LocalCategoryHistory provides tx.filterNot { it.privateEntry }, LocalCategoryOptions provides categoryOptions.value) {
     val settingsOpen = tab == SETTINGS
@@ -255,19 +283,15 @@ fun DailyLedgerApp(
     LaunchedEffect(snapshot, aiEnabled) { vm.updateInsightContext(snapshot) }
     LaunchedEffect(user.id) {
         if (!vm.repo.hasRecords()) {
-            val driveEmail = user.googleEmail ?: user.email
             try {
-                val token = DriveAuth.silentToken(context, driveEmail)
-                if (token != null) {
-                    val info = DriveSync(context, user.id).backupInfo(token)
-                    if (info != null && settings.skippedDriveBackup(user.id) != info.version) {
-                        restoreInfo = info
-                    }
+                val info = DriveSync(context, user.id).backupInfo()
+                if (info != null && settings.skippedDriveBackup(user.id) != info.version) {
+                    restoreInfo = info
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                settings.setDriveStatus(user.id, e.message ?: "Could not check Google Drive for a backup.")
+                settings.setDriveStatus(user.id, e.message ?: "Could not check the cloud for a backup.")
             }
         }
     }
@@ -277,7 +301,7 @@ fun DailyLedgerApp(
             title = { Text("Backup found") },
             text = {
                 val whenText = runCatching { java.time.Instant.parse(info.modifiedTime).toString() }.getOrDefault("date unavailable")
-                Text("A Google Drive backup for ${user.email} was found ($whenText). Restore it to this phone, or Skip for now.")
+                Text("A cloud backup for ${user.email} was found ($whenText). Restore it to this phone, or Skip for now.")
             },
             confirmButton = {
                 TextButton(
@@ -286,12 +310,9 @@ fun DailyLedgerApp(
                         restoreBusy = true
                         scope.launch {
                             try {
-                                val driveEmail = user.googleEmail ?: user.email
-                                val token = DriveAuth.silentToken(context, driveEmail)
-                                    ?: error("Open Settings → Google Drive Backup, approve Drive access, then tap Restore data.")
-                                DriveSync(context, user.id).restore(token)
+                                DriveSync(context, user.id).restore()
                                 restoreInfo = null
-                                Toast.makeText(context, "Google Drive backup restored to this phone.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Cloud backup restored to this phone.", Toast.LENGTH_LONG).show()
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -336,7 +357,14 @@ fun DailyLedgerApp(
     }
     var aiEntryOpen by remember { mutableStateOf(false) }
     var aiEntryBusy by remember { mutableStateOf(false) }
+    var aiChatOpen by remember { mutableStateOf(false) }
+    var aiChatBusy by remember { mutableStateOf(false) }
+    val aiContextJson = remember(tx, loans, lp, credits, creditPayments, committees, cp, savings, planning.budgets) {
+        buildAiContextJson(tx, loans, lp, credits, creditPayments, committees, cp, savings,
+            PlannerMath.budgets(user.id, planning.budgets, tx, java.time.YearMonth.from(today)))
+    }
     var quickTransaction by remember { mutableStateOf<EntryShortcut?>(null) }
+    var duplicateConfirm by remember { mutableStateOf<Pair<String, suspend () -> Unit>?>(null) }
     var entryRequest by remember { mutableStateOf<String?>(null) }
     if (aiEntryOpen) LedgerEntrySheet(
         onDismissRequest = { aiEntryOpen = false }, canDismiss = !aiEntryBusy,
@@ -350,8 +378,19 @@ fun DailyLedgerApp(
                 if (transactionSounds) TransactionSoundPlayer.playBatchSuccess(context)
             }, onSaved = { aiEntryOpen = false }, onLearnCategory = vm::rememberCategory,
             embedded = true, onBusyChanged = { aiEntryBusy = it },
+            importGenerate = vm::importStatement,
         ) }, confirmButton = {},
         dismissButton = { TextButton(onClick = { aiEntryOpen = false }, enabled = !aiEntryBusy) { Text("Close") } },
+    )
+    if (aiChatOpen) LedgerEntrySheet(
+        onDismissRequest = { aiChatOpen = false }, canDismiss = !aiChatBusy,
+        title = { Text("AI Assistant") }, scrollBody = false,
+        text = { AiChatScreen(
+            contextJson = aiContextJson, advise = vm::aiAdvise,
+            onBack = { aiChatOpen = false },
+            embedded = true, onBusyChanged = { aiChatBusy = it },
+        ) }, confirmButton = {},
+        dismissButton = { TextButton(onClick = { aiChatOpen = false }, enabled = !aiChatBusy) { Text("Close") } },
     )
     if (creditAiOpen) CreditAiDialog({ creditAiOpen = false }, { drafts, batch -> vm.saveCreditDrafts(drafts, batch); savedNotice("Udhar", drafts.sumOf { it.amountMinor }) })
     if (addSaving) SavingDialog(
@@ -491,6 +530,7 @@ fun DailyLedgerApp(
             DashboardEntryDial(tab = tab, expandedState = entryMenuExpanded, onBoundsChanged = { entryMenuBounds = it }) { action ->
                 when (action) {
                     "ai" -> aiEntryOpen = true
+                    "aichat" -> aiChatOpen = true
                     "expense" -> quickTransaction = EntryShortcut("EXPENSE")
                     "salary" -> quickTransaction = EntryShortcut("INCOME", "Salary")
                     "kameti" -> { entryRequest = "kameti"; open(3) }
@@ -501,13 +541,16 @@ fun DailyLedgerApp(
         bottomBar = {
             AppBottomBar(
                 tab = tab,
+                udharBadge = dueCreditCount, kametiBadge = dueKametiCount, moreBadge = dueLoanCount,
                 onSelectTab = { i -> navigation = navigation.selectTab(when (i) { 0 -> HOME; 1 -> UDHAR; 2 -> KAMETI; 3 -> SAVINGS; else -> MORE }) },
             )
         },
     ) { pad ->
-        Box(Modifier.padding(pad).consumeWindowInsets(pad)) {
-          settingsState.SaveableStateProvider("screen-${user.id}-$tab") {
-            when (tab) {
+        val dialBlur = androidx.compose.animation.core.animateDpAsState(if (entryMenuExpanded.value) 9.dp else 0.dp, tween(220), label = "dial-blur").value
+        Box(Modifier.padding(pad).consumeWindowInsets(pad).blur(dialBlur)) {
+          AnimatedContent(targetState = tab, transitionSpec = { (fadeIn(tween(200)) + slideInHorizontally(tween(200)) { w -> w / 14 } + androidx.compose.animation.scaleIn(tween(220), initialScale = 0.965f)).togetherWith(fadeOut(tween(140)) + androidx.compose.animation.scaleOut(tween(140), targetScale = 1.02f)) }, label = "tab-content") { targetTab ->
+          settingsState.SaveableStateProvider("screen-${user.id}-$targetTab") {
+            when (targetTab) {
                 0 -> DashboardScreen(
                     salaryDay = vm.salarySchedule.day, plannedSalaryDate = vm.salarySchedule.calendar.expected,
                     salaryRecordedWhenPlanned = vm.salarySchedule.calendar.lastRecorded,
@@ -639,7 +682,8 @@ fun DailyLedgerApp(
                 7 -> CreditScreen(credits, creditPayments, vm.repo, vm::saveCreditDrafts, vm::saveCreditPayment,
                     onDelete = { credit -> vm.launch { deleteCreditPurchase(credit) } },
                     requestAdd = addCreditRequested, onAddOpened = { addCreditRequested = false },
-                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null })
+                    requestPayment = entryRequest == "credit-payment", onPaymentOpened = { entryRequest = null },
+                    onAiAdvise = vm::aiAdvise)
                 BUDGETS -> BudgetScreen(user.id, vm.planner, tx, requestAdd = entryRequest == "budget", onAddOpened = { entryRequest = null })
                 BILLS -> BillsScreen(vm, requestAdd = entryRequest == "reminder", onAddOpened = { entryRequest = null })
                 CALENDAR -> KametiCalendarScreen(user.id, committees, cp, receipts, committeeMembers)
@@ -662,6 +706,7 @@ fun DailyLedgerApp(
                     onReminders = { remindersOpen = true },
                 )
             }
+          }
         }
     }
     }
@@ -696,12 +741,104 @@ fun DailyLedgerApp(
             onHistory = { type, category -> quickTransaction = null; historyFilter = type; historyQuery = category; open(1) },
             save = { _, _, _, _, _ -> },
             saveAsync = { t, a, c, n, d ->
-                vm.saveChange { saveTransaction(t, a, c, n, d) }
-                if (transactionSounds) TransactionSoundPlayer.play(context, t)
-                savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
-                quickTransaction = null
+                val doSave: suspend () -> Unit = {
+                    vm.saveChange { saveTransaction(t, a, c, n, d) }
+                    if (transactionSounds) TransactionSoundPlayer.play(context, t)
+                    savedNotice(if (t == "EXPENSE") "Expense" else if (c.equals("Salary", true)) "Salary" else "Income", a)
+                    quickTransaction = null
+                }
+                val warning = duplicateWarning(tx, t, a, c, d)
+                if (warning == null) doSave() else duplicateConfirm = warning to doSave
             },
         )
     }
+    duplicateConfirm?.let { (warning, action) ->
+        AlertDialog(onDismissRequest = { duplicateConfirm = null }, title = { Text("Dobara entry?") },
+            text = { Text(warning) },
+            confirmButton = { TextButton(onClick = { duplicateConfirm = null; scope.launch { action() } }) { Text("Phir bhi save karein") } },
+            dismissButton = { TextButton(onClick = { duplicateConfirm = null }) { Text("Cancel") } })
+    }
 }
+}
+
+/** Compact totals-only snapshot for the AI Assistant. Notes and private entries are never included. */
+private fun buildAiContextJson(
+    tx: List<com.sadique.dailyledger.data.TransactionEntity>,
+    loans: List<com.sadique.dailyledger.data.LoanEntity>,
+    loanPayments: List<com.sadique.dailyledger.data.LoanPaymentEntity>,
+    credits: List<com.sadique.dailyledger.data.CreditPurchaseEntity>,
+    creditPayments: List<com.sadique.dailyledger.data.CreditPaymentEntity>,
+    committees: List<com.sadique.dailyledger.data.CommitteeEntity>,
+    committeePayments: List<com.sadique.dailyledger.data.CommitteePaymentEntity>,
+    savings: List<com.sadique.dailyledger.data.SavingEntity>,
+    budgets: List<com.sadique.dailyledger.planning.BudgetProgress>,
+): String {
+    fun money(v: Long) = java.math.BigDecimal.valueOf(v, 2).toPlainString()
+    val today = java.time.LocalDate.now()
+    val month = java.time.YearMonth.from(today)
+    val prev = month.minusMonths(1)
+    fun totals(ym: java.time.YearMonth): Pair<Long, Long> {
+        val rows = tx.filter { it.date.startsWith(ym.toString()) && !it.privateEntry }
+        return rows.filter { it.type == "INCOME" }.sumOf { it.amountMinor } to rows.filter { it.type == "EXPENSE" }.sumOf { it.amountMinor }
+    }
+    val (income, expenses) = totals(month)
+    val (prevIncome, prevExpenses) = totals(prev)
+    val topCategories = tx.filter { it.date.startsWith(month.toString()) && it.type == "EXPENSE" && !it.privateEntry }
+        .groupBy { it.category }.mapValues { e -> e.value.sumOf { it.amountMinor } }.entries.sortedByDescending { it.value }.take(8)
+    val paidByLoan = loanPayments.groupBy { it.loanId }.mapValues { e -> e.value.sumOf { it.amountMinor } }
+    val paidByCredit = creditPayments.groupBy { it.creditId }.mapValues { e -> e.value.sumOf { it.amountMinor } }
+    val root = org.json.JSONObject()
+        .put("today", today.toString())
+        .put("this_month", org.json.JSONObject().put("income", money(income)).put("expenses", money(expenses)).put("remaining", money(income - expenses)))
+        .put("last_month", org.json.JSONObject().put("income", money(prevIncome)).put("expenses", money(prevExpenses)))
+        .put("top_expense_categories", org.json.JSONArray().apply { topCategories.forEach { (name, value) -> put(org.json.JSONObject().put("name", name.take(40)).put("amount", money(value))) } })
+        .put("udhar_to_pay", org.json.JSONArray().apply {
+            credits.filter { !it.closed }.groupBy { it.creditor }.forEach { (name, rows) ->
+                val remaining = rows.sumOf { it.amountMinor } - rows.sumOf { paidByCredit[it.id] ?: 0L }
+                if (remaining > 0) put(org.json.JSONObject().put("name", name.take(40)).put("remaining", money(remaining)).put("earliest_due", rows.mapNotNull { it.dueDate }.minOrNull() ?: ""))
+            }
+        })
+        .put("loans_borrowed", org.json.JSONArray().apply {
+            loans.filter { !it.closed && it.direction == "BORROWED" }.forEach { loan ->
+                val remaining = loan.principalMinor - (paidByLoan[loan.id] ?: 0L)
+                if (remaining > 0) put(org.json.JSONObject().put("person", loan.person.take(40)).put("remaining", money(remaining)).put("due", loan.dueDate ?: ""))
+            }
+        })
+        .put("loans_lent", org.json.JSONArray().apply {
+            loans.filter { !it.closed && it.direction == "LENT" }.forEach { loan ->
+                val remaining = loan.principalMinor - (paidByLoan[loan.id] ?: 0L)
+                if (remaining > 0) put(org.json.JSONObject().put("person", loan.person.take(40)).put("remaining", money(remaining)).put("due", loan.dueDate ?: ""))
+            }
+        })
+        .put("kameti", org.json.JSONArray().apply {
+            committees.filter { it.active }.forEach { committee ->
+                val paidCount = committeePayments.count { it.committeeId == committee.id }
+                val remainingCount = (committee.totalInstallments - paidCount).coerceAtLeast(0)
+                put(org.json.JSONObject().put("name", committee.name.take(40)).put("monthly", money(committee.monthlyAmountMinor)).put("paid_installments", paidCount).put("total_installments", committee.totalInstallments).put("remaining_amount", money(committee.monthlyAmountMinor * remainingCount)))
+            }
+        })
+        .put("savings_total", money(savings.sumOf { it.amountMinor }))
+        .put("budgets", org.json.JSONArray().apply { budgets.forEach { b -> put(org.json.JSONObject().put("category", b.category.take(40)).put("spent", money(b.spent)).put("limit", money(b.limit))) } })
+    return root.toString()
+}
+
+/** Warn before saving an exact duplicate, or an amount wildly out of line for its category. */
+private fun duplicateWarning(
+    tx: List<com.sadique.dailyledger.data.TransactionEntity>,
+    type: String,
+    amountMinor: Long,
+    category: String,
+    date: String,
+): String? {
+    if (tx.any { it.type == type && it.amountMinor == amountMinor && it.category.equals(category, ignoreCase = true) && it.date == date }) {
+        return "Isi tareekh par is category mein bilkul itni hi raqam ki entry pehle se maujood hai. Kahin dobara to nahi likh rahe?"
+    }
+    val history = tx.filter { it.type == type && it.category.equals(category, ignoreCase = true) }.map { it.amountMinor }.sorted()
+    if (history.size >= 3) {
+        val median = history[history.size / 2]
+        if (median > 0 && amountMinor >= median * 10) {
+            return "Ye raqam is category ki aam entry se bohat zyada hai — rakam dobara check kar lein. Phir bhi save karna hai to neeche wala button dabayein."
+        }
+    }
+    return null
 }

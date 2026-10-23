@@ -244,7 +244,7 @@ internal fun DeleteCommitteeDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AlertDialog(
+    com.sadique.dailyledger.ui.PopAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete ${committee.name}?") },
         text = { Text("This removes this kameti, its member turns, payment history and receiving history.") },
@@ -259,7 +259,7 @@ internal fun DeleteReceiptDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AlertDialog(
+    com.sadique.dailyledger.ui.PopAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete this receiving?") },
         text = { Text("${money(receipt.amountMinor)} will be added back to the remaining receiving amount.") },

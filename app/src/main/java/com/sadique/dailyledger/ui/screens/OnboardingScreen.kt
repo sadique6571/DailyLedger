@@ -2,6 +2,7 @@ package com.sadique.dailyledger.ui.screens
 
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -34,7 +35,7 @@ private val OnboardingSlides = listOf(
     OnboardingSlide(
         Icons.Rounded.CloudSync,
         "Safe & backed up",
-        "Aap ka data phone par encrypted rehta hai, aur Google Drive backup se naye phone par bhi wapas mil jata hai.",
+        "Aap ka data phone par encrypted rehta hai, aur cloud backup se naye phone par bhi wapas mil jata hai.",
     ),
 )
 
@@ -42,18 +43,25 @@ private val OnboardingSlides = listOf(
 @Composable
 fun OnboardingScreen(onDone: () -> Unit) {
     var page by remember { mutableStateOf(0) }
-    val slide = OnboardingSlides[page]
     val last = page == OnboardingSlides.lastIndex
     Column(
         Modifier.fillMaxSize().padding(24.dp).testTag("onboarding"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(1f))
-        Icon(slide.icon, null, Modifier.size(84.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(24.dp))
-        Text(slide.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(10.dp))
-        Text(slide.body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.animation.AnimatedContent(targetState = page, transitionSpec = {
+            (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300)) { it / 2 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(300))) togetherWith
+                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(300)) { -it / 2 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200)))
+        }, label = "onboarding-slide") { targetPage ->
+            val s = OnboardingSlides[targetPage]
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(s.icon, null, Modifier.size(84.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(24.dp))
+                Text(s.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+                Text(s.body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OnboardingSlides.indices.forEach { i ->

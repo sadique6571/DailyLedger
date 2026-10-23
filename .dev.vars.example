@@ -1,2 +1,0 @@
-# Add the real value as a Cloudflare Secret, never in GitHub or the APK.
-GROQ_API_KEY=

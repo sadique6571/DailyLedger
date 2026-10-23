@@ -310,7 +310,7 @@ fun EncryptionBanner(modifier: Modifier = Modifier) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text("Your ledger is encrypted", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("Protected on this phone. Cloud recovery needs a successful backup.", color = Color.White.copy(alpha = .92f), fontSize = 11.sp, lineHeight = 15.sp)
+            Text("Protected on this phone. Cloud backups are encrypted with 256-bit AES encryption.", color = Color.White.copy(alpha = .92f), fontSize = 11.sp, lineHeight = 15.sp)
         }
         Spacer(Modifier.width(10.dp))
         Surface(color = Color.White.copy(alpha = .84f), shape = RoundedCornerShape(14.dp)) {

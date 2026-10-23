@@ -20,7 +20,7 @@ data class AppSettings(
     val biometric: Boolean,
     val driveEnabled: Boolean,
     val lastSync: Long,
-    val driveStatus: String = "Connect Google Drive to back up your records.",
+    val driveStatus: String = "Back up your records to the cloud.",
     val driveVersion: String = "",
     val driveState: String = "unknown",
     val weatherEnabled: Boolean = false,
@@ -75,7 +75,7 @@ class SettingsStore(private val context: Context) {
             biometric = p[K.biometric] ?: false,
             driveEnabled = p[drive(id)] ?: false,
             lastSync = p[driveTime(id)] ?: 0L,
-            driveStatus = p[driveStatus(id)] ?: "Connect Google Drive to back up your records.",
+            driveStatus = p[driveStatus(id)] ?: "Back up your records to the cloud.",
             driveVersion = p[driveVersionKey(id)].orEmpty(),
             driveState = p[driveStateKey(id)] ?: "unknown",
             weatherEnabled = p[K.weatherEnabled] ?: false,
@@ -116,7 +116,7 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[driveStatus(owner)] = value; it[driveStateKey(owner)] = state }
     }
     suspend fun markDrivePending(owner: String) = setDriveStatus(owner,
-        "Changes are saved on this phone. Waiting for Google Drive backup.", "pending")
+        "Changes are saved on this phone. Waiting for cloud backup.", "pending")
     suspend fun pauseDriveBackup(owner: String, status: String) {
         context.dataStore.edit {
             it[drive(owner)] = false

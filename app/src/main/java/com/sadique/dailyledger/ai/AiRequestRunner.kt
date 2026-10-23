@@ -4,8 +4,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeout
 
-internal enum class AiTask { AUTOFILL, INSIGHTS }
-internal data class AiModelRequest(val task: AiTask, val instruction: String, val input: String)
+enum class AiTask { AUTOFILL, INSIGHTS, TEXT }
+data class AiModelRequest(val task: AiTask, val instruction: String, val input: String)
 
 /** Re-check account and consent across every suspension before sending or accepting data. */
 internal class AiRequestRunner(
@@ -24,7 +24,7 @@ internal class AiRequestRunner(
         currentCoroutineContext().ensureActive()
         checkAccess()
         if (response.isBlank() || response.length > 65_536) {
-            throw AiException("Gemini returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
+            throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
         }
         return response
     }

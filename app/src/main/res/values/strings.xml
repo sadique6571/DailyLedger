@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Daily Ledger</string>
+    <string name="widget_description">Balance, dues and quick entry</string>
     <string name="shortcut_new_expense">New expense</string>
     <string name="shortcut_new_expense_long">Add a new expense</string>
     <string name="shortcut_new_udhar">New udhar</string>

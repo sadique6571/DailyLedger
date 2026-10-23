@@ -15,6 +15,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.security.PinLock
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun LockedScreen(
@@ -23,6 +25,9 @@ fun LockedScreen(
     showBiometric: Boolean = true,
     onPinUnlock: () -> Unit = {},
 ) {
+    val shake = remember { androidx.compose.animation.core.Animatable(0f) }
+    val shakeScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { if (showBiometric) unlock() }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -42,11 +47,23 @@ fun LockedScreen(
                     isError = error,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().offset { androidx.compose.ui.unit.IntOffset(shake.value.roundToInt(), 0) },
                 )
                 if (error) Text("Incorrect PIN — try again", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 Button(
-                    onClick = { if (PinLock.matches(pin, pinHash)) onPinUnlock() else { error = true; pin = "" } },
+                    onClick = {
+                        if (PinLock.matches(pin, pinHash)) onPinUnlock()
+                        else {
+                            error = true; pin = ""
+                            shakeScope.launch {
+                                shake.snapTo(0f)
+                                shake.animateTo(0f, androidx.compose.animation.core.keyframes {
+                                    durationMillis = 400
+                                    0f at 0; -12f at 60; 12f at 130; -8f at 200; 8f at 270; -4f at 330; 0f at 400
+                                })
+                            }
+                        }
+                    },
                     enabled = pin.length >= 4,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Unlock with PIN") }

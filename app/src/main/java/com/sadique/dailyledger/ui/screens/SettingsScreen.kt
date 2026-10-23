@@ -20,6 +20,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -87,6 +88,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val aiEnabled by vm.aiEnabled.collectAsState()
     var aiConsent by remember { mutableStateOf(false) }
+    var showWhatsNew by remember { mutableStateOf(false) }
+    if (showWhatsNew) WhatsNewDialog { showWhatsNew = false }
     if (aiConsent) {
         AlertDialog(
             onDismissRequest = { aiConsent = false },
@@ -142,7 +145,6 @@ fun SettingsScreen(
     var resetStage by remember { mutableStateOf(0) }
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
-    var pendingDriveAction by remember { mutableStateOf("UPLOAD") }
     var backupHistory by remember { mutableStateOf<List<DriveRevision>?>(null) }
     var selectedRevision by remember { mutableStateOf<DriveRevision?>(null) }
     var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
@@ -154,13 +156,13 @@ fun SettingsScreen(
     val backupReady = lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
     var cityEditor by rememberSaveable { mutableStateOf(false) }
-    fun export(pdf: Boolean, previewOnly: Boolean = false) {
+    fun export(pdf: Boolean, previewOnly: Boolean = false, periodOverride: ExportPeriod? = null) {
         if (busy) return
         busy = true
         message = null
         scope.launch {
             try {
-                val (from, through) = when (exportPeriod) {
+                val (from, through) = when (periodOverride ?: exportPeriod) {
                     ExportPeriod.CURRENT_MONTH -> {
                         val month = YearMonth.now()
                         month.atDay(1) to month.atEndOfMonth()
@@ -198,53 +200,31 @@ fun SettingsScreen(
             }
         }
     }
-    suspend fun runDrive(token: String, action: String) {
+    suspend fun runDrive(action: String) {
         try {
             if (action == "HISTORY") {
-                backupHistory = DriveSync(context, vm.ownerId).history(token)
+                backupHistory = DriveSync(context, vm.ownerId).history()
             } else if (action == "RESTORE" || action == "HISTORY_RESTORE") {
-                DriveSync(context, vm.ownerId).restore(token, if (action == "HISTORY_RESTORE") selectedRevision else null)
-                message = if (action == "HISTORY_RESTORE") "Backup copy restored. Check the backup status before making more changes." else "Google Drive backup restored to this phone."
+                DriveSync(context, vm.ownerId).restore(if (action == "HISTORY_RESTORE") selectedRevision else null)
+                message = if (action == "HISTORY_RESTORE") "Backup copy restored. Check the backup status before making more changes." else "Cloud backup restored to this phone."
                 selectedRevision = null
             } else {
-                DriveSync(context, vm.ownerId).upload(token, allowReplace = true)
-                message = "Backup saved to your Google Drive account."
+                DriveSync(context, vm.ownerId).upload(allowReplace = true)
+                message = "Backup saved to the cloud."
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            message = e.message ?: "Google Drive operation failed."
+            message = e.message ?: "Cloud backup operation failed."
             settingsStore.setDriveStatus(user.id, message.orEmpty())
         } finally {
             busy = false
         }
     }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val token = if (result.resultCode == Activity.RESULT_OK) DriveAuth.tokenFromResult(context, result.data) else null
-        if (token != null) scope.launch { runDrive(token, pendingDriveAction) }
-        else { busy = false; message = "Google Drive access was not granted. Your data is unchanged." }
-    }
     fun drive(action: String) {
-        val email = user.googleEmail ?: user.email
-        if (email.isBlank()) {
-            message = "Add a Google account to this phone before using Google Drive backup."
-            return
-        }
         if (busy) return
-        busy = true; pendingDriveAction = action; message = null
-        scope.launch {
-            try {
-                when (val result = DriveAuth.authorize(context.findActivity(), email)) {
-                    is DriveAuthOutcome.Token -> runDrive(result.value, action)
-                    is DriveAuthOutcome.Resolution -> launcher.launch(result.request)
-                    is DriveAuthOutcome.Error -> { busy = false; message = result.message }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                busy = false; message = e.message ?: "Google Drive access failed."
-            }
-        }
+        busy = true; message = null
+        scope.launch { runDrive(action) }
     }
 
     backupHistory?.let { copies ->
@@ -288,17 +268,17 @@ fun SettingsScreen(
             onDismissRequest = { confirmation = null },
             title = {
                 Text(
-                    if (restore) "Restore Google Drive backup?" else "Back up to Google Drive?"
+                    if (restore) "Restore cloud backup?" else "Back up to the cloud?"
                 )
             },
             text = {
                 Text(
                     if (action == "DRIVE_HISTORY_RESTORE")
-                        "This replaces this phone's ledger with the selected older copy. Automatic backup pauses after restoring an older copy so your latest Drive backup stays safe. Review the restored records before using Back up now."
+                        "This replaces this phone's ledger with the selected older copy. Automatic backup pauses after restoring an older copy so your latest cloud backup stays safe. Review the restored records before using Back up now."
                     else if (restore)
                         "This replaces the records for ${user.email} on this phone with the backup in the selected Google account. Export any changes you want to keep first."
                     else
-                        "This makes this phone's ledger the latest Google Drive backup. Only the latest verified backup is kept; older revisions are removed after upload verification."
+                        "This makes this phone's ledger the latest cloud backup. The latest three copies are kept."
                 )
             },
             confirmButton = {
@@ -319,7 +299,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { resetStage = 0 },
             title = { Text(if (resetStage == 1) "Reset local data?" else "Final confirmation") },
-            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. A Google Drive backup is kept separately and can be restored later." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
+            text = { Text(if (resetStage == 1) "This permanently deletes the current account's local entries on this phone. A cloud backup is kept separately and can be restored later." else "This is the second confirmation. Your local records will be removed from this phone after you confirm.") },
             confirmButton = {
                 TextButton(onClick = {
                     if (resetStage == 1) {
@@ -397,12 +377,18 @@ fun SettingsScreen(
         }
         if (matchesSetting("Appearance theme text size font")) enteringItem(key = "settings-appearance", index = 2, entranceKey = entranceVisit) {
             SectionCard("Appearance", "Pick a theme and text size — changes apply right away") {
+                // Theme wave (S): a color ripple spreads over the tapped theme's preview.
+                var waveOption by remember { mutableStateOf<String?>(null) }
+                val waveAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+                androidx.compose.runtime.LaunchedEffect(waveOption) {
+                    if (waveOption != null) { waveAnim.snapTo(0f); waveAnim.animateTo(1f, androidx.compose.animation.core.tween(550)) }
+                }
                 LedgerThemeOptions.chunked(4).forEach { rowOptions ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                         rowOptions.forEach { option ->
                             val isSelected = theme.uppercase() == option.key
                             Column(
-                                modifier = Modifier.weight(1f).clickable { onTheme(option.key) }.testTag("theme-${option.key.lowercase()}"),
+                                modifier = Modifier.weight(1f).clickable { waveOption = option.key; onTheme(option.key) }.testTag("theme-${option.key.lowercase()}"),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
@@ -416,11 +402,37 @@ fun SettingsScreen(
                                         Box(Modifier.size(14.dp).background(option.primary, RoundedCornerShape(50)))
                                         Box(Modifier.size(14.dp).background(option.secondary, RoundedCornerShape(50)))
                                     }
+                                    if (waveOption == option.key) Box(
+                                        Modifier.align(Alignment.Center).size((10 + waveAnim.value * 95).dp)
+                                            .background(option.primary.copy(alpha = 0.45f * (1f - waveAnim.value)), androidx.compose.foundation.shape.CircleShape),
+                                    )
                                 }
                                 Text(option.label, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                             }
                         }
                         repeat(4 - rowOptions.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                Text("Accent color", style = MaterialTheme.typography.labelLarge)
+                Text("Optional — overrides the theme's main color across the app.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val accentChoices = listOf<Pair<String, androidx.compose.ui.graphics.Color?>>(("Theme" to null)) + com.sadique.dailyledger.ui.LedgerAccentColors.map { it.first to it.second }
+                accentChoices.chunked(5).forEach { rowChoices ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        rowChoices.forEach { (name, color) ->
+                            val argb = color?.toArgb() ?: 0
+                            val isSel = display.accentColor == argb
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(Modifier.size(34.dp)
+                                    .background(color ?: MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+                                    .border(if (isSel) 2.dp else 1.dp, if (isSel) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, RoundedCornerShape(50))
+                                    .clickable { display.updateAccent(argb) }.testTag("accent-${name.lowercase()}"),
+                                    contentAlignment = Alignment.Center) {
+                                    if (color == null) Text("A", style = MaterialTheme.typography.labelMedium)
+                                }
+                                Text(name, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                        repeat(5 - rowChoices.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
                 Text("Text size", style = MaterialTheme.typography.labelLarge)
@@ -441,11 +453,43 @@ fun SettingsScreen(
             }
             if (categoryEditorOpen) CategoryVisualEditorDialog(onDismiss = { categoryEditorOpen = false })
         }
+        if (matchesSetting("Your categories custom add")) enteringItem(key = "settings-custom-categories", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Your categories", "Add your own categories — they appear in the category list right away") {
+                var newCatName by remember { mutableStateOf("") }
+                var newCatType by remember { mutableStateOf("EXPENSE") }
+                display.customCategories.forEach { entry ->
+                    val parts = entry.split("|", limit = 2)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(parts.getOrNull(1) ?: entry, Modifier.weight(1f))
+                        Text(if (parts.getOrNull(0) == "INCOME") "Income" else "Expense", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IconButton(onClick = { display.removeCustomCategory(entry) }) { Icon(Icons.Rounded.DeleteOutline, "Remove category") }
+                    }
+                }
+                if (display.customCategories.isEmpty()) Text("No custom categories yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(newCatName, { newCatName = it }, label = { Text("New category name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(newCatType == "EXPENSE", { newCatType = "EXPENSE" }, { Text("Expense") })
+                    FilterChip(newCatType == "INCOME", { newCatType = "INCOME" }, { Text("Income") })
+                }
+                GradientButton("Add category", { display.addCustomCategory(newCatType, newCatName); newCatName = "" }, Modifier.fillMaxWidth(), enabled = newCatName.isNotBlank())
+            }
+        }
+        if (matchesSetting("Widget balance home screen")) enteringItem(key = "settings-widget", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Home screen widget", "Widget kya dikhaye, tumhare ikhtiyar mein") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Widget par balance dikhao")
+                        Text("On ho to home-screen widget par balance aur Udhar/Kameti dues nazar ayenge. Privacy mode on ho to balance phir bhi chhupa rahega.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = display.widgetShowBalance, onCheckedChange = { display.updateWidgetShowBalance(it); com.sadique.dailyledger.widget.LedgerWidget.refresh(context) })
+                }
+            }
+        }
         if (matchesSetting("Salary calendar next expected date")) enteringItem(key = "settings-salary", index = 3, entranceKey = entranceVisit) {
             SalarySettingsCard(vm.salarySchedule, salaryTransactions)
         }
 
-        if (matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
+        if (matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
                 driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false }, backupState)
             TextButton(onClick = { drive("HISTORY") }, enabled = !busy, modifier = Modifier.testTag("backup-history")) {
@@ -455,13 +499,13 @@ fun SettingsScreen(
             }
         }
 
-        if (backupDetails && matchesSetting("Google Drive backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
-            SectionCard("Google Drive backup details", "Saved to this Google account's private Daily Ledger app-data folder.") {
-                Text("Local records use SQLCipher encryption. Google Drive app-data backups are readable JSON, not end-to-end encrypted. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger and Google accounts.", style = MaterialTheme.typography.bodySmall)
-                Text("Tap Back up now and approve Google Drive access once. Later changes upload automatically when internet and Drive access are available — edits queue a backup within about 15 minutes, with a background attempt every 3 hours and a catch-up check when the app opens. Use the same Daily Ledger account and Google account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
-                Text("Google Drive backup is separate from Firebase sign-in. Firestore is no longer used for ledger backups.", style = MaterialTheme.typography.bodySmall)
+        if (backupDetails && matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup-details", index = 2, entranceKey = entranceVisit) {
+            SectionCard("Cloud backup details", "Encrypted and stored on the Daily Ledger cloud backup service.") {
+                Text("Local records use SQLCipher encryption. Cloud backups are protected with 256-bit AES encryption on the backup server. The full backup includes private entries and payment proofs. Restore uses the same Daily Ledger account.", style = MaterialTheme.typography.bodySmall)
+                Text("Tap Back up now once. Later changes upload automatically when internet is available — edits queue a backup within about 15 minutes, with a background attempt every 3 hours and a catch-up check when the app opens. Use the same Daily Ledger account to restore on another phone.", style = MaterialTheme.typography.bodySmall)
+                Text("Cloud backup is tied to your Daily Ledger account sign-in.", style = MaterialTheme.typography.bodySmall)
                 Text("Changes queue a backup when saved. Failed connections retry automatically, with a background attempt every 3 hours and a catch-up check when the app opens. Android battery restrictions can delay it. Keep the app installed until the latest backup is verified.", style = MaterialTheme.typography.bodySmall)
-                Text("One latest verified backup is kept. Budgets, bill reminders, handled occurrences, salary calendar and AI learning are included. Unchanged records are verified without an extra upload.", style = MaterialTheme.typography.bodySmall)
+                Text("The latest three copies are kept. Budgets, bill reminders, handled occurrences, salary calendar and AI learning are included. Unchanged records are verified without an extra upload.", style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -515,11 +559,44 @@ fun SettingsScreen(
                     Text("Optional Cloud AI", Modifier.weight(1f))
                     Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
                 }
+                var aiKeyText by remember { mutableStateOf(vm.aiKey()) }
+                var aiProxyText by remember { mutableStateOf(vm.aiProxy()) }
+                var aiProviderId by remember { mutableStateOf(vm.aiProvider()) }
+                var aiModelText by remember { mutableStateOf(vm.aiProviderModel().ifBlank { val p0 = com.sadique.dailyledger.ai.AiProviders.byId(vm.aiProvider()); if (p0.geminiNative || p0.id == "custom") "" else p0.defaultModel }) }
+                var aiBaseText by remember { mutableStateOf(vm.aiProviderBase()) }
+                var aiKeyMsg by remember { mutableStateOf("") }
+                var aiTesting by remember { mutableStateOf(false) }
+                var providerMenu by remember { mutableStateOf(false) }
+                val aiProvider = com.sadique.dailyledger.ai.AiProviders.byId(aiProviderId)
+                fun saveAiFields() { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); vm.saveAiProvider(aiProviderId); vm.saveAiProviderModel(aiModelText); vm.saveAiProviderBase(aiBaseText) }
+                Text("Personal AI provider (agar apni key lagani ho)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.foundation.layout.Box {
+                    OutlinedButton(onClick = { providerMenu = true }) { Text(aiProvider.label + "  ▾") }
+                    androidx.compose.material3.DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
+                        com.sadique.dailyledger.ai.AiProviders.ALL.forEach { p ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { aiProviderId = p.id; if (!p.geminiNative && p.id != "custom") aiModelText = p.defaultModel; providerMenu = false })
+                        }
+                    }
+                }
+                OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text(aiProvider.label + " API key") }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                if (!aiProvider.geminiNative) {
+                    if (aiProvider.id == "custom") {
+                        OutlinedTextField(aiBaseText, { aiBaseText = it }, label = { Text("Base URL (masalan https://.../v1)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                    OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                Text("AI tayyar hai — app built-in proxy (Gemini) se chalti hai, key dalne ki zaroorat nahi. Chahein to apni personal API key laga sakte hain — Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral ya koi bhi OpenAI-compatible service. Personal key sirf is phone mein mehfooz rehti hai — aur personal key ke saath is phone wali rozana AI limit bhi nahi lagti.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { saveAiFields(); aiKeyMsg = "Save ho gaya." }) { Text("Save") }
+                    OutlinedButton(enabled = !aiTesting, onClick = {
+                        saveAiFields(); aiTesting = true
+                        scope.launch { aiKeyMsg = try { vm.testAiConnection(); "Connection kamyab hai ✓" } catch (e: Exception) { e.message ?: "Connection fail ho gaya." }; aiTesting = false }
+                    }) { Text(if (aiTesting) "Check ho raha hai..." else "Connection test") }
+                }
+                if (aiKeyMsg.isNotBlank()) Text(aiKeyMsg, style = MaterialTheme.typography.bodySmall)
             }
-        }
-
-        if (matchesSetting("Firebase App verification")) enteringItem(key = "settings-verification", index = 6, entranceKey = entranceVisit) {
-            AppVerificationCard(context)
         }
 
         if (matchesSetting("Security privacy screenshot biometric device lock")) enteringItem(key = "settings-security", index = 7, entranceKey = entranceVisit) {
@@ -645,6 +722,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (busy) Text("Working on your request…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 if (exportPdf) OutlinedButton(onClick = { export(true, previewOnly = true) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("export-preview")) { Text("Preview & share PDF") }
+                OutlinedButton(onClick = { export(true, periodOverride = ExportPeriod.CURRENT_MONTH) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("export-monthly-pdf")) { Text("Monthly PDF report (this month)") }
                 GradientButton(if (exportPdf) "Save PDF statement" else "Save CSV spreadsheet", { export(exportPdf) },
                     Modifier.fillMaxWidth().testTag("export-save"), enabled = !busy, icon = Icons.Rounded.FileDownload)
                 Text("Saved to Downloads on Android 10+. Exported files are readable, not encrypted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -658,12 +736,13 @@ fun SettingsScreen(
         if (matchesSetting("App info version")) enteringItem(key = "settings-info", index = 9, entranceKey = entranceVisit) {
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
-                Text("Records stay on this phone unless you use Google Drive backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Records stay on this phone unless you use cloud backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = { showWhatsNew = true }, modifier = Modifier.fillMaxWidth().testTag("whats-new")) { Text("What's New") }
             }
         }
 
         if (matchesSetting("Reset local records")) enteringItem(key = "settings-reset", index = 10, entranceKey = entranceVisit) {
-            SectionCard("Local data reset", "Permanent reset only on this phone. Google Drive backup can still be restored later.") {
+            SectionCard("Local data reset", "Permanent reset only on this phone. A cloud backup can still be restored later.") {
                 OutlinedButton(onClick = { resetStage = 1 }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Reset local records") }
             }
         }

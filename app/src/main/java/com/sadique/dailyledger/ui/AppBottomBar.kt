@@ -3,6 +3,9 @@ package com.sadique.dailyledger.ui
 import com.sadique.dailyledger.ui.LedgerSurface as Surface
 import com.sadique.dailyledger.i18n.LocalizedIcon as Icon
 import com.sadique.dailyledger.i18n.LocalizedText as Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,8 +25,10 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +44,9 @@ private data class BottomTab(val label: String, val icon: ImageVector, val selec
 fun AppBottomBar(
     tab: Int,
     onSelectTab: (Int) -> Unit,
+    udharBadge: Int = 0,
+    kametiBadge: Int = 0,
+    moreBadge: Int = 0,
 ) {
     val tabs = remember {
         listOf(
@@ -56,7 +64,24 @@ fun AppBottomBar(
             val selected = when (i) { 0 -> tab == 0; 1 -> tab == 7; 2 -> tab == 3; 3 -> tab == 4; 4 -> tab in listOf(1, 2, 5, 6) || tab in BUDGETS..NavigationHistory.FINANCE_TOOLS; else -> false }
             NavigationBarItem(selected = selected,
                 onClick = { haptics.tap(); onSelectTab(i) },
-                icon = { Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp)) },
+                icon = {
+                    val badgeCount = when (i) { 1 -> udharBadge; 2 -> kametiBadge; 4 -> moreBadge; else -> 0 }
+                    val bounce = remember { Animatable(1f) }
+                    LaunchedEffect(selected) {
+                        if (selected) {
+                            bounce.snapTo(0.72f)
+                            bounce.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
+                        }
+                    }
+                    val badgeScale = androidx.compose.animation.core.animateFloatAsState(if (badgeCount > 0) 1f else 0.4f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "badge-pop")
+                    androidx.compose.material3.BadgedBox(badge = {
+                        if (badgeCount > 0) {
+                            androidx.compose.material3.Badge(Modifier.graphicsLayer { scaleX = badgeScale.value; scaleY = badgeScale.value }) { Text(if (badgeCount > 99) "99+" else badgeCount.toString(), fontSize = 9.sp) }
+                        }
+                    }) {
+                        Icon(if (selected) t.selectedIcon else t.icon, t.label, Modifier.size(23.dp).graphicsLayer { scaleX = bounce.value; scaleY = bounce.value })
+                    }
+                },
                 label = { Text(t.label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer, unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
