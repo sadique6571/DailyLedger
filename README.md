@@ -4,13 +4,15 @@ An Android personal finance app for income, expenses, savings, loans, udhar (cre
 
 **Current version: 2.0.0 · build 51** · Package: `com.sadique.dailyledger` · Minimum Android: 8.0 (API 26)
 
+**Status: feature-complete (final).** The core ledger, AI features, encrypted cloud backup and the full animation pass are all merged to `main`.
+
 ## Core features
 
 - **Ledger:** income/expense history, salary scheduling, category search with Urdu/Roman Urdu aliases, custom categories, amount-in-words (Lakh/Crore), duplicate-entry warnings.
 - **Savings, Loans, Udhar, Kameti:** separate trackers for savings goals, borrowed/lent loans, shop udhar with per-person statements, and personal/organizer kameti with installments and shares.
 - **Insights:** spending donut, monthly comparisons, budgets with 80%/100% alerts, bill reminders, and shareable monthly summaries (PDF/CSV).
-- **AI (online, opt-in):** text-to-entry Auto Fill, an AI assistant (monthly report, budget advice, savings plan, debt order), AI udhar reminders, AI statement summaries, statement import, and automatic category learning. AI runs through a privacy-conscious proxy — **no API key is needed in the app**, and only small summaries (never the full ledger) are sent.
-- **Interface:** 10 themes including AMOLED and Material You, accent colour picker, Nastaleeq Urdu with RTL, privacy mode for amounts, PIN/biometric app lock, home-screen widget, global search, and a customizable dashboard.
+- **AI:** an offline **Mini AI** on the device (money score, saving rate, spending suggestions — no internet needed) plus **online AI (opt-in):** text-to-entry Auto Fill, an AI assistant (monthly report, budget advice, savings plan, debt order), AI udhar reminders, AI statement summaries, statement import, and automatic category learning. Online AI runs through a privacy-conscious Cloudflare proxy by default — **no API key is needed in the app** — and only small summaries (never the full ledger or private entries) are sent. Power users can instead use their own API key for Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral or any OpenAI-compatible endpoint (Settings → Mini AI & Auto Fill).
+- **Interface:** 10 themes including AMOLED and Material You, accent colour picker, Nastaleeq Urdu with RTL, privacy mode for amounts, PIN/biometric app lock, home-screen widget, global search, a customizable dashboard, and an animated weather scene (real sun/moon phases, rain, snow and storm scenes). A full motion pass runs throughout: cards slide in from the left and replay as they scroll back into view, inner boxes cascade in sequence, amounts count up, and small celebrations mark saves and payments.
 
 ## Backup — Cloudflare, encrypted
 
@@ -21,7 +23,7 @@ An Android personal finance app for income, expenses, savings, loans, udhar (cre
 
 ## Building
 
-Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit and emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. The signing certificate is stable across builds, so new APKs install as in-place updates.
+Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit tests and 155 emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. The signing certificate is stable across builds, so new APKs install as in-place updates.
 
 ## Privacy
 
