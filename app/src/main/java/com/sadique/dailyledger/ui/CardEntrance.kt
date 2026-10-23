@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -16,14 +15,14 @@ import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
 
-/** One entrance per page/item, independent of amounts and normal recomposition.
- * rememberSaveable also prevents a LazyColumn item replaying as it scrolls back in.
- * Kept deliberately subtle: a short glide-in with a soft fade, respectful of
- * the system reduced-motion setting.
+/** Card glide-in that REPLAYS whenever the card scrolls back into view
+ * (the user's original behavior — no "already played" latch). Plain remember:
+ * when a LazyColumn item leaves composition its state resets, so the glide
+ * runs again on return; the stagger and reduced-motion handling stay.
  */
 @Composable
 fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int = 0, content: @Composable () -> Unit) {
-    var entered by rememberSaveable(entranceKey) { mutableStateOf(false) }
+    var entered by remember(entranceKey) { mutableStateOf(false) }
     val progress = remember(entranceKey) { Animatable(if (entered) 1f else 0f) }
     val distance = with(LocalDensity.current) { LedgerTokens.EntranceDistance.toPx() }
     val context = LocalContext.current
