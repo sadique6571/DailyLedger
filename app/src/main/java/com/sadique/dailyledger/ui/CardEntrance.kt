@@ -27,7 +27,7 @@ private val EaseOutCubic = Easing { f -> val inv = 1f - f; 1f - inv * inv * inv 
  * return. Reduced-motion (animator scale 0) still snaps straight to visible.
  */
 @Composable
-fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int = 0, content: @Composable () -> Unit) {
+fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int = 0, delayMs: Int = 0, content: @Composable () -> Unit) {
     var entered by remember(entranceKey) { mutableStateOf(false) }
     val progress = remember(entranceKey) { Animatable(if (entered) 1f else 0f) }
     // Full screen width: the card starts completely off-screen, as in the demo.
@@ -39,7 +39,7 @@ fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int
             entered = true
             if (reduceMotion) progress.snapTo(1f)
             else progress.animateTo(1f, tween(LedgerTokens.EntranceDurationMs,
-                delayMillis = (index.coerceIn(0, 4) * LedgerTokens.EntranceStaggerMs), easing = EaseOutCubic))
+                delayMillis = (index.coerceIn(0, 4) * LedgerTokens.EntranceStaggerMs) + delayMs, easing = EaseOutCubic))
         }
     }
     Column(modifier.graphicsLayer {
