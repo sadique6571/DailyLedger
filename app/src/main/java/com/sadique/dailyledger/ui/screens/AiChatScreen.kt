@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Share
@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.ai.AiModelRequest
 import com.sadique.dailyledger.ai.AiPrompts
+import com.sadique.dailyledger.ui.CardEntrance
 import kotlinx.coroutines.launch
 
 private data class ChatMessage(val fromUser: Boolean, val text: String)
@@ -86,7 +87,8 @@ fun AiChatScreen(
             AssistChip(enabled = !busy, onClick = { ask(AiPrompts.debtPlan(contextJson), "Qarz adaigi ki tarteeb banayein") }, label = { Text("Qarz tarteeb") })
         }
         LazyColumn(Modifier.weight(1f).testTag("ai-chat-list"), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(messages) { message ->
+            itemsIndexed(messages) { index, message ->
+                CardEntrance(index = index) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(10.dp)) {
                         Text(if (message.fromUser) "Aap" else "AI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -98,6 +100,7 @@ fun AiChatScreen(
                             }) { Icon(Icons.Rounded.Share, "Share") }
                         }
                     }
+                }
                 }
             }
         }

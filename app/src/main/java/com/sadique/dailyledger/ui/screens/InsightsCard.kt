@@ -31,6 +31,7 @@ import com.sadique.dailyledger.ai.SpendingSnapshot
 import com.sadique.dailyledger.ai.SpendingTip
 import com.sadique.dailyledger.data.expenseEffect
 import com.sadique.dailyledger.ui.money
+import com.sadique.dailyledger.ui.CardEntrance
 import com.sadique.dailyledger.ui.LedgerCard
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 
@@ -68,10 +69,12 @@ fun InsightsCard(
 
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
 
-            snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
+            snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEachIndexed { tipIndex, tip ->
+                CardEntrance(index = tipIndex) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
                     Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
+                }
                 }
             }
 
@@ -95,10 +98,12 @@ fun InsightsCard(
             } else {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
-                cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEach { tip ->
+                cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEachIndexed { tipIndex, tip ->
+                    CardEntrance(index = tipIndex) {
                     LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                         Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
+                    }
                     }
                 }
             }

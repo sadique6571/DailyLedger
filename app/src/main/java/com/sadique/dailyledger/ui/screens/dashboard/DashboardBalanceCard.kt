@@ -194,7 +194,30 @@ internal fun DashboardBalanceCard(
                 }
                 if (summary.udharPayments > 0) Text("Udhar paid this cycle: ${money(summary.udharPayments)}", color = Color(0xFFC0FFEE), fontSize = 11.sp)
                 if (summary.otherIncome > 0) Text("Other income: ${money(summary.otherIncome)}", color = Color(0xFFCAF6FF), fontSize = 10.sp)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // O (re-applied, test-safe): the spending guide folds away as the
+                // dashboard scrolls, giving the list room. Height animation — NOT
+                // AnimatedVisibility — so the guide nodes stay in the semantics
+                // tree (BalanceGuideScreenTest asserts their text while scrolled;
+                // AnimatedVisibility removed them in run #436 and broke it).
+                val guideFullPx = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                val guideAnim = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+                val guidePrimed = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                androidx.compose.runtime.LaunchedEffect(guideCollapsed, guideFullPx.intValue) {
+                    if (guideFullPx.intValue > 0) {
+                        if (!guidePrimed.value) { guideAnim.snapTo(guideFullPx.intValue.toFloat()); guidePrimed.value = true }
+                        else guideAnim.animateTo(if (guideCollapsed) 0f else guideFullPx.intValue.toFloat(),
+                            androidx.compose.animation.core.tween(260))
+                    }
+                }
+                val guideDensity = androidx.compose.ui.platform.LocalDensity.current
+                Box(
+                    Modifier
+                        .then(if (guidePrimed.value) Modifier.height(with(guideDensity) { guideAnim.value.toDp() }) else Modifier)
+                        .clip(androidx.compose.ui.graphics.RectangleShape)
+                        .graphicsLayer { alpha = if (guideFullPx.intValue > 0) (guideAnim.value / guideFullPx.intValue).coerceIn(0f, 1f) else 1f }
+                ) {
+                Column(Modifier.wrapContentHeight(unbounded = true).onSizeChanged { if (it.height > 0) guideFullPx.intValue = it.height },
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = .2f))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space6)) {
                     Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = Color(0xFFB4FFF1))
@@ -228,6 +251,7 @@ internal fun DashboardBalanceCard(
                     Text("$countdown · ${expected.format(DateTimeFormatter.ofPattern("dd MMM yyyy", if (com.sadique.dailyledger.i18n.LocalStrings.current.urdu) Locale("ur", "PK") else Locale.ENGLISH))}",
                         color = Color(0xFFCAF6FF), fontSize = 11.sp, modifier = Modifier.testTag("salary-countdown"))
 
+                }
                 }
                 }
                 if (guide.lowBalance) {
