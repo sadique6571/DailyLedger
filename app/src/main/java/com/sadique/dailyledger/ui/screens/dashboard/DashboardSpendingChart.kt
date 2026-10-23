@@ -173,17 +173,16 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 start += sweep
                                 budget -= drawn
                             }
-                            // Travelling shine inside the ring, like the progress bar's.
+                            // Travelling shine inside the ring, like the progress bar's:
+                            // two soft arcs (wide faint + narrow brighter) riding around.
                             if (shineAmbientOn) {
-                                withTransform({ rotate(ringShine.value, Offset(size.width / 2f, size.height / 2f)) }) {
-                                    drawArc(
-                                        brush = Brush.sweepGradient(
-                                            listOf(Color.Transparent, Color.White.copy(alpha = 0.20f), Color.Transparent, Color.Transparent),
-                                            Offset(size.width / 2f, size.height / 2f),
-                                        ),
-                                        0f, 360f, false, Offset(inset, inset), Size(size.width - width, size.height - width), style = Stroke(width),
-                                    )
-                                }
+                                val shineStart = -90f + ringShine.value
+                                drawArc(Color.White.copy(alpha = 0.10f), shineStart - 45f, 90f, false,
+                                    Offset(inset, inset), Size(size.width - width, size.height - width),
+                                    style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                                drawArc(Color.White.copy(alpha = 0.16f), shineStart - 26f, 52f, false,
+                                    Offset(inset, inset), Size(size.width - width, size.height - width),
+                                    style = Stroke(width, cap = androidx.compose.ui.graphics.StrokeCap.Round))
                             }
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(130.dp)) {
