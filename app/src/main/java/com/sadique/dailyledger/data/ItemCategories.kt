@@ -48,7 +48,7 @@ object ItemCategories {
         item("Vegetables", "Tomatoes", "tamatar", "tomato", "tomatoes", "ٹماٹر"),
         item("Vegetables", "Garlic", "lehsan", "garlic", "لہسن"),
         item("Vegetables", "Ginger", "adrak", "ginger", "ادرک"),
-        item("Vegetables", "Green chillies", "hari mirch", "green chilli", "ہری مرچ"),
+        item("Vegetables", "Green chillies", "hari mirch", "hari march", "green chilli", "green chili", "ہری مرچ"),
         item("Vegetables", "Fresh coriander", "hara dhania", "fresh coriander", "ہرا دھنیا"),
         item("Vegetables", "Mint", "podina", "pudina", "mint", "پودینہ"),
         item("Vegetables", "Peas", "matar", "peas", "مٹر"),
@@ -113,7 +113,7 @@ object ItemCategories {
         // catalog row replacing an asset row loses no search term.
         item("Spices", "Saunf", "saunf", "sonf", "soanf", "sounf", "fennel seeds", "fennel", "سونف"),
         item("Spices", "Turmeric", "haldi", "turmeric", "ہلدی"),
-        item("Spices", "Chilli powder", "lal mirch", "red chilli", "chilli powder", "chili powder", "لال مرچ"),
+        item("Spices", "Chilli powder", "lal mirch", "laal mirch", "lal march", "laal march", "surkh mirch", "surkh march", "red chilli", "chilli powder", "chili powder", "لال مرچ"),
         item("Spices", "Garam masala", "garam masala", "گرم مصالحہ"),
         item("Spices", "Ground coriander", "sukha dhaniya", "dhania powder", "ground coriander", "coriander powder", "سوکھا دھنیا"),
         item("Spices", "Cumin & seeds", "zeera", "cumin", "ajwain", "kalonji", "rai", "زیرہ"),

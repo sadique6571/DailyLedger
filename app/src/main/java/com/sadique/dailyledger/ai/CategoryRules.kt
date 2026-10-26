@@ -59,7 +59,7 @@ object CategoryRules {
         Rule("Garam masala", listOf("garam masala")),
         Rule("Ground coriander", listOf("sukha dhaniya", "dhania powder", "ground coriander", "coriander powder")),
         Rule("Turmeric", listOf("haldi", "turmeric")),
-        Rule("Chilli powder", listOf("lal mirch", "red chilli", "chilli powder", "chili powder")),
+        Rule("Chilli powder", listOf("lal mirch", "laal mirch", "lal march", "laal march", "surkh mirch", "surkh march", "red chilli", "chilli powder", "chili powder")),
         Rule("Cumin & seeds", listOf("zeera", "cumin", "ajwain", "kalonji", "rai")),
         Rule("Salt", listOf("namak", "salt")),
         Rule("Condiments & sauces", listOf("ketchup", "soy sauce", "mayonnaise", "vinegar", "achar")),
