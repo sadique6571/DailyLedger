@@ -58,7 +58,7 @@ internal fun DashboardFrequentSection(
         AnimatedVisibility(visible = expanded,
             enter = expandVertically(tween(320)) + fadeIn(tween(320)),
             exit = shrinkVertically(tween(260)) + fadeOut(tween(260))) {
-        Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space12)) {
+        Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space16)) {
         items.forEachIndexed { index, (label, total) ->
             val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
             val visual = rememberCategoryVisual(label, "EXPENSE")
@@ -94,7 +94,7 @@ internal fun DashboardRecentSection(
     onAllTransactions: (() -> Unit)?,
     onAddSalary: () -> Unit,
 ) {
-    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space12) {
+    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space16) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
             onAllTransactions?.let { action ->

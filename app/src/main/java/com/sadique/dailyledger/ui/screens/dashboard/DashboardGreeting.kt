@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 import java.time.YearMonth
 
-/** Compact greeting and live weather; no decorative card competes with the balance. */
+/** Greeting above; the live weather card spans the full row beneath it. */
 @Composable
 internal fun DashboardGreetingSection(
     userName: String, month: YearMonth, cycleStartLabel: String?,
@@ -28,9 +28,9 @@ internal fun DashboardGreetingSection(
     compact: Boolean = false,
 ) {
     val hour = LocalTime.now().hour
-    Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp).animateContentSize()
-        .testTag("compact-greeting"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp).animateContentSize()
+        .testTag("compact-greeting"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         if (!compact) Text(when (hour) {
             in 5..11 -> "🌅 Good morning,"; in 12..16 -> "☀️ Good afternoon,"
             in 17..20 -> "🌆 Good evening,"; else -> "🌙 Good night,"
@@ -57,7 +57,7 @@ internal fun DashboardGreetingSection(
         }
         }
         if (weatherEnabled && weatherCity.isNotBlank() && !compact) {
-            Surface(modifier = Modifier.widthIn(max = 192.dp), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = com.sadique.dailyledger.ui.LedgerTokens.ShapeCard, color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.background(ledgerCardBrush(LedgerColors.Green)).padding(10.dp).testTag("weather-chip"),
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     // Animated sky: the scene matches the live weather condition.
