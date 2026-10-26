@@ -33,6 +33,7 @@ import com.sadique.dailyledger.data.expenseEffect
 import com.sadique.dailyledger.ui.money
 import com.sadique.dailyledger.ui.CardEntrance
 import com.sadique.dailyledger.ui.LedgerCard
+import com.sadique.dailyledger.ui.LedgerTokens
 import com.sadique.dailyledger.ui.LocalDisplayPreferences
 
 @Composable
@@ -46,6 +47,7 @@ fun InsightsCard(
     onRefresh: () -> Unit = {},
     onDismissTip: (SpendingTip) -> Unit = {},
     dismissedTipKeys: Set<String> = emptySet(),
+    entranceBaseDelayMs: Int = 0,
 ) {
     Card(
         Modifier.fillMaxWidth().testTag("ai-insights-cards"),
@@ -65,13 +67,13 @@ fun InsightsCard(
                 // Inner small boxes slide in one-by-one AFTER the big card itself
                 // (delayMs sequencing) — otherwise their slide hides inside the
                 // parent card's own entrance and is never seen.
-                CardEntrance(index = 0, delayMs = 500, modifier = Modifier.weight(1f)) {
+                CardEntrance(index = 0, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.weight(1f)) {
                     MetricChip("Money score", if (snapshot.count > 0 && snapshot.summary.salary > 0) "${animScore.value}/100" else "—", Modifier.fillMaxWidth())
                 }
-                CardEntrance(index = 1, delayMs = 500, modifier = Modifier.weight(1f)) {
+                CardEntrance(index = 1, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.weight(1f)) {
                     MetricChip("Saving rate", "${animRate.value}%", Modifier.fillMaxWidth())
                 }
-                CardEntrance(index = 2, delayMs = 500, modifier = Modifier.weight(1f)) {
+                CardEntrance(index = 2, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.weight(1f)) {
                     MetricMoneyChip("Possible save", snapshot.potentialSaving, Modifier.fillMaxWidth())
                 }
             }
@@ -79,7 +81,7 @@ fun InsightsCard(
             Text("Budget estimate from recorded entries; not a credit score or guaranteed saving.", style = MaterialTheme.typography.bodySmall)
 
             snapshot.tips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEachIndexed { tipIndex, tip ->
-                CardEntrance(index = tipIndex, delayMs = 700) {
+                CardEntrance(index = tipIndex + 3, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs) {
                 LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                     Text(tip.title, style = MaterialTheme.typography.titleSmall)
                     Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)
@@ -108,7 +110,7 @@ fun InsightsCard(
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(status.ifBlank { "Tap Refresh to get online suggestions. Nothing is sent automatically." }, style = MaterialTheme.typography.bodySmall)
                 cloudTips.filter { com.sadique.dailyledger.ai.LearningSnapshot.feedbackKey(it) !in dismissedTipKeys }.forEachIndexed { tipIndex, tip ->
-                    CardEntrance(index = tipIndex, delayMs = 800) {
+                    CardEntrance(index = tipIndex + 6, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs) {
                     LedgerCard(Modifier.fillMaxWidth(), contentSpacing = 4.dp) {
                         Text(tip.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                         Text(if (LocalDisplayPreferences.current?.privateAmounts == true) "Amounts hidden in privacy mode" else tip.detail)

@@ -39,7 +39,7 @@ fun CardEntrance(index: Int = 0, modifier: Modifier = Modifier, entranceKey: Int
             entered = true
             if (reduceMotion) progress.snapTo(1f)
             else progress.animateTo(1f, tween(LedgerTokens.EntranceDurationMs,
-                delayMillis = (index.coerceIn(0, 4) * LedgerTokens.EntranceStaggerMs) + delayMs, easing = EaseOutCubic))
+                delayMillis = (index.coerceAtLeast(0) * LedgerTokens.EntranceStaggerMs) + delayMs, easing = EaseOutCubic))
         }
     }
     Column(modifier.graphicsLayer {

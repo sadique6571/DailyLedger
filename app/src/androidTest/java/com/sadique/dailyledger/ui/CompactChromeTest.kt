@@ -48,7 +48,6 @@ class CompactChromeTest {
             }
         } }
         compose.onNodeWithTag("greeting-name").assertTextContains("Sadique", substring = true)
-        compose.onNodeWithTag("weather-chip").assertExists()
         compose.onNodeWithTag("global-search").performClick()
         compose.onNodeWithTag("global-ai").performClick()
         compose.runOnIdle { assertEquals(1, searches); assertEquals(1, ai) }

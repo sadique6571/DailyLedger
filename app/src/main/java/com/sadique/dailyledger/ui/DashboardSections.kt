@@ -21,7 +21,7 @@ class DashboardSections {
     }
 }
 fun dashboardSectionLabel(key: String) = when (key) {
-    "greeting" -> "Greeting & weather"; "balance" -> "Remaining balance"; "backup-status" -> "Backup status"; "monthly-totals" -> "Salary & expenses"
+    "greeting" -> "Greeting"; "balance" -> "Remaining balance"; "backup-status" -> "Backup status"; "monthly-totals" -> "Salary & expenses"
     "salary-cycle-controls" -> "Salary cycle options"; "budget-notice" -> "Budgets & reminders"
     "spending" -> "Spending chart"; "frequent-items" -> "Frequent purchases"; "recent" -> "Recent transactions"
     "insights-shortcut" -> "Insights shortcut"; "separate-totals" -> "Your money spaces"; "udhar-shortcut" -> "Udhar shortcut"

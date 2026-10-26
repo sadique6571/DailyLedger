@@ -34,7 +34,7 @@ fun DashboardScreen(
     tx: List<TransactionEntity>, loans: List<LoanEntity>, lp: List<LoanPaymentEntity>,
     committees: List<CommitteeEntity>, cp: List<CommitteePaymentEntity>, receipts: List<CommitteeReceiptEntity>,
     committeeMembers: List<CommitteeMemberEntity> = emptyList(), savings: List<SavingEntity>, userName: String,
-    weatherEnabled: Boolean, weatherCity: String, weatherTemperature: String, weatherCondition: String,
+    weatherEnabled: Boolean = false, weatherCity: String = "", weatherTemperature: String = "", weatherCondition: String = "",
     ledgerCycle: LedgerCycleEntity? = null, ledgerArchives: List<LedgerArchiveEntity> = emptyList(),
     onAddSalary: () -> Unit, onAddSalaryWithAmount: (String) -> Unit = { onAddSalary() }, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
@@ -138,8 +138,6 @@ fun DashboardScreen(
             enteringItem(key = "greeting", index = 0) {
                 DashboardGreetingSection(
                     userName = userName, month = month, cycleStartLabel = cycleStartLabel,
-                    weatherEnabled = weatherEnabled, weatherCity = weatherCity,
-                    weatherTemperature = weatherTemperature, weatherCondition = weatherCondition,
                     compact = greetingCompact,
                 )
             }
@@ -241,18 +239,20 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenPlanning) { Text("Review") }
                 }
             }
-            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, categories.sumOf { it.second }, onExpenseHistory) }
+            if (true) enteringItem(key = "spending", index = 4) { SpendingDonutCard(categories, categories.sumOf { it.second }, onExpenseHistory, entranceBaseDelayMs = 4 * LedgerTokens.EntranceStaggerMs) }
             if (display.showFrequent && frequentItems.isNotEmpty()) enteringItem(key = "frequent-items", index = 5) {
                 DashboardFrequentSection(
                     items = frequentItems, expanded = frequentExpanded,
                     onToggleExpanded = { frequentExpanded = !frequentExpanded },
                     money = visibleMoney, onSelectCategory = { selectedFrequentCategory = it },
+                    entranceBaseDelayMs = 5 * LedgerTokens.EntranceStaggerMs,
                 )
             }
             if (true) enteringItem(key = "recent", index = 6) {
                 DashboardRecentSection(
                     recent = recent, money = visibleMoney,
                     onAllTransactions = onAllTransactions, onAddSalary = onAddSalary,
+                    entranceBaseDelayMs = 6 * LedgerTokens.EntranceStaggerMs,
                 )
             }
             enteringItem(key = "insights-shortcut", index = 7) { GradientButton("Spending insights", onOpenInsights, Modifier.fillMaxWidth(), icon = Icons.Rounded.BarChart) }
@@ -270,7 +270,7 @@ fun DashboardScreen(
             enteringItem(key = "udhar-shortcut", index = 9) {
                 SummaryCard("Udhar Saman", udharOutstanding, Icons.Rounded.ShoppingCart, detail = "Outstanding goods on credit • Tap to add", onClick = onOpenUdhar)
             }
-            snapshot?.takeIf { true }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi, onDismissTip, dismissedTipKeys) } }
+            snapshot?.takeIf { true }?.let { data -> enteringItem(key = "insights", index = 10) { InsightsCard(data, aiTips, aiStatus, aiEnabled, onEnableAi, aiBusy, onRefreshAi, onDismissTip, dismissedTipKeys, entranceBaseDelayMs = 10 * LedgerTokens.EntranceStaggerMs) } }
             }
             sections.render(this, DisplayPreferences.DEFAULT_ORDER)
         }

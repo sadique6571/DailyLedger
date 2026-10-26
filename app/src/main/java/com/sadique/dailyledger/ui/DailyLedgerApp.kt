@@ -114,7 +114,6 @@ import com.sadique.dailyledger.ui.screens.GlobalSearchScreen
 import com.sadique.dailyledger.ui.screens.LearningScreen
 import com.sadique.dailyledger.planning.PlannerMath
 import com.sadique.dailyledger.planning.BillReminderWorker
-import com.sadique.dailyledger.weather.WeatherService
 import com.sadique.dailyledger.audio.TransactionSoundPlayer
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -337,15 +336,6 @@ fun DailyLedgerApp(
             },
         )
     }
-    LaunchedEffect(weatherEnabled, weatherCity, weatherUpdatedAt) {
-        val stale = System.currentTimeMillis() - weatherUpdatedAt > 30 * 60 * 1000L
-        if (weatherEnabled && weatherCity.isNotBlank() && stale) {
-            runCatching { WeatherService().currentForCity(weatherCity) }
-                .onSuccess { weather ->
-                    settings.setWeatherSnapshot(weather.city, weather.temperature, weather.condition, weather.fetchedAt)
-                }
-        }
-    }
     if (aiConsent) {
         AlertDialog(
             onDismissRequest = { aiConsent = false },
@@ -565,10 +555,6 @@ fun DailyLedgerApp(
                     ledgerCycle = ledgerCycle,
                     ledgerArchives = ledgerArchives,
                     userName = user.name,
-                    weatherEnabled = weatherEnabled,
-                    weatherCity = weatherCity,
-                    weatherTemperature = weatherTemperature,
-                    weatherCondition = weatherCondition,
                     onAddSalary = { quickTransaction = EntryShortcut("INCOME", "Salary") },
                     onAddSalaryWithAmount = { amount -> quickTransaction = EntryShortcut("INCOME", "Salary", amount = amount) },
                     onAddExpense = { quickTransaction = EntryShortcut("EXPENSE") },
