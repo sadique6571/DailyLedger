@@ -173,16 +173,31 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         require(!OfflineMiniAi.usesDedicatedLedger(input)) { "Udhar Saman, loans, savings aur kameti apne tabs mein record karein. Auto Fill sirf income aur expenses ke liye hai." }
         DraftReviewPolicy.checkMissingDetails(input)
         val offline = OfflineMiniAi.drafts(input)
-        val result = offline ?: run {
+        // A saved personal key means the online model: try it FIRST so categories
+        // are understood properly, and only fall back to the offline parse when the
+        // online call fails. Without a key, behaviour is unchanged (offline first,
+        // cloud only when offline cannot parse and Cloud AI is enabled).
+        val useOnlineFirst = aiEnabled.value && aiService.hasPersonalKey()
+        val result: AiDraftResult
+        var usedCloud = false
+        if (useOnlineFirst) {
+            result = try {
+                aiService.drafts(input).also { checkAccount() }.also { usedCloud = true }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { offline ?: throw e }
+        } else if (offline != null) {
+            result = offline
+        } else {
             check(aiEnabled.value) { "Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly." }
-            aiService.drafts(input).also { checkAccount() }
+            result = aiService.drafts(input).also { checkAccount() }
+            usedCloud = true
         }
         val learned = repo.learningSnapshot()
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
         val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
         val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
-        result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = offline == null) },
+        result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = usedCloud) },
             message = result.message + if (learnedCount > 0) " $learnedCount categories matched your saved learning." else "")
     }
     suspend fun rememberCategory(type:String,phrase:String,category:String):String? =

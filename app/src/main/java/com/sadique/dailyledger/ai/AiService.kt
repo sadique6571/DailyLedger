@@ -27,6 +27,11 @@ class AiService(private val context: Context, private val owner: String) {
     /** True when this request would spend the shared built-in proxy quota. */
     private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
 
+    /** True when the user saved their own API key in Settings. The entry AI must
+     * then use the online model via that key, not the offline fallback. The key
+     * itself is never logged or exposed — only its presence is checked. */
+    fun hasPersonalKey(): Boolean = keyStore.key.isNotBlank()
+
     private suspend fun route(request: AiModelRequest): String {
         val key = keyStore.key
         val provider = AiProviders.byId(preferences.providerId)

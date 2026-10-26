@@ -226,10 +226,21 @@ object CategoryRules {
     fun infer(type: String, text: String): String {
         val normalized = normalizeText(text)
         val rules = if (type.equals("INCOME", ignoreCase = true)) incomeRules else expenseRules
-        return rules.flatMap { rule -> (rule.aliases + rule.category).map { alias -> rule.category to normalizeText(alias) } }
-            .filter { (_, alias) -> containsAlias(normalized, alias) }
+        val pairs = rules.flatMap { rule -> (rule.aliases + rule.category).map { alias -> rule.category to normalizeText(alias) } }
+        // Exact word-boundary phrase match first — existing behaviour, unchanged.
+        val exact = pairs.filter { (_, alias) -> containsAlias(normalized, alias) }
             .maxByOrNull { (_, alias) -> alias.length }?.first
-            ?: if (type.equals("INCOME", ignoreCase = true)) "Other income" else "Other"
+        if (exact != null) return exact
+        // Fallback: a single word that starts with a single-word alias (or vice versa),
+        // so near spellings still match — e.g. "macaronii" finds "macaroni", "parathay"
+        // finds "paratha". Only words of 4+ letters count, so short words ("tea",
+        // "oil", "gas", "dal") can never fuzzy-match something unrelated.
+        val words = normalized.split(" ").filter { it.length >= 4 }
+        val fuzzy = pairs.filter { (_, alias) ->
+            val aliasWords = alias.split(" ").filter { it.length >= 4 }
+            aliasWords.size == 1 && words.any { word -> word.startsWith(aliasWords[0]) || aliasWords[0].startsWith(word) }
+        }.maxByOrNull { (_, alias) -> alias.length }?.first
+        return fuzzy ?: if (type.equals("INCOME", ignoreCase = true)) "Other income" else "Other"
     }
 
     fun normalize(type: String, proposed: String, sourceText: String): String {

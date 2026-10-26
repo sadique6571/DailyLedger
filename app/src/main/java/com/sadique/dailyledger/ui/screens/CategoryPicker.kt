@@ -14,8 +14,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.CategoryCatalog
+import com.sadique.dailyledger.data.LedgerCategory
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 @Composable fun CategoryPicker(type:String,onSelect:(String)->Unit,onDismiss:()->Unit,allowCustom:Boolean=true){
-    val context=LocalContext.current;val all=remember{CategoryCatalog.load(context)};var query by remember{mutableStateOf("")}
+    val context=LocalContext.current
+    // Same fix as the icon chooser: user-created categories live in DisplayPreferences,
+    // not in the static catalog — merge them so a new category is pickable here too.
+    val customCategories = LocalDisplayPreferences.current?.customCategories ?: emptyList()
+    val all=remember(customCategories){
+        val customs = customCategories.mapNotNull { entry ->
+            val parts = entry.split("|", limit = 2)
+            if (parts.size == 2 && parts[0] == type && parts[1].isNotBlank()) LedgerCategory("Your categories", parts[1], type, emptyList()) else null
+        }
+        (customs + CategoryCatalog.load(context)).distinctBy { it.label.lowercase(java.util.Locale.ROOT) }
+    }
+    var query by remember{mutableStateOf("")}
     val filtered=all.filter{it.type==type&&(query.isBlank()||it.label.contains(query,true)||it.group.contains(query,true)||it.aliases.any{a->a.contains(query,true)})}
     LedgerEntrySheet(scrollBody = false, onDismissRequest=onDismiss,title={Text("Choose category")},text={Column{
         OutlinedTextField(query,{query=it},label={Text("Search categories")},singleLine=true)

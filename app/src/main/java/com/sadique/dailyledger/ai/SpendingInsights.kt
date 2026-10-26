@@ -63,8 +63,8 @@ object SpendingInsights {
             payment.ownerId == owner && runCatching { LocalDate.parse(payment.date) <= today }.getOrDefault(false)
         }
         val summary = ledgerCycle?.let {
-            ledgerCycleSummary(current, currentCommitteePayments, currentSavings, it, creditPayments = currentCreditPayments)
-        } ?: monthlySalarySummary(current, month.toString(), currentCommitteePayments, currentSavings, currentCreditPayments)
+            ledgerCycleSummary(current, currentCommitteePayments, currentSavings, it, creditPayments = currentCreditPayments, loans = loans, loanPayments = loanPayments)
+        } ?: monthlySalarySummary(current, month.toString(), currentCommitteePayments, currentSavings, currentCreditPayments, loans = loans, loanPayments = loanPayments)
         val categories = current
             .filter { it.type == "EXPENSE" }
             .groupBy { it.category.trim().ifBlank { "Other" } }

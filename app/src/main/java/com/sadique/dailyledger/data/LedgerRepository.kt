@@ -73,6 +73,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         val summary = ledgerCycleSummary(
             dao.transactionsNow(ownerId), dao.committeePaymentsNow(ownerId), dao.savingsNow(ownerId), cycle, now,
             creditPayments = dao.creditPaymentsNow(ownerId),
+            loans = dao.loansNow(ownerId), loanPayments = dao.loanPaymentsNow(ownerId),
         )
         val key = "cycle:${cycle.startAt}"
         val zone = ZoneId.systemDefault()
@@ -108,7 +109,7 @@ class LedgerRepository(private val db: AppDatabase, val ownerId: String,
         val monthCreditPayments = dao.creditPaymentsNow(ownerId).filter {
             it.date.startsWith("$month-") && it.createdAt in calendarStart until calendarEnd
         }
-        val summary = monthlySalarySummary(monthTransactions, month.toString(), monthCommitteePayments, monthSavings, monthCreditPayments)
+        val summary = monthlySalarySummary(monthTransactions, month.toString(), monthCommitteePayments, monthSavings, monthCreditPayments, loans = dao.loansNow(ownerId), loanPayments = dao.loanPaymentsNow(ownerId))
         dao.insertLedgerArchive(
             LedgerArchiveEntity(
                 id = "$ownerId:archive:$key", ownerId = ownerId, archiveKey = key,

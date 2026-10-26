@@ -37,8 +37,9 @@ class LedgerWidget : AppWidgetProvider() {
                     if (rows.none { it.privateEntry }) {
                         val cycle = repo.ledgerCycle.first()
                         val cp = repo.committeePayments.first(); val savings = repo.savings.first(); val credit = repo.creditPayments.first()
-                        val summary = cycle?.let { ledgerCycleSummary(rows, cp, savings, it, creditPayments = credit) }
-                            ?: monthlySalarySummary(rows, java.time.YearMonth.now().toString(), cp, savings, credit)
+                        val loans = repo.loans.first(); val loanPayments = repo.loanPayments.first()
+                        val summary = cycle?.let { ledgerCycleSummary(rows, cp, savings, it, creditPayments = credit, loans = loans, loanPayments = loanPayments) }
+                            ?: monthlySalarySummary(rows, java.time.YearMonth.now().toString(), cp, savings, credit, loans = loans, loanPayments = loanPayments)
                         text = com.sadique.dailyledger.ui.money(summary.remaining)
                         val credits = repo.creditPurchases.first()
                         val udharDue = credits.filter { !it.closed }.sumOf { c -> (c.amountMinor - credit.filter { p -> p.creditId == c.id }.sumOf { it.amountMinor }).coerceAtLeast(0L) }

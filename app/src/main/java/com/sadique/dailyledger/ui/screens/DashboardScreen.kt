@@ -58,8 +58,8 @@ fun DashboardScreen(
         while (true) { value = LocalDate.now(); delay(30_000) }
     }
     val month = YearMonth.from(today)
-    val summary = remember(tx, cp, savings, ledgerCycle, creditPayments, month) { ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments) }
-        ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments) }
+    val summary = remember(tx, cp, savings, ledgerCycle, creditPayments, loans, lp, month) { ledgerCycle?.let { ledgerCycleSummary(tx, cp, savings, it, creditPayments = creditPayments, loans = loans, loanPayments = lp) }
+        ?: monthlySalarySummary(tx, month.toString(), cp, savings, creditPayments, loans = loans, loanPayments = lp) }
     val expenseRows = remember(tx, ledgerCycle, month) { tx.filter {
         it.type == "EXPENSE" && !it.privateEntry && (ledgerCycle?.let { cycle -> it.createdAt >= cycle.startAt } ?: it.date.startsWith("$month-"))
     }

@@ -29,7 +29,7 @@ object ItemCategories {
         item("Prepared food", "Samosa & pakora", "samosa", "pakora", "سموسہ", "پکوڑے"),
         item("Prepared food", "Chaat & gol gappay", "chaat", "gol gappay", "چَٹ", "چاٹ", "گول گپے"),
         item("Prepared food", "Fries", "fries", "فرائز"),
-        item("Prepared food", "Noodles & pasta", "noodles", "pasta", "نوڈلز", "پاستا"),
+        item("Prepared food", "Noodles & pasta", "noodles", "pasta", "macaroni", "macaron", "macroni", "نوڈلز", "پاستا"),
         item("Prepared food", "Ice cream", "ice cream", "icecream", "آئس کریم"),
         item("Prepared food", "Cake & sweets", "cake", "mithai", "sweets", "کیک", "مٹھائی"),
         item("Prepared food", "Juice & shakes", "juice", "shake", "جوس", "شیک"),
@@ -102,5 +102,54 @@ object ItemCategories {
         item("Personal items", "Shaving supplies", "razor", "shaving cream", "shaving supplies"),
         item("Pets", "Cat food", "cat food", "billi ka khana"),
         item("Pets", "Cat litter", "cat litter", "billi ki rait"),
+
+        // Daily-life coverage (2026-10-26 batch): Pakistani household, grocery and
+        // toiletry items the entry AI and picker previously missed — macaroni, saunf,
+        // toothbrush and friends. Labels reuse an existing rule label where one
+        // exists, so infer() results for already-matched words do not change; the
+        // new labels (Saunf, Cardamom, Cloves, Cinnamon, Fenugreek) become canonical
+        // automatically because expenseCategories derives from these entries.
+        // Alias lists fold in the matching assets/categories.json aliases, so the
+        // catalog row replacing an asset row loses no search term.
+        item("Spices", "Saunf", "saunf", "sonf", "soanf", "sounf", "fennel seeds", "fennel", "سونف"),
+        item("Spices", "Turmeric", "haldi", "turmeric", "ہلدی"),
+        item("Spices", "Chilli powder", "lal mirch", "red chilli", "chilli powder", "chili powder", "لال مرچ"),
+        item("Spices", "Garam masala", "garam masala", "گرم مصالحہ"),
+        item("Spices", "Ground coriander", "sukha dhaniya", "dhania powder", "ground coriander", "coriander powder", "سوکھا دھنیا"),
+        item("Spices", "Cumin & seeds", "zeera", "cumin", "ajwain", "kalonji", "rai", "زیرہ"),
+        item("Spices", "Cardamom", "elaichi", "cardamom", "green cardamom", "الائچی"),
+        item("Spices", "Cloves", "laung", "cloves", "لونگ"),
+        item("Spices", "Cinnamon", "darcheeni", "cinnamon", "دار چینی"),
+        item("Spices", "Fenugreek", "methi", "fenugreek", "میتھی"),
+        item("Toiletries", "Oral care", "toothbrush", "tooth brush", "toothpaste", "tooth paste", "manjan", "mouthwash", "mouth wash", "برش"),
+        item("Toiletries", "Soap & body care", "soap", "sabun", "saban", "saboon", "body wash", "face wash", "body lotion", "lotion", "shower gel", "صابن"),
+        item("Toiletries", "Shampoo & hair care", "shampoo", "conditioner", "hair oil", "hair cream", "hair serum", "shampoo sachet", "شیمپو"),
+        item("Toiletries", "Toiletries", "towel", "tolia", "kanghi", "comb", "nail cutter", "personal care item", "personal care items", "toiletries", "تولیہ", "کنگھی"),
+        item("Kitchen staples", "Flour", "aata", "atta", "flour", "آٹا"),
+        item("Kitchen staples", "Rice", "chawal", "rice", "چاول"),
+        item("Kitchen staples", "Cooking oil", "ghee", "cooking oil", "tel", "oil", "گھی"),
+        item("Kitchen staples", "Salt", "namak", "salt", "نمک"),
+        item("Kitchen staples", "Lentils", "daal", "dal", "lentil", "lentils", "دال"),
+        item("Breakfast & dairy", "Milk", "doodh", "dodh", "milk", "دودھ"),
+        item("Breakfast & dairy", "Tea & coffee", "chai", "coffee", "cafe", "چائے"),
+        item("Vegetables", "Vegetables", "sabzi", "sabziyan", "vegetable", "vegetables", "سبزی"),
+        item("Meat & fish", "Meat & chicken", "gosht", "meat", "murghi", "chicken", "گوشت"),
+        item("Groceries", "Groceries", "rashan", "ration", "grocery", "groceries", "ghar ka rashan", "kirana", "kiryana", "monthly rashan", "راشن"),
+        item("Bills & utilities", "Mobile package", "mobile", "mobile load", "easyload", "easy load", "load", "balance", "package"),
+        item("Bills & utilities", "Electricity", "bijli", "electricity", "electricity bill", "electric bill", "بجلی"),
+        item("Bills & utilities", "Gas", "gas", "sui", "sui gas", "gas bill", "گیس"),
+        item("Transport", "Fuel", "petrol", "diesel", "fuel", "cng", "پٹرول"),
+        item("Health", "Medicines", "dawa", "dawai", "medicine", "medicines", "pharmacy", "دوا"),
+        item("Health", "Doctor", "doctor", "clinic", "ڈاکٹر"),
+        item("School items", "School fees", "school fee", "school fees", "fees", "bachon ki fee", "bache ki fee", "monthly fee", "school ki fee", "فیس"),
+        item("Personal items", "Clothing", "kapray", "clothes", "clothing", "suit", "کپڑے"),
+        item("Personal items", "Shoes", "jootay", "shoes", "جوتے"),
+        item("Personal items", "Haircut", "haircut", "baal katwana", "barber", "حجامت"),
+        // Laundry detergent stays before Cleaning supplies: both share "surf" and
+        // "washing powder", and the earlier row wins ties — same as the rules order.
+        item("Cleaning items", "Laundry detergent", "surf", "washing powder", "detergent powder", "laundry detergent", "washing liquid", "سرف"),
+        item("Cleaning items", "Cleaning supplies", "jharu", "pocha", "broom", "mop", "cleaning supplies", "bleach", "cleaning", "detergent", "floor cleaner", "harpic", "phenyl", "safai", "toilet cleaner"),
+        item("Home supplies", "Kitchen utensils", "bartan", "bartan khareeday", "kitchen utensils", "cooking utensils", "برتن"),
+        item("Baby care", "Diapers & baby care", "diaper", "diapers", "pampers", "baby wipes", "baby", "baby care", "wipes"),
     )
 }
