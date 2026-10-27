@@ -26,6 +26,7 @@ object OfflineVocabulary {
         "petrole" to "petrol", "paitrol" to "petrol", "پٹرول" to "petrol",
         "sonf" to "saunf", "soanf" to "saunf", "sounf" to "saunf", "سونف" to "saunf",
         "macroni" to "macaroni",
+        "mirchi" to "mirch", "chaye" to "chai", "kapde" to "kapre",
     )
 
     private val wordPattern = Regex("[\\p{L}]+")

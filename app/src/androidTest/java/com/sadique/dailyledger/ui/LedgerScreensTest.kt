@@ -34,7 +34,7 @@ class LedgerScreensTest {
                     tx = tx, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
                     cp = listOf(CommitteePaymentEntity("p", "test", "k", 1, month, 1000000, 1)),
                     receipts = emptyList(), savings = listOf(SavingEntity("s", "test", "DIRECT", 2000000, "$month-01", "", 1)),
-                    userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                    userName = "Test",
                     onAddSalary = { opened = "salary" }, onAddExpense = { opened = "expense" },
                     onOpenSavings = { opened = "savings" }, onOpenKameti = { opened = "kameti" })
             }
@@ -60,9 +60,7 @@ class LedgerScreensTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             DashboardScreen(
                 tx = rows, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
-                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "",
-                weatherCondition = "", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
                 onOpenSavings = {}, onOpenKameti = { kametiOpened = true },
                 onOpenInsights = { opened = true },
             )
@@ -88,7 +86,6 @@ class LedgerScreensTest {
                 DashboardScreen(
                     tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
                     receipts = emptyList(), savings = emptyList(), userName = "Test",
-                    weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                     ledgerCycle = cycle, onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
                     onStartNewMonth = { action = "start" },
                     onArchivePreviousMonth = { callback -> action = "archive"; callback(true) },
@@ -124,7 +121,7 @@ class LedgerScreensTest {
         )
         compose.setContent { DailyLedgerTheme("LIGHT") {
             DashboardScreen(tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
-                receipts = emptyList(), savings = emptyList(), userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                receipts = emptyList(), savings = emptyList(), userName = "Test",
                 onAddSalary = {}, onAddExpense = { edited = true }, onOpenSavings = {}, onOpenKameti = {},
                 onAddCategoryExpense = { _, _ -> edited = true }, ledgerCycle = LedgerCycleEntity("test", 1, 0))
         } }
@@ -148,7 +145,6 @@ class LedgerScreensTest {
             DashboardScreen(
                 tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
                 cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
             )
         } }
@@ -190,7 +186,6 @@ class LedgerScreensTest {
                 tx = emptyList(), loans = emptyList(), lp = emptyList(),
                 committees = listOf(kameti), cp = emptyList(), receipts = emptyList(),
                 committeeMembers = listOf(member), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = { opened = true },
             )
         } }

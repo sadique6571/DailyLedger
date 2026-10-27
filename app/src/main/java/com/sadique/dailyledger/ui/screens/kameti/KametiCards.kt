@@ -25,6 +25,11 @@ import com.sadique.dailyledger.ui.*
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
+/** Turns the user owns for his selected shares: ceil(shares) — 1.5 -> 2,
+ * 2 -> 2, 2.5 -> 3, 3 -> 3. Money math is untouched; this only counts turns. */
+internal fun expectedTurnsForShares(sharesHalfUnits: Int): Int =
+    (sharesHalfUnits.coerceAtLeast(1) + 1) / 2
+
 @Composable
 internal fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () -> Unit, onDelete: () -> Unit) {
     Card(accent = com.sadique.dailyledger.ui.ledgerCardAccent(member.id), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -34,7 +39,12 @@ internal fun MemberTurnCard(member: CommitteeMemberEntity, onMarkReceived: () ->
                     Text("#${member.turnNumber} • ${member.turnMonth} • ${member.name} • ${if (member.shareHalfUnits == 1) "0.5" else "1"} share", translate = false, style = MaterialTheme.typography.titleSmall)
                     Text(monthCountdown(member.turnMonth), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (member.isMe) AssistChip(onClick = {}, enabled = false, label = { Text("Me") })
+                if (member.isMe) AssistChip(onClick = {}, enabled = false, label = { Text("MY TURN") },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledLabelColor = MaterialTheme.colorScheme.onPrimaryContainer))
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.DeleteOutline, "Delete member") }
             }
             if (member.phone.isNotBlank() || member.whatsapp.isNotBlank()) {

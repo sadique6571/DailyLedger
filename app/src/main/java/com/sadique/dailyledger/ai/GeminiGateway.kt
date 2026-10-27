@@ -46,9 +46,13 @@ internal object GeminiGateway {
         .put("required", JSONArray(listOf("suggestions")))
 
     suspend fun generate(request: AiModelRequest, apiKey: String, proxyBase: String): String = withContext(Dispatchers.IO) {
-        val useBuiltInProxy = proxyBase.isBlank() && apiKey.isBlank()
+        // A stale built-in-proxy URL stored alongside a personal key must not
+        // strip auth: with a key present, the built-in URL behaves as "no proxy"
+        // (direct Gemini call with the key header), never as an unauthenticated proxy.
+        val proxy = if (proxyBase.trim() == BUILT_IN_PROXY && apiKey.isNotBlank()) "" else proxyBase
+        val useBuiltInProxy = proxy.isBlank() && apiKey.isBlank()
         val base = when {
-            proxyBase.isNotBlank() -> proxyBase.trim().trimEnd('/')
+            proxy.isNotBlank() -> proxy.trim().trimEnd('/')
             apiKey.isNotBlank() -> DEFAULT_BASE
             else -> BUILT_IN_PROXY
         }
@@ -70,10 +74,10 @@ internal object GeminiGateway {
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 20_000
-            readTimeout = 40_000
+            readTimeout = 60_000
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
-            if (proxyBase.isBlank() && apiKey.isNotBlank()) setRequestProperty("x-goog-api-key", apiKey)
+            if (proxy.isBlank() && apiKey.isNotBlank()) setRequestProperty("x-goog-api-key", apiKey)
             if (useBuiltInProxy) setRequestProperty("x-app-token", APP_TOKEN)
         }
         try {

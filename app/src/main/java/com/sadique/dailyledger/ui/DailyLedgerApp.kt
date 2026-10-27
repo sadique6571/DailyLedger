@@ -132,11 +132,6 @@ fun DailyLedgerApp(
     driveEnabled: Boolean,
     lastSync: Long,
     driveStatus: String,
-    weatherEnabled: Boolean,
-    weatherCity: String,
-    weatherTemperature: String,
-    weatherCondition: String,
-    weatherUpdatedAt: Long,
     transactionSounds: Boolean,
     onLogout: () -> Unit,
     pinHash: String = "",
@@ -256,6 +251,7 @@ fun DailyLedgerApp(
     var historyFilter by remember { mutableStateOf("ALL") }
     var aiConsent by remember(user.id) { mutableStateOf(false) }
     val aiEnabled by vm.aiEnabled.collectAsState()
+    val aiEntryEngine by vm.aiEntryEngine.collectAsState()
     val aiTips by vm.aiTips.collectAsState()
     val dismissedTips by vm.dismissedInsights.collectAsState()
     val feedbackScope = rememberCoroutineScope()
@@ -361,7 +357,8 @@ fun DailyLedgerApp(
         title = { Text("AI Auto Fill") }, scrollBody = false,
         text = { AutoFillScreen(
             enabled = aiEnabled, onEnable = { aiConsent = true },
-            onBack = { aiEntryOpen = false }, generate = vm::autoFill,
+            onBack = { aiEntryOpen = false }, generate = { input -> vm.autoFill(input, aiEntryEngine) },
+            engine = aiEntryEngine, onEngineChange = vm::saveAiEntryEngine,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
                 savedNotice("AI entries", drafts.sumOf { it.amountMinor })
@@ -439,11 +436,6 @@ fun DailyLedgerApp(
             biometric = biometric,
             driveEnabled = driveEnabled,
             lastSync = lastSync,
-            weatherEnabled = weatherEnabled,
-            weatherCity = weatherCity,
-            weatherTemperature = weatherTemperature,
-            weatherCondition = weatherCondition,
-            weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
             onBack = ::goBack,
             onAutoFill = { run { aiEntryOpen = true } },
@@ -467,7 +459,6 @@ fun DailyLedgerApp(
                     else SyncScheduler.cancelImmediate(context)
                 }
             },
-            onWeatherEnabled = { scope.launch { settings.setWeatherEnabled(it) } },
             onTransactionSounds = { scope.launch { settings.setTransactionSounds(it) } },
             onLogout = {
                 scope.launch {

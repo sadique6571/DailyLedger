@@ -89,8 +89,7 @@ fun AccountBackupCard(enabled: Boolean, knownBackup: Boolean, lastCheck: String,
 }
 
 @Composable
-fun PersonalizationCard(sounds: Boolean, weather: Boolean, city: String, onSounds: (Boolean) -> Unit,
-    onWeather: (Boolean) -> Unit, onLocation: () -> Unit, onPreviewSound: () -> Unit) {
+fun PersonalizationCard(sounds: Boolean, onSounds: (Boolean) -> Unit, onPreviewSound: () -> Unit) {
     Column {
         Text("Personalization", fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Text("Make Daily Ledger feel like home", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
@@ -101,15 +100,6 @@ fun PersonalizationCard(sounds: Boolean, weather: Boolean, city: String, onSound
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f))
             PersonalizationRow(Icons.Rounded.GraphicEq, LedgerColors.Blue, "Sound style", "Tap to preview Retro Soft", onClick = onPreviewSound) {
                 Text("Retro Soft", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                Icon(Icons.Rounded.ChevronRight, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f))
-            PersonalizationRow(Icons.Rounded.LightMode, LedgerColors.Amber, "Weather on Home", "Show your selected city's weather") {
-                Switch(weather, onCheckedChange = onWeather, colors = SwitchDefaults.colors(checkedTrackColor = LedgerColors.Green, checkedThumbColor = Color.White))
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f))
-            PersonalizationRow(Icons.Rounded.Place, LedgerColors.Blue, "Location", city.ifBlank { "Choose a city · no GPS needed" }, onClick = onLocation) {
-                Text("Change", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 Icon(Icons.Rounded.ChevronRight, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

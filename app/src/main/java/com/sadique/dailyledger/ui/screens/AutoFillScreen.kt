@@ -48,7 +48,8 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                    onSaved: () -> Unit = {},
                    onLearnCategory: suspend (String, String, String) -> String? = { _, _, _ -> null },
     embedded: Boolean = false, onBusyChanged: (Boolean) -> Unit = {},
-    importGenerate: (suspend (String) -> AiDraftResult)? = null) {
+    importGenerate: (suspend (String) -> AiDraftResult)? = null,
+    engine: AiEntryEngine = AiEntryEngine.OFFLINE, onEngineChange: (AiEntryEngine) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -141,6 +142,23 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                             minLines = 2, maxLines = if (statementMode) 8 else 5,
                             enabled = !busy && entries.isEmpty(),
                             supportingText = { Text("${input.length}/${if (statementMode) 12_000 else AiProtocol.MAX_INPUT} • Roman Urdu, Urdu or English", fontSize = 10.sp) })
+                        if (!statementMode) {
+                            Spacer(Modifier.height(9.dp))
+                            Text("Entry banane wala AI", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected = engine == AiEntryEngine.ONLINE, onClick = { onEngineChange(AiEntryEngine.ONLINE) },
+                                    enabled = !busy && entries.isEmpty(), modifier = Modifier.weight(1f).testTag("autofill-engine-online"),
+                                    label = { Text("Online AI", fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Rounded.Cloud, null, Modifier.size(16.dp)) })
+                                FilterChip(selected = engine == AiEntryEngine.OFFLINE, onClick = { onEngineChange(AiEntryEngine.OFFLINE) },
+                                    enabled = !busy && entries.isEmpty(), modifier = Modifier.weight(1f).testTag("autofill-engine-offline"),
+                                    label = { Text("Offline AI", fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Rounded.SmartToy, null, Modifier.size(16.dp)) })
+                            }
+                            Text(if (engine == AiEntryEngine.ONLINE) "Online AI: internet se samajhta hai, mushkil jumlay bhi. Is mein masla ho to error dikhega, Offline par nahi jayega."
+                                else "Offline AI: sirf phone par, bina internet. Is se na samajh aaye to error dikhega, Online par nahi jayega.",
+                                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         Spacer(Modifier.height(7.dp))
                         GradientButton(if (busy) "Preparing…" else "Prepare entries", ::prepare,
                             Modifier.fillMaxWidth().testTag("autofill-generate"), !busy && input.isNotBlank() && entries.isEmpty(), Icons.AutoMirrored.Rounded.Send)

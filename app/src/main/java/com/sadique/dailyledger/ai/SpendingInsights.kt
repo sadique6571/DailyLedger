@@ -87,8 +87,9 @@ object SpendingInsights {
             (loan.principalMinor - (loanPaidById[loan.id] ?: 0L)).coerceAtLeast(0L)
         }
 
-        val flexibleCategories = setOf("restaurant", "takeaway", "tea & coffee", "snacks", "subscriptions", "cinema & outings", "games & hobbies", "pizza", "burger", "biryani", "shawarma", "barbecue & kebab", "ice cream", "cake & sweets", "fries", "juice & shakes")
-        val optionalSpend = categories.filter { it.first.lowercase(Locale.ROOT) in flexibleCategories }.sumOf { it.second }
+        val flexibleCategories = setOf("restaurant", "takeaway", "tea & coffee", "snacks", "subscriptions", "cinema & outings", "games & hobbies", "pizza", "burger", "biryani", "shawarma", "barbecue & kebab", "ice cream", "cake & sweets", "fries", "juice & shakes", "salan", "chana breakfast", "paratha", "halwa puri", "pulao", "nihari", "haleem", "karahi", "samosa & pakora", "chaat & gol gappay", "noodles & pasta", "beverages", "chocolate", "toffee & candy", "papar", "biscuits", "chips & nimko")
+        val optionalRows = categories.filter { it.first.lowercase(Locale.ROOT) in flexibleCategories }
+        val optionalSpend = optionalRows.sumOf { it.second }
         val potentialSaving = optionalSpend / 5 // conservative 20% reduction scenario
 
         var score = 50
@@ -155,7 +156,8 @@ object SpendingInsights {
             }
 
             if (potentialSaving > 0L) {
-                tips += SpendingTip("Bachat ka ek option", "Recorded optional categories ko 20% kam karne ka example: ${rs(potentialSaving)}. Yeh mumkin bachat ka scenario hai; zaroori food aur medical costs is mein shamil nahi.")
+                val optionalNames = optionalRows.sortedByDescending { it.second }.take(3).joinToString(", ") { it.first }
+                tips += SpendingTip("Bachat ka ek option", "Recorded optional categories ($optionalNames) ko 20% kam karne ka example: ${rs(potentialSaving)}. Yeh mumkin bachat ka scenario hai; zaroori food aur medical costs is mein shamil nahi.")
             }
 
             if (summary.remaining < 0) {

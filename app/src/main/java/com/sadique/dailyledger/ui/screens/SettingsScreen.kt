@@ -46,7 +46,6 @@ import com.sadique.dailyledger.export.ExportPeriod
 import com.sadique.dailyledger.notifications.ExportNotifications
 import com.sadique.dailyledger.sync.*
 import com.sadique.dailyledger.ui.MainViewModel
-import com.sadique.dailyledger.weather.WeatherService
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
@@ -65,17 +64,11 @@ fun SettingsScreen(
     driveEnabled: Boolean,
     lastSync: Long,
     driveStatus: String,
-    weatherEnabled: Boolean,
-    weatherCity: String,
-    weatherTemperature: String,
-    weatherCondition: String,
-    weatherUpdatedAt: Long,
     transactionSounds: Boolean,
     onBack: () -> Unit,
     onTheme: (String) -> Unit,
     onBiometric: (Boolean) -> Unit,
     onDriveEnabled: (Boolean) -> Unit,
-    onWeatherEnabled: (Boolean) -> Unit,
     onTransactionSounds: (Boolean) -> Unit,
     onLogout: () -> Unit,
     onOpenSavings: () -> Unit = {},
@@ -141,21 +134,19 @@ fun SettingsScreen(
             }
         }
     }
-    var confirmation by remember { mutableStateOf<String?>(null) }
+    val settingsStore = remember { SettingsStore(context.applicationContext) }
     var resetStage by remember { mutableStateOf(0) }
     val offlineProfiles by vm.offlineProfiles.collectAsState()
     var offlineImport by remember { mutableStateOf<String?>(null) }
     var backupHistory by remember { mutableStateOf<List<DriveRevision>?>(null) }
     var selectedRevision by remember { mutableStateOf<DriveRevision?>(null) }
-    var cityInput by rememberSaveable(weatherCity) { mutableStateOf(weatherCity) }
-    val settingsStore = remember { SettingsStore(context.applicationContext) }
+    var confirmation by remember { mutableStateOf<String?>(null) }
     val backupState by remember(settingsStore) { settingsStore.all.map { it.driveState } }.collectAsState(initial = "unknown")
     val display = LocalDisplayPreferences.current!!
     val salaryTransactions by vm.transactions.collectAsState()
     val savings by vm.savings.collectAsState()
     val backupReady = lastSync > 0L
     var backupDetails by rememberSaveable { mutableStateOf(false) }
-    var cityEditor by rememberSaveable { mutableStateOf(false) }
     fun export(pdf: Boolean, previewOnly: Boolean = false, periodOverride: ExportPeriod? = null) {
         if (busy) return
         busy = true
@@ -331,13 +322,12 @@ fun SettingsScreen(
 
     fun backFromSettings() {
         when {
-            cityEditor -> cityEditor = false
             backupDetails -> backupDetails = false
             settingsQuery.isNotBlank() -> settingsQuery = ""
             else -> onBack()
         }
     }
-    BackHandler(enabled = cityEditor || backupDetails || settingsQuery.isNotBlank()) { backFromSettings() }
+    BackHandler(enabled = backupDetails || settingsQuery.isNotBlank()) { backFromSettings() }
 
     LedgerBackdrop(Modifier.fillMaxSize()) {
     LazyColumn(
@@ -491,7 +481,7 @@ fun SettingsScreen(
 
         if (matchesSetting("Cloud backup Restore account")) enteringItem(key = "settings-backup", index = 1, entranceKey = entranceVisit) {
             AccountBackupCard(driveEnabled, backupReady, if (lastSync > 0) formatTime(lastSync) else "Not yet backed up",
-                driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails; cityEditor = false }, backupState)
+                driveStatus, busy, onDriveEnabled, { confirmation = "DRIVE_RESTORE" }, { confirmation = "DRIVE_UPLOAD" }, { backupDetails = !backupDetails }, backupState)
             TextButton(onClick = { drive("HISTORY") }, enabled = !busy, modifier = Modifier.testTag("backup-history")) {
                 Icon(Icons.Rounded.History, null)
                 Spacer(Modifier.width(8.dp))
@@ -509,30 +499,8 @@ fun SettingsScreen(
             }
         }
 
-        if (matchesSetting("Weather location sounds personalization")) enteringItem(key = "settings-personalization", index = 2, entranceKey = entranceVisit) {
-            PersonalizationCard(transactionSounds, weatherEnabled, weatherCity, onTransactionSounds, onWeatherEnabled,
-                { cityEditor = !cityEditor; backupDetails = false }, { TransactionSoundPlayer.playBatchSuccess(context) })
-        }
-
-        if (cityEditor && matchesSetting("Weather location city")) enteringItem(key = "settings-weather", index = 3, entranceKey = entranceVisit) {
-            SectionCard("Weather location", "Choose your city. No GPS permission is needed.") {
-                OutlinedTextField(cityInput, { cityInput = it }, label = { Text("City") }, placeholder = { Text("Gujranwala, Pakistan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                if (weatherTemperature.isNotBlank()) Text("$weatherTemperature · $weatherCondition", style = MaterialTheme.typography.bodySmall)
-                Button(onClick = {
-                    busy = true; message = null
-                    scope.launch {
-                        try {
-                            settingsStore.setWeatherCity(cityInput)
-                            val weather = WeatherService().currentForCity(cityInput)
-                            settingsStore.setWeatherSnapshot(weather.city, weather.temperature, weather.condition, weather.fetchedAt)
-                            cityInput = weather.city; message = "Weather updated for ${weather.city}."; cityEditor = false
-                        } catch (e: CancellationException) { throw e }
-                        catch (e: Exception) { message = e.message ?: "Could not update weather. Try again when online." }
-                        finally { busy = false }
-                    }
-                }, enabled = !busy && cityInput.trim().length >= 2) { Text("Save city & refresh weather") }
-                Text("Weather data by Open-Meteo.", style = MaterialTheme.typography.bodySmall)
-            }
+        if (matchesSetting("sounds personalization")) enteringItem(key = "settings-personalization", index = 2, entranceKey = entranceVisit) {
+            PersonalizationCard(transactionSounds, onTransactionSounds, { TransactionSoundPlayer.playBatchSuccess(context) })
         }
 
         if (matchesSetting("Savings")) enteringItem(key = "settings-savings", index = 3, entranceKey = entranceVisit) {

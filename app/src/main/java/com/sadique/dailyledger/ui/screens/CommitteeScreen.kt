@@ -254,16 +254,24 @@ fun CommitteeScreen(
                         }
 
                         val myStructuredTurns = ms.filter { it.isMe }
+                        // Turns I own = ceil(selected shares): 1.5 -> 2, 2 -> 2, 2.5 -> 3, 3 -> 3.
+                        val myExpected = expectedTurnsForShares(committee.sharesHalfUnits)
                         if (myStructuredTurns.isNotEmpty()) {
+                            Text("My turns (${myStructuredTurns.size} of $myExpected): #${myStructuredTurns.map { it.turnNumber }.sorted().joinToString(", #")}", style = MaterialTheme.typography.titleSmall)
                             myStructuredTurns.forEach { member ->
                                 Text("My kameti turn: #${member.turnNumber} • ${member.turnMonth} • ${if (member.shareHalfUnits == 1) "0.5" else "1"} share", style = MaterialTheme.typography.titleSmall)
                                 Text(monthCountdown(member.turnMonth), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                             }
+                            if (myStructuredTurns.size < myExpected) {
+                                Text("${myExpected - myStructuredTurns.size} turn${if (myExpected - myStructuredTurns.size == 1) "" else "s"} still to add for your ${committee.sharesHalfUnits / 2.0} shares.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                TextButton(onClick = { addMemberTo = committee }) { Text("Add my remaining turn") }
+                            }
                         } else {
                             committee.payoutInstallment?.let { turn ->
                                 val month = scheduledMonth(committee, turn)
-                                Text("My kameti turn: #$turn • $month", style = MaterialTheme.typography.titleSmall)
+                                Text("My kameti turn: #$turn • $month (1 of $myExpected)", style = MaterialTheme.typography.titleSmall)
                                 Text(monthCountdown(month), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                if (myExpected > 1) TextButton(onClick = { addMemberTo = committee }) { Text("Add my remaining turn") }
                             }
                         }
 

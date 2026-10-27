@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 import java.time.YearMonth
 
-/** Single-line greeting row; the weather card was removed (user order). */
+/** Single-line greeting row. */
 @Composable
 internal fun DashboardGreetingSection(
     userName: String, month: YearMonth, cycleStartLabel: String?,

@@ -34,7 +34,6 @@ fun DashboardScreen(
     tx: List<TransactionEntity>, loans: List<LoanEntity>, lp: List<LoanPaymentEntity>,
     committees: List<CommitteeEntity>, cp: List<CommitteePaymentEntity>, receipts: List<CommitteeReceiptEntity>,
     committeeMembers: List<CommitteeMemberEntity> = emptyList(), savings: List<SavingEntity>, userName: String,
-    weatherEnabled: Boolean = false, weatherCity: String = "", weatherTemperature: String = "", weatherCondition: String = "",
     ledgerCycle: LedgerCycleEntity? = null, ledgerArchives: List<LedgerArchiveEntity> = emptyList(),
     onAddSalary: () -> Unit, onAddSalaryWithAmount: (String) -> Unit = { onAddSalary() }, onAddExpense: () -> Unit, onOpenSavings: () -> Unit, onOpenKameti: () -> Unit,
     onAutoFill: (() -> Unit)? = null, snapshot: SpendingSnapshot? = null, aiTips: List<SpendingTip> = emptyList(),
@@ -117,6 +116,7 @@ fun DashboardScreen(
     val spentRatio = if (availableForCycle > 0) (summary.totalOutflow.toFloat() / availableForCycle).coerceIn(0f, 1f) else if (summary.totalOutflow > 0) 1f else 0f
     val spentPct = (spentRatio * 100).roundToInt()
     val guide = remember(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) { DailySpendingGuide.calculate(tx, summary, today, salaryDay, plannedSalaryDate, salaryRecordedWhenPlanned) }
+    val todaySpentMinor = remember(tx, today) { tx.filter { it.type == "EXPENSE" && it.date == today.toString() }.sumOf { it.expenseEffect() } }
     val display = LocalDisplayPreferences.current!!
     val context = androidx.compose.ui.platform.LocalContext.current
     val visibleMoney: (Long) -> String = { if (showBalance && !display.privateAmounts) displayMoney(it) else "Rs •••••" }
@@ -149,7 +149,7 @@ fun DashboardScreen(
                     showBalance = showBalance, onToggleBalanceVisibility = { showBalance = !showBalance },
                     onOpenDetails = { balanceDetails = true },
                     salaryDay = salaryDay, plannedSalaryDate = plannedSalaryDate, money = visibleMoney,
-                    guideCollapsed = greetingCompact,
+                    guideCollapsed = greetingCompact, todaySpentMinor = todaySpentMinor,
                 )
                 if (salaryCelebrate) com.sadique.dailyledger.ui.CelebrationBurst(active = true, modifier = Modifier.matchParentSize())
                 }
