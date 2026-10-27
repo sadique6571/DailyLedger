@@ -13,6 +13,16 @@ import java.time.LocalDate
  private val context:Context=ApplicationProvider.getApplicationContext()
  private val valid="""{"message":"Check","transactions":[{"type":"EXPENSE","amount_pkr":"1500.25","category":"Fuel","note":"Petrol","date":"2026-10-06"}]}"""
  @Test fun parseExactMoneyRejectMalformed(){assertEquals(150025L,AiProtocol.decodeDrafts(valid).entries.single().amountMinor);for(bad in listOf(valid.replace("1500.25","-1"),valid.replace("1500.25","1.001"),valid.replace("2026-10-06","2026-02-30"),valid.replace("EXPENSE","DELETE"),valid.replace("\"type\":","\"ownerId\":\"other\",\"type\":"),"not json"))assertTrue(runCatching{AiProtocol.decodeDrafts(bad)}.exceptionOrNull() is AiException)}
+ @Test fun tolerantOnlineShapesStillParse(){
+  val today=LocalDate.now().toString()
+  val fenced="```json\n{\"message\":\"Ok\",\"transactions\":[{\"type\":\"expense\",\"amount_pkr\":30,\"category\":\"Sweets\",\"note\":\"Gachak\",\"date\":\"\"}]}\n```"
+  val f=AiProtocol.decodeDrafts(fenced).entries.single();assertEquals(3000L,f.amountMinor);assertEquals("EXPENSE",f.type);assertEquals(today,f.date)
+  val prose="Here is your entry: {\"message\":\"Ok\",\"transactions\":[{\"type\":\"EXPENSE\",\"amount_pkr\":\"Rs 1,500\",\"category\":\"Other\",\"note\":\"entertainment\",\"date\":\"2026-10-06\"}]} done"
+  assertEquals(150000L,AiProtocol.decodeDrafts(prose).entries.single().amountMinor)
+  val single="""{"message":"Ok","transactions":{"type":"EXPENSE","amount_pkr":"30","category":"","note":"snaks","date":"2026-10-06"}}"""
+  assertEquals("Other",AiProtocol.decodeDrafts(single).entries.single().category)
+  for(bad in listOf(valid.replace("1500.25","-1.5"),valid.replace("\"amount_pkr\":\"1500.25\"","\"amount_pkr\":1.001")))assertTrue(runCatching{AiProtocol.decodeDrafts(bad)}.exceptionOrNull() is AiException)
+ }
  @Test fun atomicIdempotentAccountScopedBatch()=runBlocking {
   val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
   try{val repo=LedgerRepository(db,"owner");LedgerRepository(db,"other").saveTransaction("EXPENSE",777,"Other","","2026-10-06");val first=AiProtocol.decodeDrafts(valid).entries.single();val batch="c98951b9-5f90-48a4-b1a3-433b80a47c1c";val drafts=listOf(first,first.copy(category="Milk",amountMinor=30000));repo.saveDraftBatch(drafts,batch);repo.saveDraftBatch(drafts,batch);assertEquals(2,db.ledgerDao().transactionsNow("owner").size);assertEquals(777L,db.ledgerDao().transactionsNow("other").single().amountMinor);assertTrue(runCatching{repo.saveDraftBatch(listOf(first.copy(amountMinor=999)),batch)}.isFailure)
@@ -73,3 +83,4 @@ import java.time.LocalDate
   assertTrue(prefs.reserve(AiTask.AUTOFILL,now+86400000));prefs.enabled=false
  }
 }
+

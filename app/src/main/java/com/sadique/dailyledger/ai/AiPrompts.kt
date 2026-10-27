@@ -16,13 +16,14 @@ internal object AiPrompts {
             Explicit tomorrow/aane wala kal means tomorrow; day after tomorrow/aane wala parson means two days ahead.
             Kal raat/last night means yesterday; aaj subah/this morning means today. Invalid dates must return no transactions.
             amount_pkr is a positive rupee decimal STRING with at most two decimal places, no commas, at most 10000000000.
+            It must be a bare number string like "30" or "30.50" — never with Rs, commas, units, or extra text.
             Salary/tankhwah is INCOME with category Salary. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.
             Use Salan for purchased cooked curry; Packaged milk for Milk Pak/Milk Pack/Olpers (plain doodh stays Milk).
             Chocolate, Toffee & candy, Papar, Biscuits, and Chips & nimko have separate categories; do not collapse them into Other or generic Snacks.
             Maximum ${AiProtocol.MAX_DRAFTS} drafts. Each category max 60 characters, note max 500, date YYYY-MM-DD.
             This feature cannot create savings, loans, kameti, transfers, edits or deletions.
-            For ambiguous, unsupported or mixed requests, return no transactions and ask for clarification.
+            If an item and its amount are both present, ALWAYS return that transaction — even when the item is local, misspelled, or not in the list: use the closest category from the list, otherwise Other. Return no transactions ONLY when no item or no amount can be determined; then say in message what is missing.
             message is a brief Roman Urdu explanation, max 500 characters. Never say entries are saved.
             Users must review each draft and press Save. Do not perform calculations or actions outside extraction.
         """.trimIndent()
@@ -87,3 +88,4 @@ internal object AiPrompts {
     fun statementSummary(personJson: String): AiModelRequest =
         AiModelRequest(AiTask.TEXT, ADVISOR_RULES + "\nWrite exactly 2 short summary lines for an udhar statement: previous balance, payments made, and what remains. Output only the 2 lines.", personJson)
 }
+

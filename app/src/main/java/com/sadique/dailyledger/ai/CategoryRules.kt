@@ -77,7 +77,7 @@ object CategoryRules {
 
         Rule("Takeaway", listOf("takeaway", "delivery", "foodpanda", "food panda")),
         Rule("Tea & coffee", listOf("chai", "coffee", "cafe", "چائے")),
-        Rule("Snacks", listOf("snack", "snacks", "papar", "chips", "icecream", "ice cream", "samosa", "samosay")),
+        Rule("Snacks", listOf("snack", "snacks", "papar", "chips", "icecream", "ice cream", "samosa", "samosay", "gachak")),
         Rule("Restaurant", listOf("restaurant", "dinner", "lunch", "biryani", "burger", "pizza", "khana", "nashta", "breakfast", "کھانا")),
 
         Rule("Rent", listOf("house rent", "shop rent", "dukan rent", "makan kiraya", "kiraya makan", "makan ka kiraya", "rent")),
@@ -314,3 +314,4 @@ object CategoryRules {
         return " $normalizedText ".contains(" $normalizedAlias ")
     }
 }
+
