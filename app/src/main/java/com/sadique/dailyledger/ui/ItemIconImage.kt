@@ -18,10 +18,14 @@ import kotlinx.coroutines.withContext
  * is tiny (at most 64 KB, at most 128x128) and decoded off the main thread.
  */
 @Composable
-fun rememberItemIconBitmap(label: String): ImageBitmap? {
+fun rememberItemIconBitmap(label: String, version: Int = 0): ImageBitmap? {
     val context = LocalContext.current
     val file = remember(label) { ItemIconService.iconFile(context, label) }
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, file) {
+    // Keyed on version too: a row composed before a backfill run stored the
+    // file would otherwise keep its first-composition null forever, because
+    // the file path never changes. The ViewModel bumps the version after
+    // every run that stored a new icon.
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, file, version) {
         value = withContext(Dispatchers.IO) {
             runCatching {
                 if (!file.exists() || file.length() == 0L) null

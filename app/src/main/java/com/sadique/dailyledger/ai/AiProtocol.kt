@@ -44,6 +44,23 @@ object AiProtocol {
         }
         return t
     }
+    /** A model answering without json_object mode may return a bare JSON array
+     * instead of {"suggestions": [...]}. Same guards as the object path:
+     * balanced brackets with strings respected; dangerous keys are still
+     * rejected per row by the caller. */
+    private fun extractJsonArray(content:String):JSONArray? {
+        val t = content.trim()
+        val start = t.indexOf('[')
+        if (start < 0) return null
+        var depth = 0; var inStr = false; var esc = false; var i = start
+        while (i < t.length) {
+            val c = t[i]
+            if (inStr) { if (esc) esc = false else if (c == '\\') esc = true else if (c == '"') inStr = false }
+            else when (c) { '"' -> inStr = true; '[' -> depth++; ']' -> { depth--; if (depth == 0) return runCatching { JSONArray(t.substring(start, i + 1)) }.getOrNull() } }
+            i++
+        }
+        return null
+    }
     private fun cleanAmount(raw:Any?):String? {
         val text = when (raw) {
             null, JSONObject.NULL -> return null
@@ -124,7 +141,7 @@ object AiProtocol {
         val rows=when (val s=root.opt("suggestions")) {
             is JSONArray -> s
             is JSONObject -> JSONArray().put(s)
-            else -> error("Expected suggestions array")
+            else -> extractJsonArray(content) ?: error("Expected suggestions array")
         }
         val tips=mutableListOf<SpendingTip>()
         for (i in 0 until rows.length()) {

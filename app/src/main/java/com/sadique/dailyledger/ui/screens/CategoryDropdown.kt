@@ -125,7 +125,7 @@ fun CategoryDropdown(
                         // A downloaded original icon wins; otherwise the
                         // default category visual. Covers learned items and
                         // backfilled built-ins through the same file lookup.
-                        val downloaded = rememberItemIconBitmap(category.label)
+                        val downloaded = rememberItemIconBitmap(category.label, LocalIconVersion.current)
                         DropdownMenuItem(text = { Text(category.label) },
                             leadingIcon = {
                                 if (downloaded != null) Image(downloaded, null,

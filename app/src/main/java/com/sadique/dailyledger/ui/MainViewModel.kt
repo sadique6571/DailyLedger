@@ -168,6 +168,11 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
      * category options rebuild even when the transaction list is unchanged. */
     private val _learnedOverlayVersion = MutableStateFlow(0)
     val learnedOverlayVersion: StateFlow<Int> = _learnedOverlayVersion.asStateFlow()
+    /** Bumped after every icon-backfill run that stored a new icon, so
+     * dropdown rows re-read their icon file instead of keeping the
+     * first-composition default forever. */
+    private val _iconVersion = MutableStateFlow(0)
+    val iconVersion: StateFlow<Int> = _iconVersion.asStateFlow()
     private fun refreshLearnedOverlay(items: List<LearnedItem>) {
         CategoryCatalog.setLearnedOverlay(items)
         _learnedOverlayVersion.value++
@@ -306,7 +311,8 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
                         }
                     }
                 }
-            }
+                if (stored > 0) _iconVersion.value++
+            }.onFailure { android.util.Log.w("ItemIcons", "Icon backfill failed", it) }
         }
     }
     fun startNewMonth() = launch { startNewLedgerCycle() }

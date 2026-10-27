@@ -20,6 +20,7 @@ internal object AiPrompts {
             Salary/tankhwah is INCOME with category Salary. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.
             Use Salan for purchased cooked curry; Packaged milk for Milk Pak/Milk Pack/Olpers (plain doodh stays Milk).
+            Pakistani Roman-Urdu meanings — never guess these from spelling: Parday means curtains (window curtains). If 'curtains' is in the list, use it; otherwise use Furniture — never Other for curtains. Mong phali, mongphali and moong phali all mean peanuts — use Peanuts, never Moong dal (moong dal is a lentil, not peanuts).
             Chocolate, Toffee & candy, Papar, Biscuits, and Chips & nimko have separate categories; do not collapse them into Other or generic Snacks.
             Maximum ${AiProtocol.MAX_DRAFTS} drafts. Each category max 60 characters, note max 500, date YYYY-MM-DD.
             NOTE IS THE EXACT ITEM NAME ONLY. Write the real item exactly as named in the input or answer — for example Parday, Gachak, Doodh. Never put the category, the amount, or a sentence in note. If the item wording is unclear, use the input's own words for the item. A generic note such as "expense", "item" or "Other" is never acceptable when a real item name exists.

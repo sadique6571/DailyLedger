@@ -63,7 +63,8 @@ internal object OpenAiGateway {
             .put("temperature", 0.2)
             .put("max_tokens", when (request.task) {
                 AiTask.AUTOFILL -> 6_000
-                AiTask.INSIGHTS -> 3_000
+                // Reasoning models share this budget with their reasoning tokens; 3,000 truncated the insights JSON every time.
+                AiTask.INSIGHTS -> 6_000
                 AiTask.TEXT -> 3_000
             })
         if (jsonMode) body.put("response_format", JSONObject().put("type", "json_object"))

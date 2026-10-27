@@ -24,3 +24,5 @@ data class CategoryOptions(val indexed: List<Pair<LedgerCategory, String>>, val 
     }
 }
 val LocalCategoryOptions = staticCompositionLocalOf<Map<String, CategoryOptions>?> { null }
+/** Bumped by the ViewModel after an icon-backfill run stores a new icon; dropdown rows key their icon lookup on it. */
+val LocalIconVersion = staticCompositionLocalOf { 0 }
