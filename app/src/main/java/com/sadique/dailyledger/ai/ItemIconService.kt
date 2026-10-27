@@ -178,7 +178,7 @@ object ItemIconService {
                 if (scaled !== decoded) decoded.recycle()
             }
         } catch (_: Exception) {
-            false
+            return false
         } finally {
             conn.disconnect()
         }
