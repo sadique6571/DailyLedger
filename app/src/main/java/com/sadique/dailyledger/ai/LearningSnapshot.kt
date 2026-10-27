@@ -1,17 +1,24 @@
 package com.sadique.dailyledger.ai
 
+import com.sadique.dailyledger.data.LearnedItem
+import com.sadique.dailyledger.data.LearnedItems
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.Locale
 
-/** Versioned learning data, stored with the account's encrypted Room ledger and Drive snapshot. */
+/** Versioned learning data, stored with the account's encrypted Room ledger and account backup. */
 data class LearningSnapshot(
     val rules: List<LearnedCategoryRule> = emptyList(),
     val suppressed: Set<String> = emptySet(),
     val dismissedTips: Set<String> = emptySet(),
+    /** Items learned from saved Online AI entries. Backed up and restored
+     * with the snapshot (see exportJson/importJson); their icons live in
+     * filesDir and are re-downloaded from [LearnedItem.iconUrl] after a
+     * restore, or by name when no URL was recorded. */
+    val items: List<LearnedItem> = emptyList(),
 ) {
-    val hasContent get() = rules.isNotEmpty() || suppressed.isNotEmpty() || dismissedTips.isNotEmpty()
+    val hasContent get() = rules.isNotEmpty() || suppressed.isNotEmpty() || dismissedTips.isNotEmpty() || items.isNotEmpty()
     fun validated(): LearningSnapshot {
         require(rules.size <= 200 && suppressed.size <= 500 && dismissedTips.size <= 100) { "AI learning exceeds supported limits." }
         require(rules.all { it.type in setOf("INCOME", "EXPENSE") && it.phrase.isNotBlank() && it.phrase.length <= 120 &&
@@ -21,11 +28,26 @@ data class LearningSnapshot(
             key.substringBefore(':') in setOf("INCOME", "EXPENSE") && key.substringAfter(':', "").let { it.isNotBlank() && it.length <= 500 && CategoryLearning.normalize(it).isNotBlank() }
         }) { "Invalid ignored AI learning rule." }
         require(dismissedTips.all { Regex("[a-f0-9]{64}").matches(it) }) { "Invalid suggestion feedback." }
+        require(items.size <= LearnedItems.MAX_ITEMS) { "Too many learned items." }
+        require(items.all {
+            it.type in setOf("INCOME", "EXPENSE") && it.name.isNotBlank() && it.name.length <= 60 &&
+                it.category.isNotBlank() && it.category.length <= 60 &&
+                (it.iconUrl.isNullOrBlank() || LearnedItems.isValidIconUrl(it.iconUrl))
+        }) { "Invalid learned item." }
+        require(items.map { it.type to LearnedItems.normalizeName(it.name) }.distinct().size == items.size) {
+            "Duplicate learned items."
+        }
         return this
     }
-    fun json(): JSONObject = JSONObject().put("version", 1).put("rules", JSONArray().apply {
+    fun json(): JSONObject = JSONObject().put("version", 2).put("rules", JSONArray().apply {
         rules.forEach { put(JSONObject().put("type", it.type).put("phrase", it.phrase).put("category", it.category)) }
     }).put("suppressed", JSONArray(suppressed.sorted())).put("dismissedTips", JSONArray(dismissedTips.sorted()))
+        .put("items", JSONArray().apply {
+            items.forEach {
+                put(JSONObject().put("name", it.name).put("type", it.type).put("category", it.category)
+                    .put("iconUrl", it.iconUrl ?: JSONObject.NULL))
+            }
+        })
 
     fun remember(type: String, phrase: String, category: String): LearningSnapshot {
         val normalized = CategoryLearning.normalize(phrase).take(120)
@@ -39,17 +61,40 @@ data class LearningSnapshot(
         return copy(rules = rules.filterNot { it.type == type && CategoryLearning.normalize(it.phrase) == normalized },
             suppressed = (suppressed + "$type:$normalized").toList().takeLast(500).toSet()).validated()
     }
+    /** Add learned items, skipping ones already present (normalized name + type). */
+    fun learnItems(newItems: List<LearnedItem>): LearningSnapshot {
+        var current = items
+        for (item in newItems) current = LearnedItems.add(current, item)
+        return copy(items = current).validated()
+    }
+    /** Record the working icon source URL for a learned item after a download. */
+    fun withItemIcon(name: String, type: String, iconUrl: String?): LearningSnapshot {
+        if (iconUrl.isNullOrBlank()) return this
+        val wanted = LearnedItems.normalizeName(name)
+        return copy(items = items.map {
+            if (it.type == type && LearnedItems.normalizeName(it.name) == wanted) it.copy(iconUrl = iconUrl.take(500)) else it
+        }).validated()
+    }
     fun mergeOlder(older: LearningSnapshot): LearningSnapshot {
         val merged = (rules + older.rules.filterNot { "${it.type}:${CategoryLearning.normalize(it.phrase)}" in suppressed }).distinctBy { it.type to CategoryLearning.normalize(it.phrase) }
         val activeKeys = merged.map { "${it.type}:${CategoryLearning.normalize(it.phrase)}" }.toSet()
+        val mergedItems = (items + older.items.filterNot { old ->
+            items.any { it.type == old.type && LearnedItems.normalizeName(it.name) == LearnedItems.normalizeName(old.name) }
+        }).distinctBy { it.type to LearnedItems.normalizeName(it.name) }
         return copy(rules = merged, suppressed = (suppressed + older.suppressed) - activeKeys,
-            dismissedTips = dismissedTips + older.dismissedTips).validated()
+            dismissedTips = dismissedTips + older.dismissedTips, items = mergedItems).validated()
     }
     fun dismiss(tip: SpendingTip) = copy(dismissedTips = (dismissedTips + feedbackKey(tip)).toList().takeLast(100).toSet()).validated()
 
     companion object {
         fun decode(root: JSONObject): LearningSnapshot {
-            require(root.keys().asSequence().toSet() == setOf("version", "rules", "suppressed", "dismissedTips") && root.getInt("version") == 1) { "Unsupported AI learning backup." }
+            val version = root.getInt("version")
+            // v1 payloads (before learned items) decode with empty items;
+            // v2 adds the items array. Anything else is unsupported.
+            require(version == 1 || version == 2) { "Unsupported AI learning backup." }
+            val expected = if (version == 1) setOf("version", "rules", "suppressed", "dismissedTips")
+                else setOf("version", "rules", "suppressed", "dismissedTips", "items")
+            require(root.keys().asSequence().toSet() == expected) { "Unsupported AI learning backup." }
             fun text(row: JSONObject, key: String) = (row.get(key) as? String) ?: error("AI learning text expected.")
             fun strings(key: String): Set<String> {
                 val array = root.getJSONArray(key)
@@ -59,11 +104,22 @@ data class LearningSnapshot(
                 return values.toSet()
             }
             val rows = root.getJSONArray("rules"); require(rows.length() <= 200)
+            val items = if (version == 1) emptyList() else {
+                val array = root.getJSONArray("items"); require(array.length() <= LearnedItems.MAX_ITEMS)
+                (0 until array.length()).map { i ->
+                    val row = array.getJSONObject(i)
+                    require(row.keys().asSequence().toSet() == setOf("name", "type", "category", "iconUrl"))
+                    LearnedItem(
+                        text(row, "name"), text(row, "type"), text(row, "category"),
+                        if (row.isNull("iconUrl")) null else text(row, "iconUrl"),
+                    )
+                }
+            }
             return LearningSnapshot((0 until rows.length()).map { i ->
                 val row = rows.getJSONObject(i)
                 require(row.keys().asSequence().toSet() == setOf("type", "phrase", "category"))
                 LearnedCategoryRule(text(row, "type"), text(row, "phrase"), text(row, "category"))
-            }, strings("suppressed"), strings("dismissedTips")).validated()
+            }, strings("suppressed"), strings("dismissedTips"), items).validated()
         }
         fun feedbackKey(tip: SpendingTip): String {
             val text = (tip.title + "\n" + tip.detail).lowercase(Locale.ROOT).replace(Regex("[0-9]+(?:[.,][0-9]+)*"), "#").replace(Regex("\\s+"), " ").trim()

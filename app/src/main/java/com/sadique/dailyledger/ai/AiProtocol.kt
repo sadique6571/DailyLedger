@@ -4,26 +4,24 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class AiException(message:String):Exception(message)
 data class AiDraftResult(val message:String,val entries:List<TransactionDraft>, val reviewIssues: List<List<String>> = emptyList())
 object AiProtocol {
     const val MAX_INPUT=3000
     const val MAX_DRAFTS=30
-    private fun JSONObject.only(expected:Set<String>){require(keys().asSequence().toSet()==expected)}
-    private fun JSONObject.text(key:String):String=(get(key) as? String)?:error("Expected text")
     /**
-     * Real model answers are rarely as tidy as the schema promises: JSON wrapped
-     * in ``` fences or prose, amount_pkr as a bare number instead of a string,
-     * lowercase types, or a missing date/note. All of those used to reject the
-     * WHOLE answer with "AI returned an invalid entry" — so Online AI created
-     * nothing for any input. Normalize those harmless shape differences here.
-     * What stays strictly rejected (tested in AiDataTest): negative amounts,
-     * more than two decimals, impossible dates, unknown types, extra keys
-     * (e.g. a smuggled ownerId), and non-JSON output. Money and dates are
-     * never invented: a missing date falls back to today (as the prompt says),
-     * a missing amount or type still fails.
+     * Keys that must never appear in a model answer: they smuggle account
+     * scoping into a draft (the ownerId test case). Every OTHER extra key is
+     * ignored — models routinely add benign keys (currency, confidence,
+     * summary) and the old all-or-nothing key check killed the whole answer
+     * for those, which is why Online AI failed for most inputs while a lucky
+     * clean answer (e.g. one "Parday 3500" run) succeeded.
      */
+    private val DANGEROUS_KEYS=setOf("ownerid","owner","accountid","userid","account_id","user_id","uid","owner_id")
+    private fun JSONObject.hasDangerousKey():Boolean=keys().asSequence().any{it.lowercase() in DANGEROUS_KEYS}
     private fun extractJsonObject(content:String):String {
         var t = content.trim()
         if (t.startsWith("```")) {
@@ -51,37 +49,94 @@ object AiProtocol {
             null, JSONObject.NULL -> return null
             is Number -> raw.toString()
             is String -> raw.trim()
-                .replace(Regex("^(?i)(rs\\.?|pkr)\\s*"), "")
+                // Currency may sit before OR after the number ("3500 PKR",
+                // "Rs. 3,500/-") — strip every currency token, not just a prefix.
+                .replace(Regex("(?i)rs\\.?|pkr|/-"), "")
                 .replace(",", "").replace(" ", "")
             else -> return null
         }
         return text.takeIf { Regex("[0-9]{1,11}(\\.[0-9]{1,2})?").matches(it) }
     }
+    private fun normalizeType(raw:String):String = when (raw.trim().uppercase()) {
+        "DEBIT","OUTFLOW","SPENDING","SPENT" -> "EXPENSE"
+        "CREDIT","INFLOW","EARNING","EARNED" -> "INCOME"
+        else -> raw.trim().uppercase()
+    }
+    private fun normalizeDate(raw:String):String {
+        val t = raw.trim()
+        if (t.isBlank()) return LocalDate.now().toString()
+        runCatching { return LocalDate.parse(t).toString() }
+        // Day-first numeric dates: the prompt itself says DD/MM/YYYY is
+        // day-first, yet validated() only accepts ISO — so a model obeying
+        // the prompt was rejected outright.
+        for (fmt in listOf("dd/MM/yyyy","dd-MM-yyyy","yyyy/MM/dd")) {
+            runCatching { return LocalDate.parse(t, DateTimeFormatter.ofPattern(fmt)).toString() }
+        }
+        for (fmt in listOf("d MMM yyyy","d MMMM yyyy","MMM d, yyyy","MMMM d, yyyy")) {
+            runCatching { return LocalDate.parse(t, DateTimeFormatter.ofPattern(fmt, Locale.ENGLISH)).toString() }
+        }
+        error("Bad date")
+    }
+    /**
+     * Real model answers are rarely as tidy as the schema promises. Harmless
+     * shape differences are normalized; what stays strictly rejected (tested
+     * in AiDataTest): account-scoping keys, negative amounts, more than two
+     * decimals, unparseable dates, unknown types, and non-JSON output. Money
+     * and dates are never invented: a missing date falls back to today (as
+     * the prompt says), a missing amount or type still fails, and an empty
+     * transactions list decodes to empty — AiService retries that once.
+     */
     fun decodeDrafts(content:String):AiDraftResult=try {
         val root=JSONObject(extractJsonObject(content))
-        require(root.keys().asSequence().toSet().all{it in setOf("message","transactions")} && root.has("transactions"))
+        require(!root.hasDangerousKey() && root.has("transactions"))
         val message=root.optString("message").take(1000)
         val rows=when (val tx=root.opt("transactions")) {
             is JSONArray -> tx
             is JSONObject -> JSONArray().put(tx)
             else -> error("Expected transactions array")
         }
-        require(rows.length()<=MAX_DRAFTS)
-        val entries=(0 until rows.length()).map { i ->
-            val row=rows.getJSONObject(i)
-            require(row.keys().asSequence().toSet().all{it in setOf("type","amount_pkr","category","note","date")})
-            require(row.has("type") && row.has("amount_pkr"))
+        val entries=mutableListOf<TransactionDraft>()
+        for (i in 0 until rows.length()) {
+            if (entries.size >= MAX_DRAFTS) break
+            val row=rows.optJSONObject(i) ?: continue
+            if (row.hasDangerousKey()) error("Dangerous key")
+            if (!row.has("type") || !row.has("amount_pkr")) error("Missing type or amount")
             val amount=cleanAmount(row.opt("amount_pkr")) ?: error("Bad amount")
-            val type=row.optString("type").trim().uppercase()
-            val category=row.optString("category").trim().ifBlank{"Other"}
+            val type=normalizeType(row.optString("type"))
+            val category=row.optString("category").trim().ifBlank{"Other"}.take(60)
             val note=row.optString("note").take(500)
-            val date=row.optString("date").trim().ifBlank{LocalDate.now().toString()}
-            TransactionDraft(type,BigDecimal(amount).movePointRight(2).longValueExact(),category,note,date).validated()
-        };AiDraftResult(message.ifBlank{"Entries check karke Save karein."},entries)
+            val date=normalizeDate(row.optString("date"))
+            entries += TransactionDraft(type,BigDecimal(amount).movePointRight(2).longValueExact(),category,note,date).validated()
+        }
+        AiDraftResult(message.ifBlank{"Entries check karke Save karein."},entries)
     }catch(_:Exception){throw AiException("AI returned an invalid entry. Nothing was saved. Try a clearer description.")}
+    /**
+     * Suggestions used to be decoded strictly (exact keys, title 1..80,
+     * detail 1..600, no fences) while the insights prompt never states those
+     * limits — so a refresh only "worked" when the model happened to obey
+     * them, i.e. after 5-7 taps. Same tolerance as drafts: fences/prose
+     * stripped, extra keys ignored, long text truncated, rows capped at 3.
+     * A truly empty answer still fails with the existing message.
+     */
     fun decodeInsights(content:String):List<SpendingTip> = try {
-        val root=JSONObject(content);root.only(setOf("suggestions"));val rows=root.getJSONArray("suggestions");require(rows.length() in 1..3)
-        (0 until rows.length()).map {i->val row=rows.getJSONObject(i);row.only(setOf("title","detail"));SpendingTip(row.text("title").also{require(it.length in 1..80)},row.text("detail").also{require(it.length in 1..600)})}
+        val root=JSONObject(extractJsonObject(content))
+        require(!root.hasDangerousKey())
+        val rows=when (val s=root.opt("suggestions")) {
+            is JSONArray -> s
+            is JSONObject -> JSONArray().put(s)
+            else -> error("Expected suggestions array")
+        }
+        val tips=mutableListOf<SpendingTip>()
+        for (i in 0 until rows.length()) {
+            if (tips.size >= 3) break
+            val row=rows.optJSONObject(i) ?: continue
+            if (row.hasDangerousKey()) error("Dangerous key")
+            val title=row.optString("title").trim().take(80)
+            if (title.isBlank()) continue
+            tips += SpendingTip(title,row.optString("detail").trim().take(600))
+        }
+        require(tips.isNotEmpty())
+        tips
     }catch(_:Exception){throw AiException("AI suggestions are unavailable. Local insights still work.")}
     fun context(s:SpendingSnapshot):JSONObject {
         fun money(v:Long)=BigDecimal.valueOf(v,2).toPlainString()

@@ -22,6 +22,7 @@ internal object AiPrompts {
             Use Salan for purchased cooked curry; Packaged milk for Milk Pak/Milk Pack/Olpers (plain doodh stays Milk).
             Chocolate, Toffee & candy, Papar, Biscuits, and Chips & nimko have separate categories; do not collapse them into Other or generic Snacks.
             Maximum ${AiProtocol.MAX_DRAFTS} drafts. Each category max 60 characters, note max 500, date YYYY-MM-DD.
+            NOTE IS THE EXACT ITEM NAME ONLY. Write the real item exactly as named in the input or answer — for example Parday, Gachak, Doodh. Never put the category, the amount, or a sentence in note. If the item wording is unclear, use the input's own words for the item. A generic note such as "expense", "item" or "Other" is never acceptable when a real item name exists.
             This feature cannot create savings, loans, kameti, transfers, edits or deletions.
             If an item and its amount are both present, ALWAYS return that transaction — even when the item is local, misspelled, or not in the list: use the closest category from the list, otherwise Other. Return no transactions ONLY when no item or no amount can be determined; then say in message what is missing.
             message is a brief Roman Urdu explanation, max 500 characters. Never say entries are saved.
@@ -29,6 +30,14 @@ internal object AiPrompts {
         """.trimIndent()
         val input = JSONObject().put("text", text.trim()).put("today", today.toString()).toString()
         return AiModelRequest(AiTask.AUTOFILL, instruction, input)
+    }
+
+    /** Second attempt after an empty answer: force exactly one transaction
+     * for the given item and amount — never an empty list, never an
+     * invented amount. Only used when the input carries a digit. */
+    fun draftsRepair(text: String, today: LocalDate, catalog: List<LedgerCategory>): AiModelRequest {
+        val base = drafts(text, today, catalog)
+        return base.copy(instruction = base.instruction + "\nSecond attempt: the previous answer had no transactions. Return EXACTLY ONE transaction for the item and amount given — never an empty list. If unsure of the category, use Other. Use only the keys message and transactions; each transaction only type, amount_pkr, category, note, date.")
     }
 
     fun insights(snapshot: SpendingSnapshot, catalog: List<LedgerCategory>): AiModelRequest {
@@ -46,11 +55,14 @@ internal object AiPrompts {
             other_income is included in remaining. Loans and kameti amounts received remain separate from salary balance.
             Compare current_comparable and previous_comparable only; both cover comparison_days.
             If previous_comparable is zero, state that comparison data is insufficient.
+            GROUND EVERY TIP IN THE SUPPLIED NUMBERS. Every tip must name one exact category from the summary with its actual amount AND one concrete rupee action — for example "Snacks par is mahine Rs 2,400 kharch hue; agle hafte Rs 500 kam karke Rs 500 bacha sakte hain". A tip with no category, no amount and no rupee action is not acceptable.
+            START WITH THE LARGEST OPTIONAL-SPENDING CATEGORY in the summary, then the next largest; never start with a small or essential category. Use month progress (through date, remaining, saved_this_month, saving_rate_percent) to say how many days are left and what pace is needed.
             Use category names exactly as they appear in the supplied summary when tailoring advice.
             Give category-aware suggestions for groceries, household supplies, transport, education and family medical totals when present.
             Do not merge family-member medical, education or travel categories into generic household spending.
             Suggest small optional-spending reductions as possible savings, never guarantees.
             Never suggest skipping medicines, food, rent or essential bills. No investment or product recommendations.
+            If there is nothing optional left to cut, say so plainly instead of inventing a cut — for example that spending is already mostly essential and the best step is to protect the remaining balance.
             Never claim records were changed. Do not infer private identities from the totals.
         """.trimIndent()
         return AiModelRequest(AiTask.INSIGHTS, instruction, input)

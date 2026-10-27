@@ -69,15 +69,49 @@ class AiService(private val context: Context, private val owner: String) {
     } catch (e: CancellationException) { throw e }
     catch (e: Exception) { throw AiFailures.describe(e) }
 
-    suspend fun drafts(input: String): AiDraftResult {
+    suspend fun drafts(input: String, learned: List<com.sadique.dailyledger.data.LearnedItem> = emptyList()): AiDraftResult {
         require(input.isNotBlank() && input.length <= AiProtocol.MAX_INPUT)
         val dates = EntryDateParser.extract(EntryText.normalize(input), LocalDate.now()).map { it.date.toString() }.toSet()
-        val request = AiPrompts.drafts(input, LocalDate.now(), CategoryCatalog.load(context))
-        val result = CategoryRules.normalizeResult(AiProtocol.decodeDrafts(call(request)))
+        val catalog = (CategoryCatalog.load(context) +
+            com.sadique.dailyledger.data.LearnedItems.toLedgerCategories(learned))
+            .distinctBy { it.type to it.label }
+        val learnedLabels = learned.map { it.name }.toSet()
+        fun normalize(result: AiDraftResult): AiDraftResult =
+            CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
+        val first = normalize(AiProtocol.decodeDrafts(call(AiPrompts.drafts(input, LocalDate.now(), catalog))))
+        val result = if (first.entries.isNotEmpty()) first else {
+            // The model took the "return no transactions" escape hatch even
+            // though the input may carry an amount: one stricter retry. The
+            // retry is skipped when the input has no digit at all — then an
+            // empty answer is correct (the model must ask for the amount,
+            // never invent one) and the model's own message is shown.
+            // Infrastructure failures are rethrown as-is; only a second
+            // empty/shape failure becomes the specific error below — never
+            // the generic invalid-entry dead end, and never a silent switch
+            // to offline.
+            if (!input.any { it.isDigit() }) first else {
+                val repaired = runCatching {
+                    normalize(AiProtocol.decodeDrafts(call(AiPrompts.draftsRepair(input, LocalDate.now(), catalog))))
+                }
+                val second = repaired.getOrNull()
+                if (second != null && second.entries.isNotEmpty()) second
+                else {
+                    val failure = repaired.exceptionOrNull()
+                    if (failure is CancellationException) throw failure
+                    if (failure is AiException && isInfrastructure(failure)) throw failure
+                    throw AiException("AI is jumlay se koi entry nahi bana saka. Item aur amount alag alag wazeh likh kar dobara koshish karein. Nothing was saved.")
+                }
+            }
+        }
         if (dates.isNotEmpty() && result.entries.any { it.date !in dates }) {
             throw AiException("AI did not preserve the dates you supplied. Nothing was saved. Please separate the entries or enter them manually.")
         }
         return result
+    }
+
+    private fun isInfrastructure(e: AiException): Boolean {
+        val m = e.message.orEmpty()
+        return listOf("[AI_NETWORK]", "[AI_LIMIT]", "[AI_TIMEOUT]", "[AI_DEVICE_LIMIT]", "[AI_KEY]", "[AI_RESPONSE]", "[AI_REQUEST]").any { it in m }
     }
 
     suspend fun insights(snapshot: SpendingSnapshot): List<SpendingTip> {

@@ -219,7 +219,10 @@ fun DailyLedgerApp(
     val categoryOptions = remember(user.id) { mutableStateOf<Map<String, CategoryOptions>?>(null) }
     val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
     val displayPrefs = LocalDisplayPreferences.current
-    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories) {
+    // Learned items join the picker as soon as the overlay refreshes, not
+    // only when the transaction list changes.
+    val learnedOverlayVersion by vm.learnedOverlayVersion.collectAsState()
+    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories, learnedOverlayVersion) {
         categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text, displayPrefs?.customCategories ?: emptyList())
         }

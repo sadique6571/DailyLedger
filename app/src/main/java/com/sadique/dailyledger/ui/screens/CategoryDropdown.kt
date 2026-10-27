@@ -39,6 +39,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import com.sadique.dailyledger.ui.rememberItemIconBitmap
 import com.sadique.dailyledger.ai.OfflineVocabulary
 import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.LedgerCategory
@@ -68,7 +72,7 @@ fun CategoryDropdown(
     val margin=with(density){8.dp.roundToPx()}
     val shared = LocalCategoryOptions.current?.get(type)
     val allHistory = LocalCategoryHistory.current
-    val options = shared ?: remember(context, allHistory, strings, type) {
+    val options = shared ?: remember(context, allHistory, strings, type, CategoryCatalog.overlayVersion) {
         CategoryOptions.build(CategoryCatalog.load(context), allHistory, strings::text).getValue(type)
     }
     val categories = options.indexed.map { it.first }
@@ -118,8 +122,16 @@ fun CategoryDropdown(
                     }
                     items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
                         val visual = rememberCategoryVisual(category.label, type)
+                        // A downloaded original icon wins; otherwise the
+                        // default category visual. Covers learned items and
+                        // backfilled built-ins through the same file lookup.
+                        val downloaded = rememberItemIconBitmap(category.label)
                         DropdownMenuItem(text = { Text(category.label) },
-                            leadingIcon = { GlowIcon(visual.icon, visual.color, size = 30.dp) },
+                            leadingIcon = {
+                                if (downloaded != null) Image(downloaded, null,
+                                    Modifier.size(30.dp).clip(CircleShape))
+                                else GlowIcon(visual.icon, visual.color, size = 30.dp)
+                            },
                             onClick = { choose(category.label) })
                     }
                 }

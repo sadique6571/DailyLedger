@@ -54,6 +54,10 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         try {
             if (!dao.hasProfileBackup(ownerId)) repo.profileSnapshot()
             repo.ensureLedgerCycle(); repo.learningSnapshot()
+            // Learned items join the picker from the first frame, and any
+            // icons lost to a restore are re-downloaded while online.
+            refreshLearnedOverlay(repo.learningSnapshot().items)
+            backfillIcons()
         }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { _error.value = e.message ?: "Saved data could not be loaded." }
@@ -159,7 +163,14 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     fun setAiEnabled(value: Boolean) { aiPrefs.enabled = value; manualInsights.setEnabled(value) }
     /** Persisted AI entry engine toggle (Task 2). Defaults to Online when Cloud
      * AI is enabled, else Offline; the user's explicit choice always wins. */
-    private val _aiEntryEngine = MutableStateFlow(aiPrefs.entryEngine ?: if (aiEnabled.value) AiEntryEngine.ONLINE else AiEntryEngine.OFFLINE)
+    /** Bumped whenever the learned-item overlay refreshes, so the shared
+     * category options rebuild even when the transaction list is unchanged. */
+    private val _learnedOverlayVersion = MutableStateFlow(0)
+    val learnedOverlayVersion: StateFlow<Int> = _learnedOverlayVersion.asStateFlow()
+    private fun refreshLearnedOverlay(items: List<LearnedItem>) {
+        CategoryCatalog.setLearnedOverlay(items)
+        _learnedOverlayVersion.value++
+    }
     val aiEntryEngine: StateFlow<AiEntryEngine> = _aiEntryEngine.asStateFlow()
     fun saveAiEntryEngine(engine: AiEntryEngine) { aiPrefs.entryEngine = engine; _aiEntryEngine.value = engine }
     private fun checkAccount(){check(FirebaseRuntime.auth(getApplication<Application>()).currentUser?.uid==ownerId){"Please sign in again."}}
@@ -183,11 +194,14 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         require(!OfflineMiniAi.usesDedicatedLedger(input)) { "Udhar Saman, loans, savings aur kameti apne tabs mein record karein. Auto Fill sirf income aur expenses ke liye hai." }
         DraftReviewPolicy.checkMissingDetails(input)
         val offline = OfflineMiniAi.drafts(input)
+        // Learned items are offered to the online model too, so a repeat
+        // "Parday 3500" comes back with category Parday, not Other.
+        val learnedSnapshot = repo.learningSnapshot()
         val result: AiDraftResult
         var usedCloud = false
         when (engine) {
             AiEntryEngine.ONLINE -> {
-                result = aiService.drafts(input).also { checkAccount() }
+                result = aiService.drafts(input, learnedSnapshot.items).also { checkAccount() }
                 usedCloud = true
             }
             AiEntryEngine.OFFLINE -> {
@@ -201,19 +215,19 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
                 val useOnlineFirst = aiEnabled.value && aiService.hasPersonalKey()
                 if (useOnlineFirst) {
                     result = try {
-                        aiService.drafts(input).also { checkAccount() }.also { usedCloud = true }
+                        aiService.drafts(input, learnedSnapshot.items).also { checkAccount() }.also { usedCloud = true }
                     } catch (e: CancellationException) { throw e }
                     catch (e: Exception) { offline ?: throw e }
                 } else if (offline != null) {
                     result = offline
                 } else {
                     check(aiEnabled.value) { "Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly." }
-                    result = aiService.drafts(input).also { checkAccount() }
+                    result = aiService.drafts(input, learnedSnapshot.items).also { checkAccount() }
                     usedCloud = true
                 }
             }
         }
-        val learned = repo.learningSnapshot()
+        val learned = learnedSnapshot
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
         val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
         val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
@@ -223,7 +237,77 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }
     suspend fun rememberCategory(type:String,phrase:String,category:String):String? =
         changeLearning { it.remember(type, phrase, category) }
-    suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.saveDraftBatch(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
+    suspend fun saveAiDrafts(drafts:List<TransactionDraft>,batchId:String,fromOnline:Boolean? = null){
+        val online = fromOnline ?: (_aiEntryEngine.value == AiEntryEngine.ONLINE)
+        BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.saveDraftBatch(drafts,batchId)}
+        if (online) {
+            // Items evolve: learn every real item name from the SAVED drafts
+            // (post-review, so user edits win), then refresh the picker and
+            // fetch original icons in the background. Learning never fails
+            // an already-saved entry, and the entry never waits for icons.
+            runCatching { withContext(Dispatchers.IO) {
+                val app = getApplication<Application>()
+                val catalog = CategoryCatalog.load(app)
+                val before = repo.learningSnapshot()
+                val fresh = drafts.mapNotNull { draft ->
+                    val name = ItemNames.extractItemName(draft.note, null, drafts.size == 1, draft.category) ?: return@mapNotNull null
+                    if (LearnedItems.isKnown(name, draft.type, catalog, before.items)) null
+                    else LearnedItem(name, draft.type, draft.category)
+                }
+                if (fresh.isNotEmpty()) {
+                    BackupLock.mutex.withLock {
+                        checkAccount()
+                        SettingsStore(app).markDrivePending(ownerId)
+                        repo.updateLearning { it.learnItems(fresh) }
+                    }
+                    refreshLearnedOverlay(repo.learningSnapshot().items)
+                }
+                backfillIcons(fresh)
+            } }
+        }
+        runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}
+    }
+    /**
+     * Background original-icon fetch: new learned items first, then older
+     * learned items still missing icons, then built-in labels. At most 8 new
+     * downloads per run — no network storm, no UI block, offline = silent
+     * skip (the default icon shows until a later run succeeds). Each working
+     * source URL is recorded in the snapshot so a restore can re-download
+     * the same icon; the next regular backup sync carries the record.
+     */
+    private fun backfillIcons(newItems: List<LearnedItem> = emptyList()) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val app = getApplication<Application>()
+                val fresh = repo.learningSnapshot()
+                val queue = mutableListOf<Pair<String, String?>>()
+                val seen = mutableSetOf<String>()
+                fun offer(label: String, url: String?) {
+                    val key = LearnedItems.normalizeName(label)
+                    if (key.isBlank() || key in seen) return
+                    seen += key
+                    if (!ItemIconService.hasIcon(app, label)) queue += label to url
+                }
+                newItems.forEach { offer(it.name, it.iconUrl) }
+                fresh.items.forEach { offer(it.name, it.iconUrl) }
+                CategoryCatalog.load(app).forEach { offer(it.label, null) }
+                var stored = 0
+                for ((label, url) in queue) {
+                    if (stored >= 8) break
+                    val source = ItemIconService.ensureIcon(app, label, url) ?: continue
+                    stored++
+                    val item = fresh.items.firstOrNull { LearnedItems.normalizeName(it.name) == LearnedItems.normalizeName(label) }
+                    if (item != null) {
+                        BackupLock.mutex.withLock {
+                            checkAccount()
+                            SettingsStore(app).markDrivePending(ownerId)
+                            repo.updateLearning { it.withItemIcon(item.name, item.type, source) }
+                        }
+                    }
+                }
+            }
+        }
+    }
     fun startNewMonth() = launch { startNewLedgerCycle() }
     fun archivePreviousMonth(onSuccess:(Boolean)->Unit) = viewModelScope.launch {
         try {
