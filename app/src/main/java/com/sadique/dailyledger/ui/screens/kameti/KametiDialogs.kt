@@ -78,7 +78,7 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
         text = {
             Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Name / place") })
-                OutlinedTextField(shares, { shares = it }, label = { Text("My total shares (0.5, 1, 1.5, 2…)") }, supportingText = { Text("For 1.5: create a full turn and a half turn separately after saving.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(shares, { shares = it }, label = { Text("My total shares (0.5, 1, 1.5, 2…)") }, supportingText = { Text("Your turns = ceil(shares): 1.5 shares → 2 turns, 2.5 → 3. Add each turn in Add member / turn.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(amount, { amount = it }, label = { Text("Monthly PKR per kameti") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(total, { total = it }, label = { Text("Total monthly installments") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 if (valid) {
@@ -86,7 +86,7 @@ internal fun CommitteeDialog(dismiss: () -> Unit, save: (String, Long, Int, Stri
                     Text("Total expected receiving: ${visibleMoney(expected!!)}", style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(start, { start = it }, label = { Text("Start month YYYY-MM") }, isError = !isValidMonth(start), singleLine = true)
-                OutlinedTextField(payout, { payout = it }, label = { Text("Single payout turn (optional)") }, supportingText = { Text("For multiple turns, use Add member / turn.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(payout, { payout = it }, label = { Text("Single payout turn (optional)") }, supportingText = { Text("For your other turns, use Add member / turn (one row per turn).") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 if (p != null && t != null && p in 1..t && isValidMonth(start)) Text("My month: ${YearMonth.parse(start).plusMonths((p - 1).toLong())}", style = MaterialTheme.typography.bodySmall)
                 ContactPickerButton { _, pickedPhone -> organizerPhone = pickedPhone }
                 OutlinedTextField(organizerPhone, { organizerPhone = it }, label = { Text("Organizer phone / WhatsApp (optional)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
@@ -103,6 +103,7 @@ internal fun PersonalMemberBatchDialog(
     committee: CommitteeEntity,
     currentMembers: List<CommitteeMemberEntity>,
     dismiss: () -> Unit,
+    startAsMe: Boolean = false,
     save: suspend (String, List<PersonalTurnDraft>) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -110,11 +111,11 @@ internal fun PersonalMemberBatchDialog(
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val queued = remember(committee.id) { mutableStateListOf<PersonalTurnDraft>() }
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(if (startAsMe) "Me" else "") }
     var phone by remember { mutableStateOf("") }
     var whatsapp by remember { mutableStateOf("") }
     var turn by remember { mutableStateOf("") }
-    var isMe by remember { mutableStateOf(false) }
+    var isMe by remember { mutableStateOf(startAsMe) }
     var note by remember { mutableStateOf("") }
     var halfUnits by remember { mutableIntStateOf(2) }
     val turnNumber = turn.toIntOrNull()
@@ -134,8 +135,9 @@ internal fun PersonalMemberBatchDialog(
             if (saving) Text("Saving all entries…")
             else Column(Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("kameti-save-error")) }
-                Text("Use a separate row for every turn. If you own 2 shares, add two full turns; for 3 shares, add three. Every turn displays its calculated month.")
+                Text("Use a separate row for every turn. Your turns = ceil(shares): 1.5 shares → 2 turns, 2.5 → 3. Every turn displays its calculated month.")
                 Text("My shares assigned: ${myUsedUnits / 2.0} / ${committee.sharesHalfUnits / 2.0}")
+                Text("My turns: ${currentMembers.count { it.isMe } + queued.count { it.isMe }} of ${expectedTurnsForShares(committee.sharesHalfUnits)} (shares ke hisab se)")
                 queued.forEachIndexed { index, entry ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("${index + 1}. ${entry.name} • ${if (entry.isMe) "My" else "Member"} • ${if (entry.halfUnits == 1) "0.5" else "1"} share • #${entry.turn} • ${entry.month}",

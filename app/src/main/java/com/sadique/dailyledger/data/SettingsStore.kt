@@ -23,11 +23,6 @@ data class AppSettings(
     val driveStatus: String = "Back up your records to the cloud.",
     val driveVersion: String = "",
     val driveState: String = "unknown",
-    val weatherEnabled: Boolean = false,
-    val weatherCity: String = "",
-    val weatherTemperature: String = "",
-    val weatherCondition: String = "",
-    val weatherUpdatedAt: Long = 0,
     val transactionSounds: Boolean = false,
     val pinHash: String = "",
 )
@@ -43,11 +38,6 @@ class SettingsStore(private val context: Context) {
         val biometric = booleanPreferencesKey("biometric")
         val oldDrive = booleanPreferencesKey("drive_enabled")
         val oldSync = longPreferencesKey("last_sync")
-        val weatherEnabled = booleanPreferencesKey("weather_enabled")
-        val weatherCity = stringPreferencesKey("weather_city")
-        val weatherTemperature = stringPreferencesKey("weather_temperature")
-        val weatherCondition = stringPreferencesKey("weather_condition")
-        val weatherUpdatedAt = longPreferencesKey("weather_updated_at")
         val transactionSounds = booleanPreferencesKey("transaction_sounds")
     }
     private fun drive(owner: String) = booleanPreferencesKey("drive:$owner")
@@ -78,11 +68,6 @@ class SettingsStore(private val context: Context) {
             driveStatus = p[driveStatus(id)] ?: "Back up your records to the cloud.",
             driveVersion = p[driveVersionKey(id)].orEmpty(),
             driveState = p[driveStateKey(id)] ?: "unknown",
-            weatherEnabled = p[K.weatherEnabled] ?: false,
-            weatherCity = p[K.weatherCity].orEmpty(),
-            weatherTemperature = p[K.weatherTemperature].orEmpty(),
-            weatherCondition = p[K.weatherCondition].orEmpty(),
-            weatherUpdatedAt = p[K.weatherUpdatedAt] ?: 0L,
             transactionSounds = p[K.transactionSounds] ?: false,
             pinHash = p[pinHashKey(id)].orEmpty(),
         )
@@ -155,23 +140,6 @@ class SettingsStore(private val context: Context) {
         context.dataStore.data.first()[driveVersionKey(owner)].orEmpty()
     suspend fun setDriveVersion(owner: String, value: String) {
         context.dataStore.edit { it[driveVersionKey(owner)] = value }
-    }
-    suspend fun setWeatherEnabled(value: Boolean) { context.dataStore.edit { it[K.weatherEnabled] = value } }
-    suspend fun setWeatherCity(value: String) {
-        context.dataStore.edit {
-            it[K.weatherCity] = value.trim()
-            it[K.weatherUpdatedAt] = 0L
-        }
-    }
-    suspend fun setWeatherTemperature(value: String) { context.dataStore.edit { it[K.weatherTemperature] = value.trim() } }
-    suspend fun setWeatherCondition(value: String) { context.dataStore.edit { it[K.weatherCondition] = value.trim() } }
-    suspend fun setWeatherSnapshot(city: String, temperature: String, condition: String, updatedAt: Long) {
-        context.dataStore.edit {
-            it[K.weatherCity] = city.trim()
-            it[K.weatherTemperature] = temperature.trim()
-            it[K.weatherCondition] = condition.trim()
-            it[K.weatherUpdatedAt] = updatedAt
-        }
     }
     suspend fun setTransactionSounds(value: Boolean) { context.dataStore.edit { it[K.transactionSounds] = value } }
     suspend fun skippedDriveBackup(owner: String): String {

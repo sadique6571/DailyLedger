@@ -132,11 +132,6 @@ class MainActivity : FragmentActivity() {
                             driveEnabled = current.driveEnabled,
                             lastSync = current.lastSync,
                             driveStatus = current.driveStatus,
-                            weatherEnabled = current.weatherEnabled,
-                            weatherCity = current.weatherCity,
-                            weatherTemperature = current.weatherTemperature,
-                            weatherCondition = current.weatherCondition,
-                            weatherUpdatedAt = current.weatherUpdatedAt,
                             transactionSounds = current.transactionSounds,
                             onLogout = {},
                         )

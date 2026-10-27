@@ -171,8 +171,8 @@ internal fun WeatherScene(condition: String, isDay: Boolean, modifier: Modifier 
                     else drawOval(lit, Offset(mx - rx, my - r), Size(2 * rx, 2 * r))
                 } else { // waning: light shrinks from the right
                     drawArc(dark, 270f, 180f, true, Offset(mx - r, my - r), Size(2 * r, 2 * r))
-                    if (p < 0.75f) drawOval(dark, Offset(mx - rx, my - r), Size(2 * rx, 2 * r))
-                    else drawOval(lit, Offset(mx - rx, my - r), Size(2 * rx, 2 * r))
+                    if (p < 0.75f) drawOval(lit, Offset(mx - rx, my - r), Size(2 * rx, 2 * r))
+                    else drawOval(dark, Offset(mx - rx, my - r), Size(2 * rx, 2 * r))
                 }
             }
         }

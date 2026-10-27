@@ -157,6 +157,11 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     val aiStatus = manualInsights.status
     val aiBusy = manualInsights.busy
     fun setAiEnabled(value: Boolean) { aiPrefs.enabled = value; manualInsights.setEnabled(value) }
+    /** Persisted AI entry engine toggle (Task 2). Defaults to Online when Cloud
+     * AI is enabled, else Offline; the user's explicit choice always wins. */
+    private val _aiEntryEngine = MutableStateFlow(aiPrefs.entryEngine ?: if (aiEnabled.value) AiEntryEngine.ONLINE else AiEntryEngine.OFFLINE)
+    val aiEntryEngine: StateFlow<AiEntryEngine> = _aiEntryEngine.asStateFlow()
+    fun saveAiEntryEngine(engine: AiEntryEngine) { aiPrefs.entryEngine = engine; _aiEntryEngine.value = engine }
     private fun checkAccount(){check(FirebaseRuntime.auth(getApplication<Application>()).currentUser?.uid==ownerId){"Please sign in again."}}
     private fun insightKey(snapshot: SpendingSnapshot) = AiPreferences.digest(AiProtocol.context(snapshot).toString())
     fun updateInsightContext(snapshot: SpendingSnapshot) {
@@ -168,21 +173,52 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
             aiService.insights(snapshot).also { checkAccount() }
         }
     }
-    suspend fun autoFill(input:String):AiDraftResult = withContext(Dispatchers.Default) {
+    /** Strict engine selection for the AI entry toggle. Null = legacy behaviour
+     * (personal key -> online first with offline fallback; otherwise offline
+     * first, cloud only when offline cannot parse). ONLINE and OFFLINE never
+     * fall back to each other: a failure of the chosen engine surfaces as an
+     * error, so the user always knows which engine produced (or failed) the entry. */
+    suspend fun autoFill(input:String, engine:AiEntryEngine? = null):AiDraftResult = withContext(Dispatchers.Default) {
         checkAccount()
         require(!OfflineMiniAi.usesDedicatedLedger(input)) { "Udhar Saman, loans, savings aur kameti apne tabs mein record karein. Auto Fill sirf income aur expenses ke liye hai." }
         DraftReviewPolicy.checkMissingDetails(input)
         val offline = OfflineMiniAi.drafts(input)
-        val result = offline ?: run {
-            check(aiEnabled.value) { "Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly." }
-            aiService.drafts(input).also { checkAccount() }
+        val result: AiDraftResult
+        var usedCloud = false
+        when (engine) {
+            AiEntryEngine.ONLINE -> {
+                result = aiService.drafts(input).also { checkAccount() }
+                usedCloud = true
+            }
+            AiEntryEngine.OFFLINE -> {
+                result = offline ?: throw IllegalStateException("Offline AI is entry ko samajh nahi saka. Online AI try karein, ya amount aur saaf likhein.")
+            }
+            null -> {
+                // A saved personal key means the online model: try it FIRST so categories
+                // are understood properly, and only fall back to the offline parse when the
+                // online call fails. Without a key, behaviour is unchanged (offline first,
+                // cloud only when offline cannot parse and Cloud AI is enabled).
+                val useOnlineFirst = aiEnabled.value && aiService.hasPersonalKey()
+                if (useOnlineFirst) {
+                    result = try {
+                        aiService.drafts(input).also { checkAccount() }.also { usedCloud = true }
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { offline ?: throw e }
+                } else if (offline != null) {
+                    result = offline
+                } else {
+                    check(aiEnabled.value) { "Offline Mini AI could not understand this entry. Enable Cloud AI for complex wording, or enter amount more clearly." }
+                    result = aiService.drafts(input).also { checkAccount() }
+                    usedCloud = true
+                }
+            }
         }
         val learned = repo.learningSnapshot()
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
         val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
         val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
-        result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = offline == null) },
+        result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = usedCloud) },
             message = result.message + if (learnedCount > 0) " $learnedCount categories matched your saved learning." else "")
     }
     suspend fun rememberCategory(type:String,phrase:String,category:String):String? =

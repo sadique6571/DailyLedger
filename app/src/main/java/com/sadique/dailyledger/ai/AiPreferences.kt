@@ -30,6 +30,11 @@ class AiPreferences(context:Context,owner:String) {
     var providerBase:String
         get()=prefs.getString(prefix+"pbase","").orEmpty()
         set(value){prefs.edit().putString(prefix+"pbase",value.trim()).apply()}
+    /** AI entry engine choice (Online vs Offline). Null = never chosen; the
+     * ViewModel then defaults to Online when Cloud AI is enabled, else Offline. */
+    var entryEngine:AiEntryEngine?
+        get()=prefs.getString(prefix+"engine",null)?.let{runCatching{AiEntryEngine.valueOf(it)}.getOrNull()}
+        set(value){prefs.edit().apply{if(value==null)remove(prefix+"engine")else putString(prefix+"engine",value.name)}.apply()}
     fun cached(hash:String):List<SpendingTip>?=runCatching {
         val bytes=cache.loadBytes()?:return null
         try { val record=JSONObject(String(bytes,Charsets.UTF_8)); if(record.getString("hash")!=hash)null else AiProtocol.decodeInsights(record.getString("response")) } finally { bytes.fill(0) }
@@ -51,3 +56,7 @@ class AiPreferences(context:Context,owner:String) {
     }
     companion object{private val limitLock=Any();fun digest(s:String)=MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString(""){"%02x".format(it)}}
 }
+
+/** Which engine produces an AI entry: ONLINE (Cloudflare proxy default, or the
+ * user's personal key when set) or OFFLINE (on-device catalog/vocabulary path). */
+enum class AiEntryEngine { ONLINE, OFFLINE }

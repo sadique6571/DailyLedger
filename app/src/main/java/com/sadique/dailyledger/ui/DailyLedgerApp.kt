@@ -114,7 +114,6 @@ import com.sadique.dailyledger.ui.screens.GlobalSearchScreen
 import com.sadique.dailyledger.ui.screens.LearningScreen
 import com.sadique.dailyledger.planning.PlannerMath
 import com.sadique.dailyledger.planning.BillReminderWorker
-import com.sadique.dailyledger.weather.WeatherService
 import com.sadique.dailyledger.audio.TransactionSoundPlayer
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -133,11 +132,6 @@ fun DailyLedgerApp(
     driveEnabled: Boolean,
     lastSync: Long,
     driveStatus: String,
-    weatherEnabled: Boolean,
-    weatherCity: String,
-    weatherTemperature: String,
-    weatherCondition: String,
-    weatherUpdatedAt: Long,
     transactionSounds: Boolean,
     onLogout: () -> Unit,
     pinHash: String = "",
@@ -257,6 +251,7 @@ fun DailyLedgerApp(
     var historyFilter by remember { mutableStateOf("ALL") }
     var aiConsent by remember(user.id) { mutableStateOf(false) }
     val aiEnabled by vm.aiEnabled.collectAsState()
+    val aiEntryEngine by vm.aiEntryEngine.collectAsState()
     val aiTips by vm.aiTips.collectAsState()
     val dismissedTips by vm.dismissedInsights.collectAsState()
     val feedbackScope = rememberCoroutineScope()
@@ -337,15 +332,6 @@ fun DailyLedgerApp(
             },
         )
     }
-    LaunchedEffect(weatherEnabled, weatherCity, weatherUpdatedAt) {
-        val stale = System.currentTimeMillis() - weatherUpdatedAt > 30 * 60 * 1000L
-        if (weatherEnabled && weatherCity.isNotBlank() && stale) {
-            runCatching { WeatherService().currentForCity(weatherCity) }
-                .onSuccess { weather ->
-                    settings.setWeatherSnapshot(weather.city, weather.temperature, weather.condition, weather.fetchedAt)
-                }
-        }
-    }
     if (aiConsent) {
         AlertDialog(
             onDismissRequest = { aiConsent = false },
@@ -371,7 +357,8 @@ fun DailyLedgerApp(
         title = { Text("AI Auto Fill") }, scrollBody = false,
         text = { AutoFillScreen(
             enabled = aiEnabled, onEnable = { aiConsent = true },
-            onBack = { aiEntryOpen = false }, generate = vm::autoFill,
+            onBack = { aiEntryOpen = false }, generate = { input -> vm.autoFill(input, aiEntryEngine) },
+            engine = aiEntryEngine, onEngineChange = vm::saveAiEntryEngine,
             save = { drafts, batchId ->
                 vm.saveAiDrafts(drafts, batchId)
                 savedNotice("AI entries", drafts.sumOf { it.amountMinor })
@@ -449,11 +436,6 @@ fun DailyLedgerApp(
             biometric = biometric,
             driveEnabled = driveEnabled,
             lastSync = lastSync,
-            weatherEnabled = weatherEnabled,
-            weatherCity = weatherCity,
-            weatherTemperature = weatherTemperature,
-            weatherCondition = weatherCondition,
-            weatherUpdatedAt = weatherUpdatedAt,
             transactionSounds = transactionSounds,
             onBack = ::goBack,
             onAutoFill = { run { aiEntryOpen = true } },
@@ -477,7 +459,6 @@ fun DailyLedgerApp(
                     else SyncScheduler.cancelImmediate(context)
                 }
             },
-            onWeatherEnabled = { scope.launch { settings.setWeatherEnabled(it) } },
             onTransactionSounds = { scope.launch { settings.setTransactionSounds(it) } },
             onLogout = {
                 scope.launch {
@@ -565,10 +546,6 @@ fun DailyLedgerApp(
                     ledgerCycle = ledgerCycle,
                     ledgerArchives = ledgerArchives,
                     userName = user.name,
-                    weatherEnabled = weatherEnabled,
-                    weatherCity = weatherCity,
-                    weatherTemperature = weatherTemperature,
-                    weatherCondition = weatherCondition,
                     onAddSalary = { quickTransaction = EntryShortcut("INCOME", "Salary") },
                     onAddSalaryWithAmount = { amount -> quickTransaction = EntryShortcut("INCOME", "Salary", amount = amount) },
                     onAddExpense = { quickTransaction = EntryShortcut("EXPENSE") },

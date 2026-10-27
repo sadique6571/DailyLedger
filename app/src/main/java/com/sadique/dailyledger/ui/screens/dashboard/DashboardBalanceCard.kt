@@ -52,6 +52,8 @@ internal fun DashboardBalanceCard(
     plannedSalaryDate: LocalDate?,
     money: (Long) -> String,
     guideCollapsed: Boolean = false,
+    /** Today's total spent (all of today's EXPENSE rows), shown under the daily average. */
+    todaySpentMinor: Long = 0L,
 ) {
     val shape = LedgerTokens.ShapeCard
     Surface(modifier = Modifier.fillMaxWidth().clickable { onOpenDetails() }.testTag("balance-details"), shape = shape, shadowElevation = LedgerTokens.Elevation3, border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CF9EE))) {
@@ -239,6 +241,9 @@ internal fun DashboardBalanceCard(
                             ?: "Record salary to see average", color = Color.White, fontSize = 11.sp,
                             modifier = Modifier.testTag("actual-daily-average"))
                         guide.elapsedSalaryDays?.let { Text("Over $it days since salary", color = Color(0xFFCAF6FF), fontSize = 9.sp) }
+                        Text("Today's total spent", color = Color(0xFFCAF6FF), fontSize = 11.sp)
+                        Text(money(todaySpentMinor), color = Color.White, fontSize = 11.sp,
+                            modifier = Modifier.testTag("today-total-spent"))
                     }
                 }
                 guide.expectedSalaryDate?.let { expected ->

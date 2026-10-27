@@ -26,9 +26,9 @@ object CategoryRules {
         Rule("Vehicle insurance", listOf("car insurance", "vehicle insurance", "bike insurance")),
         Rule("Health insurance", listOf("health insurance", "medical insurance")),
         Rule("Religious travel", listOf("umrah", "hajj")),
-        Rule("Sadqa & donations", listOf("sadqa", "sadaqah", "donation", "charity", "khairat")),
+        Rule("Sadqa & donations", listOf("sadqa", "sadaqah", "donation", "charity", "khairat", "fitrana", "fitra")),
         Rule("Weddings & events", listOf("shaadi", "shadi", "wedding", "walima", "event")),
-        Rule("Eid & festivals", listOf("eid", "festival")),
+        Rule("Eid & festivals", listOf("eid", "festival", "qurbani", "bakra eid")),
         Rule("Zakat", listOf("zakat", "زکوٰۃ", "زکات")),
         Rule("Spouse personal expenses", listOf("wife expenses", "wife personal", "wife kharcha", "biwi ka kharcha", "begum personal", "begum kharcha", "zauja expense")),
         Rule("Wife's expenses", listOf("wife expenses", "wife kharcha", "biwi ka kharcha", "begum ka kharcha")),
@@ -59,10 +59,10 @@ object CategoryRules {
         Rule("Garam masala", listOf("garam masala")),
         Rule("Ground coriander", listOf("sukha dhaniya", "dhania powder", "ground coriander", "coriander powder")),
         Rule("Turmeric", listOf("haldi", "turmeric")),
-        Rule("Chilli powder", listOf("lal mirch", "red chilli", "chilli powder", "chili powder")),
+        Rule("Chilli powder", listOf("lal mirch", "laal mirch", "lal march", "laal march", "surkh mirch", "surkh march", "red chilli", "chilli powder", "chili powder")),
         Rule("Cumin & seeds", listOf("zeera", "cumin", "ajwain", "kalonji", "rai")),
         Rule("Salt", listOf("namak", "salt")),
-        Rule("Condiments & sauces", listOf("ketchup", "soy sauce", "mayonnaise", "vinegar", "achar")),
+        Rule("Condiments & sauces", listOf("ketchup", "soy sauce", "mayonnaise", "vinegar", "achar", "chatni", "chutney")),
         Rule("Spices", listOf("masala", "spice", "spices", "مصالحہ")),
         Rule("Sugar & tea", listOf("cheeni", "sugar", "patti", "tea leaves", "چینی")),
         Rule("Milk", listOf("doodh", "dodh", "milk", "دودھ")),
@@ -73,46 +73,46 @@ object CategoryRules {
         Rule("Eggs & bread", listOf("anday", "anda", "eggs", "egg", "bread", "roti", "انڈے")),
         Rule("Bakery", listOf("bakery", "biscuit", "biscuits", "cake")),
         Rule("Dairy & breakfast", listOf("dahi", "yogurt", "yoghurt", "butter", "makhan", "cheese", "paneer", "jam", "cream")),
-        Rule("Beverages", listOf("juice", "cold drink", "soft drink", "drink", "sharbat", "syrup")),
+        Rule("Beverages", listOf("juice", "cold drink", "soft drink", "drink", "sharbat", "syrup", "pepsi", "coca cola", "coke", "sprite", "dew")),
 
         Rule("Takeaway", listOf("takeaway", "delivery", "foodpanda", "food panda")),
         Rule("Tea & coffee", listOf("chai", "coffee", "cafe", "چائے")),
-        Rule("Snacks", listOf("snack", "snacks", "papar", "chips", "icecream", "ice cream", "samosa", "samosay")),
-        Rule("Restaurant", listOf("restaurant", "dinner", "lunch", "biryani", "burger", "pizza", "khana", "کھانا")),
+        Rule("Snacks", listOf("snack", "snacks", "papar", "chips", "icecream", "ice cream", "samosa", "samosay", "gachak")),
+        Rule("Restaurant", listOf("restaurant", "dinner", "lunch", "biryani", "burger", "pizza", "khana", "nashta", "breakfast", "کھانا")),
 
         Rule("Rent", listOf("house rent", "shop rent", "dukan rent", "makan kiraya", "kiraya makan", "makan ka kiraya", "rent")),
-        Rule("Repairs", listOf("repair", "repairs", "plumber", "electrician", "mistri")),
+        Rule("Repairs", listOf("repair", "repairs", "plumber", "electrician", "mistri", "carpenter", "barhai", "water motor")),
         Rule("Furniture", listOf("furniture", "sofa", "bed", "table", "chair")),
-        Rule("Appliances", listOf("appliance", "appliances", "fridge", "washing machine", "ac", "air conditioner")),
-        Rule("Phone accessories", listOf("phone accessories", "mobile cover", "phone cover", "charger", "earphones")),
+        Rule("Appliances", listOf("appliance", "appliances", "fridge", "washing machine", "ac", "air conditioner", "stove", "choola", "chulha", "ups")),
+        Rule("Phone accessories", listOf("phone accessories", "mobile cover", "phone cover", "charger", "earphones", "data cable", "handsfree", "headphones", "earbuds", "airbuds", "power bank")),
         Rule("Appliance maintenance", listOf("appliance maintenance", "fridge repair", "washing machine repair", "ac repair")),
-        Rule("Home maintenance", listOf("home maintenance", "house maintenance", "ghar ki marammat")),
+        Rule("Home maintenance", listOf("home maintenance", "house maintenance", "ghar ki marammat", "painter", "paint")),
         Rule("Kitchen utensils", listOf("kitchen utensils", "cooking utensils", "bartan khareeday")),
         Rule("Bedding & linens", listOf("bedding", "bedsheet", "bed sheet", "blanket", "pillow")),
         Rule("Home security", listOf("home security", "security camera", "alarm", "door lock", "lock")),
-        Rule("House cleaning help", listOf("house cleaning", "cleaning help", "safai wali")),
+        Rule("House cleaning help", listOf("house cleaning", "cleaning help", "safai wali", "sweeper", "jamadar")),
         Rule("Home insurance", listOf("home insurance", "house insurance", "makan insurance")),
         Rule("Building materials", listOf("building materials", "construction material", "cement", "bricks", "eent", "sand", "bajri")),
         Rule("Garden & outdoor", listOf("garden", "gardening", "lawn", "plants", "pauday")),
         Rule("Pest control", listOf("pest control", "termite spray", "fumigation", "deemak spray")),
-        Rule("Solar maintenance", listOf("solar maintenance", "solar panel repair", "solar service")),
+        Rule("Solar maintenance", listOf("solar maintenance", "solar panel repair", "solar service", "solar panel", "solar")),
         Rule("Generator maintenance", listOf("generator maintenance", "generator repair", "generator service")),
         Rule("Laundry detergent", listOf("surf", "washing powder", "detergent powder", "laundry detergent", "washing liquid")),
         Rule("Cleaning supplies", listOf("safai", "cleaning", "detergent", "surf", "washing powder", "bleach", "phenyl", "floor cleaner", "harpic", "toilet cleaner")),
-        Rule("Dishwashing", listOf("dishwash", "dish wash", "dishwashing", "vim", "bartan soap", "bartan sabun", "bartan liquid")),
-        Rule("Household essentials", listOf("tissue", "tissues", "toilet roll", "kitchen roll", "foil", "aluminium foil", "garbage bag", "trash bag", "match box", "machis", "mosquito coil")),
+        Rule("Dishwashing", listOf("dishwash", "dish wash", "dishwashing", "vim", "vim bar", "bartan soap", "bartan sabun", "bartan liquid")),
+        Rule("Household essentials", listOf("tissue", "tissues", "toilet roll", "kitchen roll", "foil", "aluminium foil", "garbage bag", "trash bag", "match box", "machis", "mosquito coil", "candle", "mombatti", "lalten", "lantern", "torch", "agarbatti")),
         Rule("Domestic help", listOf("maid", "helper", "house help", "nokrani")),
         Rule("Home supplies", listOf("bartan", "kitchen", "kitchen item", "kitchen items", "home supplies")),
 
-        Rule("Electricity", listOf("bijli", "electricity", "electric bill", "electricity bill", "بجلی")),
+        Rule("Electricity", listOf("bijli", "electricity", "electric bill", "electricity bill", "wapda", "بجلی")),
         Rule("Gas", listOf("gas bill", "sui gas", "sui", "gas", "سوئی گیس")),
         Rule("Water", listOf("water bill", "pani bill", "water", "pani", "پانی")),
         Rule("Drinking water", listOf("drinking water", "mineral water", "bottled water")),
         Rule("Water delivery", listOf("water delivery", "water tanker", "pani tanker")),
-        Rule("Home internet", listOf("home internet", "internet bill", "wifi bill", "broadband bill")),
-        Rule("Cooking gas cylinder", listOf("gas cylinder", "lpg cylinder", "cooking gas cylinder")),
+        Rule("Home internet", listOf("home internet", "internet bill", "wifi bill", "broadband bill", "ptcl")),
+        Rule("Cooking gas cylinder", listOf("gas cylinder", "lpg cylinder", "cooking gas cylinder", "cylinder refill")),
         Rule("Internet", listOf("internet", "wifi", "wi-fi", "broadband")),
-        Rule("Mobile package", listOf("mobile package", "mobile", "easyload", "easy load", "mobile load", "load", "package", "balance")),
+        Rule("Mobile package", listOf("mobile package", "mobile", "easyload", "easy load", "mobile load", "load", "package", "balance", "jazz", "telenor", "ufone", "zong", "sim", "new sim")),
         Rule("TV & cable", listOf("cable", "tv bill", "cable bill", "tv")),
         Rule("Data packages", listOf("data package", "internet package", "mobile data", "weekly package", "monthly package")),
 
@@ -142,7 +142,7 @@ object CategoryRules {
         Rule("College & university", listOf("college", "university", "uni fee", "semester fee", "semester fees")),
         Rule("Tuition", listOf("tuition", "tutor", "academy", "academy fee", "tuition fee")),
         Rule("Books", listOf("books", "book", "kitab", "kitabein", "textbook", "textbooks", "course book", "کتاب")),
-        Rule("Stationery", listOf("stationery", "stationary", "pen", "pencil", "copy", "copies", "notebook", "register", "eraser", "rubber", "sharpener", "marker", "highlighter", "scale", "ruler", "geometry", "geometry box", "file folder")),
+        Rule("Stationery", listOf("stationery", "stationary", "pen", "pencil", "copy", "copies", "notebook", "register", "eraser", "rubber", "sharpener", "marker", "highlighter", "scale", "ruler", "geometry", "geometry box", "file folder", "photocopy", "photostat")),
         Rule("School uniform", listOf("school uniform", "uniform", "school dress", "school shoes", "school belt", "school tie", "school socks")),
         Rule("School projects & supplies", listOf("school project", "project material", "chart", "chart paper", "colors", "colour", "crayons", "glue", "school bag", "school bottle", "lunch box", "school supplies")),
         Rule("Courses", listOf("course", "courses", "training")),
@@ -155,9 +155,9 @@ object CategoryRules {
         Rule("Family support", listOf("family", "family support", "parents", "walidain", "ghar walon ko")),
         Rule("Childcare", listOf("childcare", "daycare", "day care")),
 
-        Rule("Clothing", listOf("kapray", "kapre", "clothes", "clothing", "suit", "dress", "garments", "کپڑے")),
+        Rule("Clothing", listOf("kapray", "kapre", "clothes", "clothing", "suit", "dress", "garments", "darzi", "tailor", "silai", "stitching", "کپڑے")),
         Rule("Shoes", listOf("shoes", "shoe", "jootay", "jootey", "جوتے")),
-        Rule("Haircut", listOf("haircut", "hair cut", "barber", "salon cut")),
+        Rule("Haircut", listOf("haircut", "hair cut", "barber", "salon cut", "naai", "hajjam", "salon")),
         Rule("Cosmetics", listOf("cosmetic", "cosmetics", "makeup", "make up", "lipstick", "foundation", "nail polish")),
         Rule("Skincare", listOf("skincare", "skin care", "face wash", "moisturizer", "sunblock", "sunscreen")),
         Rule("Soap & body care", listOf("soap", "sabun", "saban", "saboon", "body wash", "shower gel", "body lotion", "lotion")),
@@ -166,7 +166,7 @@ object CategoryRules {
         Rule("Oral care", listOf("toothpaste", "tooth paste", "toothbrush", "tooth brush", "manjan", "mouthwash", "mouth wash")),
         Rule("Sanitary & hygiene", listOf("sanitary pad", "sanitary pads", "pads", "napkin", "sanitary napkin", "tampon", "personal hygiene", "hand wash", "handwash", "sanitizer")),
         Rule("Toiletries", listOf("toiletries", "personal care item", "personal care items")),
-        Rule("Laundry", listOf("laundry", "dhobi", "dry clean", "dryclean")),
+        Rule("Laundry", listOf("laundry", "dhobi", "dry clean", "dryclean", "press", "istri", "ironing")),
         Rule("Electronics", listOf("electronics", "electronic item", "television", "led tv", "speaker")),
         Rule("Computer & accessories", listOf("computer", "laptop", "keyboard", "mouse", "computer accessories")),
         Rule("Device repair", listOf("device repair", "mobile repair", "phone repair", "laptop repair")),
@@ -178,7 +178,7 @@ object CategoryRules {
         Rule("Travel & holidays", listOf("holiday", "holidays", "tour", "trip", "travel")),
         Rule("Hotel stay", listOf("hotel", "hotel stay", "lodging", "room booking")),
 
-        Rule("Gifts", listOf("gift", "gifts", "tohfa", "tohfe", "تحفہ")),
+        Rule("Gifts", listOf("gift", "gifts", "tohfa", "tohfe", "phool", "flowers", "flower", "تحفہ")),
         Rule("Pet food", listOf("pet food", "cat food", "dog food")),
         Rule("Veterinary", listOf("vet", "veterinary", "pet doctor")),
         Rule("Pet supplies", listOf("pet supplies", "litter", "pet accessories")),
@@ -187,13 +187,13 @@ object CategoryRules {
         Rule("Work meals", listOf("work meal", "office lunch", "office meal")),
         Rule("Delivery charges", listOf("delivery charge", "delivery fee", "courier fee")),
         Rule("Office supplies", listOf("office", "office supplies", "office expense", "printer ink")),
-        Rule("Bank fees", listOf("bank", "charges", "bank fee", "bank fees", "bank charges", "atm fee")),
+        Rule("Bank fees", listOf("bank", "charges", "bank fee", "bank fees", "bank charges", "atm fee", "atm")),
         Rule("Taxes & documents", listOf("taxes", "passport", "document fee", "documents")),
         Rule("Property tax", listOf("property tax", "house tax", "makan tax")),
         Rule("Legal & professional fees", listOf("legal fee", "lawyer fee", "consultant fee", "professional fee")),
         Rule("Mosque & madrasa", listOf("mosque", "masjid", "madrasa", "madarsa", "mosque donation", "masjid donation", "madrasa donation", "مسجد", "مدرسہ")),
-        Rule("Community contributions", listOf("community contribution", "community fund", "neighbourhood fund")),
-        Rule("Postage", listOf("courier", "postage", "parcel")),
+        Rule("Community contributions", listOf("community contribution", "community fund", "neighbourhood fund", "chanda")),
+        Rule("Postage", listOf("courier", "postage", "parcel", "tcs")),
         Rule("Emergency", listOf("emergency", "urgent expense")),
     )
 
@@ -226,10 +226,37 @@ object CategoryRules {
     fun infer(type: String, text: String): String {
         val normalized = normalizeText(text)
         val rules = if (type.equals("INCOME", ignoreCase = true)) incomeRules else expenseRules
-        return rules.flatMap { rule -> (rule.aliases + rule.category).map { alias -> rule.category to normalizeText(alias) } }
-            .filter { (_, alias) -> containsAlias(normalized, alias) }
+        val pairs = rules.flatMap { rule -> (rule.aliases + rule.category).map { alias -> rule.category to normalizeText(alias) } }
+        // Exact multi-word phrase match first — existing behaviour, unchanged.
+        val exactMulti = pairs.filter { (_, alias) -> alias.contains(" ") && containsAlias(normalized, alias) }
             .maxByOrNull { (_, alias) -> alias.length }?.first
-            ?: if (type.equals("INCOME", ignoreCase = true)) "Other income" else "Other"
+        if (exactMulti != null) return exactMulti
+        // Token-set tier: every word of a multi-word alias present in the input in
+        // any order — e.g. "salan chicken" finds "chicken salan", "patti chai"
+        // finds "chai patti", "gas sui" finds "sui gas", "mirch laal" finds
+        // "laal mirch". Longest alias wins, as above. This runs before the
+        // single-word exact tier so a short single word (e.g. "patti" in
+        // "Sugar & tea") cannot beat the full phrase the user meant.
+        val inputWords = normalized.split(" ").filter { it.isNotEmpty() }.toSet()
+        val tokenSet = pairs.filter { (_, alias) ->
+            val aliasWords = alias.split(" ").filter { it.isNotEmpty() }
+            aliasWords.size > 1 && aliasWords.all { it in inputWords }
+        }.maxByOrNull { (_, alias) -> alias.length }?.first
+        if (tokenSet != null) return tokenSet
+        // Exact single-word match — existing behaviour, unchanged.
+        val exact = pairs.filter { (_, alias) -> containsAlias(normalized, alias) }
+            .maxByOrNull { (_, alias) -> alias.length }?.first
+        if (exact != null) return exact
+        // Fallback: a single word that starts with a single-word alias (or vice versa),
+        // so near spellings still match — e.g. "macaronii" finds "macaroni", "parathay"
+        // finds "paratha". Only words of 4+ letters count, so short words ("tea",
+        // "oil", "gas", "dal") can never fuzzy-match something unrelated.
+        val words = normalized.split(" ").filter { it.length >= 4 }
+        val fuzzy = pairs.filter { (_, alias) ->
+            val aliasWords = alias.split(" ").filter { it.length >= 4 }
+            aliasWords.size == 1 && words.any { word -> word.startsWith(aliasWords[0]) || aliasWords[0].startsWith(word) }
+        }.maxByOrNull { (_, alias) -> alias.length }?.first
+        return fuzzy ?: if (type.equals("INCOME", ignoreCase = true)) "Other income" else "Other"
     }
 
     fun normalize(type: String, proposed: String, sourceText: String): String {
@@ -287,3 +314,4 @@ object CategoryRules {
         return " $normalizedText ".contains(" $normalizedAlias ")
     }
 }
+

@@ -1,8 +1,12 @@
 package com.sadique.dailyledger.ai
 
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeout
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 enum class AiTask { AUTOFILL, INSIGHTS, TEXT }
 data class AiModelRequest(val task: AiTask, val instruction: String, val input: String)
@@ -20,12 +24,49 @@ internal class AiRequestRunner(
         currentCoroutineContext().ensureActive()
         checkAccess()
         if (!reserve(request.task)) throw AiException("Today's AI limit on this device is reached. Manual entries and local insights still work. [AI_DEVICE_LIMIT]")
-        val response = withTimeout(45_000) { generate(request) }
-        currentCoroutineContext().ensureActive()
-        checkAccess()
-        if (response.isBlank() || response.length > 65_536) {
-            throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
+        // Transient failures (slow network, per-minute rate limits) used to surface
+        // at once, so the user had to tap 3-4 times until one attempt landed.
+        // Retry them here with backoff instead; permanent failures still throw at once.
+        // The daily-cap reservation above runs once, not once per attempt.
+        // First-attempt budget is larger (90s): a cold first request (TLS + free-tier
+        // model warm-up + up to 6,000 output tokens) can legitimately outlast the
+        // 45s budget that is plenty for warm retries. Server 5xx errors arrive as
+        // [AI_NETWORK] and are transient too — previously they threw at once, so a
+        // free-tier 503 on attempt 1 looked like "works only on the 2nd tap".
+        var backoffMs = 2_000L
+        repeat(3) { attempt ->
+            try {
+                val response = withTimeout(if (attempt == 0) 90_000 else 45_000) { generate(request) }
+                currentCoroutineContext().ensureActive()
+                checkAccess()
+                if (response.isBlank() || response.length > 65_536) {
+                    throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
+                }
+                return response
+            } catch (e: TimeoutCancellationException) {
+                if (attempt == 2) throw e
+                delay(backoffMs)
+                backoffMs *= 2
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (attempt == 2 || !isTransient(e)) throw e
+                if (isRateLimit(e)) delay(20_000) else {
+                    delay(backoffMs)
+                    backoffMs *= 2
+                }
+            }
         }
-        return response
+        throw AiException("AI is unavailable right now. Nothing was saved. [AI_UNAVAILABLE]")
     }
+
+    /** 429 rate-limit responses only — not the daily-cap or any other limit. */
+    private fun isRateLimit(e: Exception): Boolean =
+        e is AiException && e.message?.contains("[AI_LIMIT]") == true
+
+    /** Failures worth retrying: timeouts, network IO (covers socket timeouts),
+     * 429s, and server-side 5xx errors surfaced as [AI_NETWORK] (free-tier
+     * overload is transient — the next attempt usually lands). */
+    private fun isTransient(e: Exception): Boolean =
+        e is IOException || isRateLimit(e) || (e is AiException && e.message?.contains("[AI_NETWORK]") == true)
 }

@@ -41,14 +41,12 @@ class CompactChromeTest {
             }, floatingActionButton = { ExpenseFloatingButton {} }, bottomBar = { AppBottomBar(0, {}) }) { pad ->
                 Box(Modifier.padding(pad)) {
                     DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
-                        savings = emptyList(), userName = "Sadique", weatherEnabled = true,
-                        weatherCity = "Okara", weatherTemperature = "27°C", weatherCondition = "Sunny",
+                        savings = emptyList(), userName = "Sadique",
                         onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {})
                 }
             }
         } }
         compose.onNodeWithTag("greeting-name").assertTextContains("Sadique", substring = true)
-        compose.onNodeWithTag("weather-chip").assertExists()
         compose.onNodeWithTag("global-search").performClick()
         compose.onNodeWithTag("global-ai").performClick()
         compose.runOnIdle { assertEquals(1, searches); assertEquals(1, ai) }

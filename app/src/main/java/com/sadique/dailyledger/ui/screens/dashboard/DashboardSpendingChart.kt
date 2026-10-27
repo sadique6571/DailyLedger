@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sadique.dailyledger.ui.CardEntrance
 import com.sadique.dailyledger.ui.LedgerCard
 import com.sadique.dailyledger.ui.LedgerColors
 import com.sadique.dailyledger.ui.LedgerTokens
@@ -51,7 +52,7 @@ import kotlin.math.roundToInt
 
 /** Donut chart of spending by category with an expandable legend. */
 @Composable
-internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit) {
+internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long, onHistory: () -> Unit, entranceBaseDelayMs: Int = 0) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     // Slice tap selection (H) and donut/bar view switch (X).
     var selectedSlice by remember { mutableStateOf<Int?>(null) }
@@ -111,7 +112,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                     if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                     categories.forEachIndexed { i, (name, value) ->
                         val tint = colorFor(i)
-                        val frac by animateFloatAsState(value.toFloat() / maxV.toFloat(), tween(600), label = "cat-bar")
+                        val frac by animateFloatAsState(value.toFloat() / maxV.toFloat(), tween(600, delayMillis = i * LedgerTokens.EntranceStaggerMs), label = "cat-bar")
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text(name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -175,6 +176,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                     if (categories.isEmpty()) Text("Add an expense to see where your money goes.", fontSize = 12.sp)
                     (if (expanded) categories else categories.take(3)).forEachIndexed { i, (name, value) ->
                         val tint = colorFor(i)
+                        CardEntrance(index = i, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.fillMaxWidth()) {
                         Surface(
                             modifier = Modifier.fillMaxWidth()
                                 .testTag("chart-category-$name"),
@@ -200,6 +202,7 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
                                 }
                                 Text("${if (total > 0) (value * 100.0 / total).roundToInt() else 0}%", fontSize = 10.sp)
                             }
+                        }
                         }
                     }
                 }

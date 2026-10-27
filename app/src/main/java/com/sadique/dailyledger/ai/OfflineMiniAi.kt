@@ -40,7 +40,13 @@ object OfflineMiniAi {
                 EntryDateParser.forPart(part.range, dates, today).toString()).validated()
         }
         val relativeHint = if (listOf("kal", "کل", "parson", "parso", "پرسوں").any { EntryText.has(clean, it) }) " Kal = yesterday; parson = 2 days ago. Future date ke liye tomorrow ya exact date likhein." else ""
-        val reviewHint = if (rows.any { it.category == "Other" || it.category == "Other income" }) " Unrecognized item: choose its category before saving." else ""
+        val unrecognized = rows.filter { it.category == "Other" || it.category == "Other income" }
+            .map { it.note }.filter { it.isNotBlank() }.take(3)
+        val reviewHint = if (unrecognized.isNotEmpty()) {
+            val named = unrecognized.joinToString(", ") { it.take(40) }
+            if (unrecognized.size == 1) " Unrecognized item ($named): choose its category before saving."
+            else " Unrecognized items ($named): choose their categories before saving."
+        } else ""
         val yearHint = if (dates.any { it.yearOmitted }) " Year omitted: ${today.year} used." else ""
         return AiDraftResult("Offline Mini AI • ${rows.size} entries. Amount, category aur har entry ki date review karein.$yearHint$relativeHint$reviewHint", rows)
     }

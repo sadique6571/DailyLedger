@@ -34,7 +34,7 @@ class LedgerScreensTest {
                     tx = tx, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
                     cp = listOf(CommitteePaymentEntity("p", "test", "k", 1, month, 1000000, 1)),
                     receipts = emptyList(), savings = listOf(SavingEntity("s", "test", "DIRECT", 2000000, "$month-01", "", 1)),
-                    userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                    userName = "Test",
                     onAddSalary = { opened = "salary" }, onAddExpense = { opened = "expense" },
                     onOpenSavings = { opened = "savings" }, onOpenKameti = { opened = "kameti" })
             }
@@ -60,9 +60,7 @@ class LedgerScreensTest {
         compose.setContent { DailyLedgerTheme("LIGHT") {
             DashboardScreen(
                 tx = rows, loans = emptyList(), lp = emptyList(), committees = listOf(kameti),
-                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "",
-                weatherCondition = "", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
+                cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test", snapshot = analysis, onAddSalary = {}, onAddExpense = {},
                 onOpenSavings = {}, onOpenKameti = { kametiOpened = true },
                 onOpenInsights = { opened = true },
             )
@@ -88,7 +86,6 @@ class LedgerScreensTest {
                 DashboardScreen(
                     tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
                     receipts = emptyList(), savings = emptyList(), userName = "Test",
-                    weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                     ledgerCycle = cycle, onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
                     onStartNewMonth = { action = "start" },
                     onArchivePreviousMonth = { callback -> action = "archive"; callback(true) },
@@ -124,7 +121,7 @@ class LedgerScreensTest {
         )
         compose.setContent { DailyLedgerTheme("LIGHT") {
             DashboardScreen(tx = tx, loans = emptyList(), lp = emptyList(), committees = emptyList(), cp = emptyList(),
-                receipts = emptyList(), savings = emptyList(), userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                receipts = emptyList(), savings = emptyList(), userName = "Test",
                 onAddSalary = {}, onAddExpense = { edited = true }, onOpenSavings = {}, onOpenKameti = {},
                 onAddCategoryExpense = { _, _ -> edited = true }, ledgerCycle = LedgerCycleEntity("test", 1, 0))
         } }
@@ -148,7 +145,6 @@ class LedgerScreensTest {
             DashboardScreen(
                 tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
                 cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
             )
         } }
@@ -190,7 +186,6 @@ class LedgerScreensTest {
                 tx = emptyList(), loans = emptyList(), lp = emptyList(),
                 committees = listOf(kameti), cp = emptyList(), receipts = emptyList(),
                 committeeMembers = listOf(member), savings = emptyList(), userName = "Test",
-                weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = { opened = true },
             )
         } }
@@ -225,6 +220,73 @@ class LedgerScreensTest {
         compose.onNodeWithText("Save receiving").performClick()
         compose.onNodeWithText("Fully received").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("Received").filter(hasClickAction()).onFirst().assertIsNotEnabled()
+    }
+
+    @Test fun myTurnChipsLetUserPickMultipleTurnNumbers() {
+        val added = mutableListOf<PersonalTurnDraft>()
+        val deleted = mutableListOf<CommitteeMemberEntity>()
+        val members = mutableStateOf(emptyList<CommitteeMemberEntity>())
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                CommitteeScreen(
+                    committees = listOf(kameti), payments = emptyList(), receipts = emptyList(), members = members.value,
+                    onAdd = { _, _, _, _, _, _, _, _ -> }, onPaid = { _, _, _, _ -> },
+                    onReceive = { _, _, _, _, _ -> },
+                    onDeleteReceipt = {}, onAddMembers = { _, rows, _ -> added.addAll(rows) }, onMemberReceived = { _, _ -> }, onDeleteMember = { deleted.add(it) }, onDelete = {})
+            }
+        }
+        // Fixture kameti: 12 installments, 2 shares -> 2 turns.
+        compose.onNodeWithTag("my-turn-chip-3").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(1, added.size)
+            assertEquals(3, added[0].turn)
+            assertTrue(added[0].isMe)
+            assertEquals(2, added[0].halfUnits)
+            assertEquals(YearMonth.parse(month).plusMonths(2).toString(), added[0].month)
+        }
+        compose.onNodeWithTag("my-turn-chip-5").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(2, added.size)
+            assertEquals(5, added[1].turn)
+            assertTrue(added[1].isMe)
+        }
+        // Show both as saved members: the count line lists all turns, and tapping a
+        // selected chip unmarks that turn.
+        val saved = listOf(
+            CommitteeMemberEntity(id = "m3", ownerId = "test", committeeId = "k", name = "Me", turnNumber = 3, turnMonth = month, isMe = true, createdAt = 1, shareHalfUnits = 2),
+            CommitteeMemberEntity(id = "m5", ownerId = "test", committeeId = "k", name = "Me", turnNumber = 5, turnMonth = month, isMe = true, createdAt = 2, shareHalfUnits = 2),
+        )
+        compose.runOnIdle { members.value = saved }
+        compose.onNodeWithText("My turns (2 of 2): #3, #5").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("my-turn-chip-3").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(listOf("m3"), deleted.map { it.id }) }
+    }
+
+    @Test fun myTurnChipsMigrateLegacyPayoutTurn() {
+        val added = mutableListOf<PersonalTurnDraft>()
+        val legacy = kameti.copy(payoutInstallment = 5)
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                CommitteeScreen(
+                    committees = listOf(legacy), payments = emptyList(), receipts = emptyList(), members = emptyList(),
+                    onAdd = { _, _, _, _, _, _, _, _ -> }, onPaid = { _, _, _, _ -> },
+                    onReceive = { _, _, _, _, _ -> },
+                    onDeleteReceipt = {}, onAddMembers = { _, rows, _ -> added.addAll(rows) }, onMemberReceived = { _, _ -> }, onDeleteMember = {}, onDelete = {})
+            }
+        }
+        compose.onNodeWithText("My kameti turn: #5", substring = true).performScrollTo().assertExists()
+        // The old single turn stays selected but cannot be unmarked from here;
+        // tapping another number migrates it into member rows instead of losing it.
+        compose.onNodeWithTag("my-turn-chip-5").assertIsNotEnabled()
+        compose.onNodeWithTag("my-turn-chip-8").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(2, added.size)
+            assertEquals(listOf(5, 8), added.map { it.turn })
+            assertTrue(added.all { it.isMe })
+        }
     }
 
     private fun screenshot(name: String) {

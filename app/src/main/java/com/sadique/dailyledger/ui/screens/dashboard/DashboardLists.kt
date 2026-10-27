@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sadique.dailyledger.data.TransactionEntity
+import com.sadique.dailyledger.ui.CardEntrance
 import com.sadique.dailyledger.ui.GlowIcon
 import com.sadique.dailyledger.ui.LedgerCard
 import com.sadique.dailyledger.ui.LedgerColors
@@ -45,6 +46,7 @@ internal fun DashboardFrequentSection(
     onToggleExpanded: () -> Unit,
     money: (Long) -> String,
     onSelectCategory: (String) -> Unit,
+    entranceBaseDelayMs: Int = 0,
 ) {
     LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space12) {
         val freqChevron by animateFloatAsState(if (expanded) 180f else 0f, tween(300), label = "frequent-chevron")
@@ -58,10 +60,11 @@ internal fun DashboardFrequentSection(
         AnimatedVisibility(visible = expanded,
             enter = expandVertically(tween(320)) + fadeIn(tween(320)),
             exit = shrinkVertically(tween(260)) + fadeOut(tween(260))) {
-        Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space12)) {
+        Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space16)) {
         items.forEachIndexed { index, (label, total) ->
             val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
             val visual = rememberCategoryVisual(label, "EXPENSE")
+            CardEntrance(index = index, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.fillMaxWidth()) {
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("frequent:$label"),
                 modifier = Modifier.fillMaxWidth().testTag("frequent-item-$index")
@@ -80,6 +83,7 @@ internal fun DashboardFrequentSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            }
         }
         }
         }
@@ -93,8 +97,9 @@ internal fun DashboardRecentSection(
     money: (Long) -> String,
     onAllTransactions: (() -> Unit)?,
     onAddSalary: () -> Unit,
+    entranceBaseDelayMs: Int = 0,
 ) {
-    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space12) {
+    LedgerCard(Modifier.fillMaxWidth(), contentSpacing = LedgerTokens.Space16) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
             onAllTransactions?.let { action ->
@@ -113,6 +118,7 @@ internal fun DashboardRecentSection(
             }
         } else recent.forEachIndexed { index, entry ->
             val visual = rememberCategoryVisual(entry.category, entry.type)
+            CardEntrance(index = index, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.fillMaxWidth()) {
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${entry.id}"),
                 modifier = Modifier.fillMaxWidth().testTag("recent-transaction-$index")
@@ -133,6 +139,7 @@ internal fun DashboardRecentSection(
                         fontSize = 12.sp, fontWeight = FontWeight.Medium,
                         color = if ((entry.type == "INCOME" || entry.refundOf.isNotBlank())) LedgerColors.Green else LedgerColors.Red)
                 }
+            }
             }
         }
     }

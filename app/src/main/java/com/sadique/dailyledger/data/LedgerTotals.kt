@@ -18,9 +18,27 @@ data class SalarySummary(
     val savingsContributions: Long = 0,
     val openingBalanceMinor: Long = 0,
     val udharPayments: Long = 0L,
+    /** Net cash out on LENT (udhar given) loans: principal given minus repayments
+     * received in the same window. Negative when repayments on older loans exceed
+     * new lending — money came back, so the balance rises again. */
+    val lentNet: Long = 0L,
 ) {
-    val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions - udharPayments
-    val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions + udharPayments
+    val remaining: Long get() = openingBalanceMinor + salary + otherIncome - expenses - committeeContributions - savingsContributions - udharPayments - lentNet
+    val totalOutflow: Long get() = expenses + committeeContributions + savingsContributions + udharPayments + lentNet
+}
+
+/** Net udhar-given cash flow inside [inWindow]: LENT principal created in the window
+ * minus repayments received in the window (on any LENT loan, including older ones —
+ * a repayment in this window returns cash that an earlier window already deducted). */
+private fun lentNetMinor(
+    loans: List<LoanEntity>,
+    payments: List<LoanPaymentEntity>,
+    inWindow: (Long) -> Boolean,
+): Long {
+    val lentIds = loans.filter { it.direction == "LENT" }.map { it.id }.toSet()
+    val given = loans.filter { it.direction == "LENT" && inWindow(it.createdAt) }.sumOf { it.principalMinor }
+    val returned = payments.filter { it.loanId in lentIds && inWindow(it.createdAt) }.sumOf { it.amountMinor }
+    return given - returned
 }
 
 fun ledgerCycleSummary(
@@ -30,6 +48,8 @@ fun ledgerCycleSummary(
     cycle: LedgerCycleEntity,
     now: Long = System.currentTimeMillis(),
     creditPayments: List<CreditPaymentEntity> = emptyList(),
+    loans: List<LoanEntity> = emptyList(),
+    loanPayments: List<LoanPaymentEntity> = emptyList(),
 ): SalarySummary {
     val currentTransactions = transactions.filter { it.createdAt in cycle.startAt..now }
     return SalarySummary(
@@ -42,6 +62,7 @@ fun ledgerCycleSummary(
         savingsContributions = savings.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
         openingBalanceMinor = cycle.openingBalanceMinor,
         udharPayments = creditPayments.filter { it.createdAt in cycle.startAt..now }.sumOf { it.amountMinor },
+        lentNet = lentNetMinor(loans, loanPayments) { it in cycle.startAt..now },
     )
 }
 
@@ -55,8 +76,15 @@ fun monthlySalarySummary(
     committeePayments: List<CommitteePaymentEntity> = emptyList(),
     savings: List<SavingEntity> = emptyList(),
     creditPayments: List<CreditPaymentEntity> = emptyList(),
+    loans: List<LoanEntity> = emptyList(),
+    loanPayments: List<LoanPaymentEntity> = emptyList(),
 ): SalarySummary {
     val current = transactions.filter { it.date.startsWith("$month-") }
+    // LoanEntity carries no date string, only createdAt millis — mirror
+    // chargesSalaryBalance and derive the month from createdAt.
+    val inMonth: (Long) -> Boolean = { createdAt ->
+        runCatching { YearMonth.from(Instant.ofEpochMilli(createdAt).atZone(ZoneId.systemDefault())).toString() == month }.getOrDefault(false)
+    }
     return SalarySummary(
         salary = current.filter { it.isSalary() }.sumOf { it.amountMinor },
         expenses = current.filter { it.type == "EXPENSE" }.sumOf { it.expenseEffect() },
@@ -64,6 +92,7 @@ fun monthlySalarySummary(
         committeeContributions = committeePayments.filter { it.month == month }.sumOf { it.amountMinor },
         savingsContributions = savings.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },
         udharPayments = creditPayments.filter { it.date.startsWith("$month-") }.sumOf { it.amountMinor },
+        lentNet = lentNetMinor(loans, loanPayments, inMonth),
     )
 }
 

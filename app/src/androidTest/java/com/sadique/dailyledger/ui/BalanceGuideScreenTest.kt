@@ -26,7 +26,7 @@ class BalanceGuideScreenTest {
         var category = ""
         compose.setContent { DailyLedgerTheme("AQUA") {
             DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
-                savings = emptyList(), userName = "Demo", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                savings = emptyList(), userName = "Demo",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
                 onAddCategoryExpense = { name, _ -> category = name })
         } }
@@ -55,8 +55,7 @@ class BalanceGuideScreenTest {
         }
         compose.setContent { DailyLedgerTheme("AQUA") {
             DashboardScreen(rows, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
-                savings = emptyList(), userName = "Demo", weatherEnabled = false,
-                weatherCity = "", weatherTemperature = "", weatherCondition = "",
+                savings = emptyList(), userName = "Demo",
                 onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {})
         } }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("spending")

@@ -127,7 +127,7 @@ class UrduPlanningUiTest {
         val tx = listOf(TransactionEntity("salary", "test", "INCOME", 100000, "Salary", "", LocalDate.now().toString(), 1, 1))
         val snapshot = SpendingInsights.calculate("test", tx)
         compose.setContent { CompositionLocalProvider(LocalDisplayPreferences provides display) { DailyLedgerTheme("LIGHT") {
-            DashboardScreen(tx, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), savings = emptyList(), userName = "Test", weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "", onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {}, snapshot = snapshot, aiEnabled = true, onRefreshAi = { refreshes++ })
+            DashboardScreen(tx, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), savings = emptyList(), userName = "Test", onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {}, snapshot = snapshot, aiEnabled = true, onRefreshAi = { refreshes++ })
         } } }
         compose.onNodeWithTag("dashboard-list").performScrollToKey("insights")
         assertEquals(0, refreshes)
@@ -180,7 +180,6 @@ class UrduPlanningUiTest {
                     DashboardScreen(
                         tx = rows, loans = emptyList(), lp = emptyList(), committees = emptyList(),
                         cp = emptyList(), receipts = emptyList(), savings = emptyList(), userName = "Test",
-                        weatherEnabled = false, weatherCity = "", weatherTemperature = "", weatherCondition = "",
                         onAddSalary = {}, onAddExpense = {}, onOpenSavings = {}, onOpenKameti = {},
                     )
                 }

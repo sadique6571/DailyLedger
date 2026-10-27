@@ -47,7 +47,7 @@ class RefreshScreensTest {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 LedgerBrandHeader("Settings & backup")
                 AccountBackupCard(true, knownBackup.value, "17 Oct 2026", "", false, {}, { action = "restore" }, { action = "backup" }, { action = "details" }, backupState.value)
-                PersonalizationCard(true, true, "Okara", {}, {}, { action = "location" }, {})
+                PersonalizationCard(true, {}, {})
                 SavingsSettingsCard(0) { action = "savings" }
                 EncryptionBanner()
             }
@@ -64,8 +64,6 @@ class RefreshScreensTest {
         compose.runOnIdle { backupState.value = "verified" }
         compose.onNodeWithText("Cloud backup verified").assertIsDisplayed()
         shot("aqua-settings")
-        compose.onNodeWithText("Change").performScrollTo().performClick()
-        assertEquals("location", action)
         compose.onNodeWithText("View savings").performScrollTo().performClick()
         assertEquals("savings", action)
     }
@@ -91,7 +89,7 @@ class RefreshScreensTest {
         try {
             compose.setContent { DailyLedgerTheme("AQUA") {
                 DailyLedgerApp(com.sadique.dailyledger.auth.UserProfile(owner, "preview@example.com", "Preview"),
-                    com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, "", "", "", 0L, false, {})
+                    com.sadique.dailyledger.data.SettingsStore(context), "AQUA", false, false, 0L, "", false, {})
             } }
             compose.waitUntil(10_000) { compose.onAllNodesWithText("More").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("More").performClick()
@@ -131,11 +129,8 @@ class RefreshScreensTest {
             androidx.test.espresso.Espresso.pressBack()
             compose.onNodeWithTag("settings-list").assertExists()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-personalization")
-            compose.onNodeWithText("Change").performScrollTo().performClick()
-            compose.onNodeWithText("Weather location").performScrollTo().assertIsDisplayed()
-            androidx.test.espresso.Espresso.pressBack()
-            compose.onNodeWithTag("settings-list").assertExists()
-            compose.onNodeWithText("Weather location").assertDoesNotExist()
+            compose.onNodeWithText("Transaction sounds").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("Weather on Home").assertDoesNotExist()
             compose.onNodeWithTag("settings-list").performScrollToKey("settings-export")
             compose.onNodeWithTag("export-save").performScrollTo().assertIsEnabled(); shot("settings-export")
             androidx.test.espresso.Espresso.pressBack()

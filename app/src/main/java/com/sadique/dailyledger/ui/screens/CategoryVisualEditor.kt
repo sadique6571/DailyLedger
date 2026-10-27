@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.LedgerCategory
+import com.sadique.dailyledger.ui.LocalDisplayPreferences
 import com.sadique.dailyledger.ui.CategoryOverrideColors
 import com.sadique.dailyledger.ui.CategoryOverrideIcons
 import com.sadique.dailyledger.ui.CategoryVisual
@@ -28,8 +29,17 @@ import com.sadique.dailyledger.ui.categoryVisual
 @Composable
 fun CategoryVisualEditorDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val catalog = remember {
-        CategoryCatalog.load(context)
+    // User-created categories live in DisplayPreferences, not in the static catalog.
+    // Merge them (custom first, so a custom entry wins a label clash) and re-run the
+    // merge whenever the custom list changes, so a newly created category shows here
+    // immediately with no restart.
+    val customCategories = LocalDisplayPreferences.current?.customCategories ?: emptyList()
+    val catalog = remember(customCategories) {
+        val customs = customCategories.mapNotNull { entry ->
+            val parts = entry.split("|", limit = 2)
+            if (parts.size == 2 && parts[1].isNotBlank()) LedgerCategory("Your categories", parts[1], parts[0], emptyList()) else null
+        }
+        (customs + CategoryCatalog.load(context))
             .distinctBy { it.label.lowercase(java.util.Locale.ROOT) }
             .sortedBy { it.label.lowercase(java.util.Locale.ROOT) }
     }

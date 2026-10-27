@@ -27,15 +27,25 @@ class AiService(private val context: Context, private val owner: String) {
     /** True when this request would spend the shared built-in proxy quota. */
     private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
 
+    /** True when the user saved their own API key in Settings. The entry AI must
+     * then use the online model via that key, not the offline fallback. The key
+     * itself is never logged or exposed — only its presence is checked. */
+    fun hasPersonalKey(): Boolean = keyStore.key.isNotBlank()
+
     private suspend fun route(request: AiModelRequest): String {
         val key = keyStore.key
         val provider = AiProviders.byId(preferences.providerId)
-        return if (key.isNotBlank() && preferences.proxyBase.isBlank() && !provider.geminiNative) {
+        // A stale built-in-proxy URL stored alongside a personal key must not
+        // divert the request to an unauthenticated proxy call: treat it as blank
+        // so a personal key always routes with its own auth (OpenAI-compatible
+        // providers directly, Gemini via the key header).
+        val proxyBase = if (key.isNotBlank() && preferences.proxyBase.trim() == GeminiGateway.BUILT_IN_PROXY) "" else preferences.proxyBase
+        return if (key.isNotBlank() && proxyBase.isBlank() && !provider.geminiNative) {
             // Personal key of another AI service (OpenAI-compatible chat API).
             OpenAiGateway.generate(request, provider, key, preferences.providerModel, preferences.providerBase)
         } else {
             // Gemini key directly, the user's own proxy, or the built-in proxy.
-            GeminiGateway.generate(request, key, preferences.proxyBase)
+            GeminiGateway.generate(request, key, proxyBase)
         }
     }
 
