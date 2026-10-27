@@ -173,7 +173,7 @@ object ItemIconService {
                     dest.writeBytes(stored)
                     tmp.delete()
                 }
-                true
+                return true
             } finally {
                 if (scaled !== decoded) decoded.recycle()
             }

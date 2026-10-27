@@ -163,6 +163,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     fun setAiEnabled(value: Boolean) { aiPrefs.enabled = value; manualInsights.setEnabled(value) }
     /** Persisted AI entry engine toggle (Task 2). Defaults to Online when Cloud
      * AI is enabled, else Offline; the user's explicit choice always wins. */
+    private val _aiEntryEngine = MutableStateFlow(aiPrefs.entryEngine ?: if (aiEnabled.value) AiEntryEngine.ONLINE else AiEntryEngine.OFFLINE)
     /** Bumped whenever the learned-item overlay refreshes, so the shared
      * category options rebuild even when the transaction list is unchanged. */
     private val _learnedOverlayVersion = MutableStateFlow(0)
