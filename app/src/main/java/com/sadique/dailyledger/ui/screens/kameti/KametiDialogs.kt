@@ -103,6 +103,7 @@ internal fun PersonalMemberBatchDialog(
     committee: CommitteeEntity,
     currentMembers: List<CommitteeMemberEntity>,
     dismiss: () -> Unit,
+    startAsMe: Boolean = false,
     save: suspend (String, List<PersonalTurnDraft>) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -110,11 +111,11 @@ internal fun PersonalMemberBatchDialog(
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val queued = remember(committee.id) { mutableStateListOf<PersonalTurnDraft>() }
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(if (startAsMe) "Me" else "") }
     var phone by remember { mutableStateOf("") }
     var whatsapp by remember { mutableStateOf("") }
     var turn by remember { mutableStateOf("") }
-    var isMe by remember { mutableStateOf(false) }
+    var isMe by remember { mutableStateOf(startAsMe) }
     var note by remember { mutableStateOf("") }
     var halfUnits by remember { mutableIntStateOf(2) }
     val turnNumber = turn.toIntOrNull()

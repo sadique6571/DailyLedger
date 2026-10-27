@@ -96,6 +96,7 @@ fun CommitteeScreen(
     var pendingUndoDelete by remember { mutableStateOf<CommitteeEntity?>(null) }
     val undoBar = remember { SnackbarHostState() }
     val undoScope = rememberCoroutineScope()
+    val myTurnScope = rememberCoroutineScope()
     val visibleCommittees = committees.filter { it.id != pendingUndoDelete?.id }
     fun requestDeleteCommittee(committee: CommitteeEntity) {
         if (pendingUndoDelete == committee) return
@@ -109,6 +110,7 @@ fun CommitteeScreen(
     var deleteReceipt by remember { mutableStateOf<CommitteeReceiptEntity?>(null) }
     var paying by remember { mutableStateOf<Pair<CommitteeEntity, Int>?>(null) }
     var addMemberTo by remember { mutableStateOf<CommitteeEntity?>(null) }
+    var addMemberAsMe by remember { mutableStateOf(false) }
     var markMemberReceived by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
     var receivePersonalMember by remember { mutableStateOf<CommitteeMemberEntity?>(null) }
     pickEntry?.let { action ->
@@ -119,7 +121,7 @@ fun CommitteeScreen(
             }
             "kameti-receive" -> committees.filter { committeeBalance(it, receipts).remaining > 0 }
                 .map { c -> c.name to { receivingId = c.id; pickEntry = null } }
-            else -> committees.map { c -> c.name to { addMemberTo = c; pickEntry = null } }
+            else -> committees.map { c -> c.name to { addMemberAsMe = false; addMemberTo = c; pickEntry = null } }
         }
         com.sadique.dailyledger.ui.EntryRecordPicker("Choose kameti", choices, { pickEntry = null })
     }
@@ -264,15 +266,76 @@ fun CommitteeScreen(
                             }
                             if (myStructuredTurns.size < myExpected) {
                                 Text("${myExpected - myStructuredTurns.size} turn${if (myExpected - myStructuredTurns.size == 1) "" else "s"} still to add for your ${committee.sharesHalfUnits / 2.0} shares.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                                TextButton(onClick = { addMemberTo = committee }) { Text("Add my remaining turn") }
+                                TextButton(onClick = { addMemberAsMe = true; addMemberTo = committee }) { Text("Add my remaining turn") }
                             }
                         } else {
                             committee.payoutInstallment?.let { turn ->
                                 val month = scheduledMonth(committee, turn)
                                 Text("My kameti turn: #$turn • $month (1 of $myExpected)", style = MaterialTheme.typography.titleSmall)
                                 Text(monthCountdown(month), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                                if (myExpected > 1) TextButton(onClick = { addMemberTo = committee }) { Text("Add my remaining turn") }
+                                if (myExpected > 1) TextButton(onClick = { addMemberAsMe = true; addMemberTo = committee }) { Text("Add my remaining turn") }
                             }
+                        }
+
+                        // My-turn number selector: har number 1..N par tap kar ke apni bari set/unset karein.
+                        // Pehle sirf ek "payout turn" number set ho sakta tha, aur batch dialog "This is my turn"
+                        // off le kar khulta tha — is liye 2+ turns yahan se kabhi set hi nahi hote the.
+                        val myMembers = ms.filter { it.isMe }
+                        val myTurnNumbers = myMembers.map { it.turnNumber }.toSet()
+                        val legacyTurn = if (myMembers.isEmpty()) committee.payoutInstallment else null
+                        val mySelectedCount = myTurnNumbers.size + if (legacyTurn != null) 1 else 0
+                        val myUsedUnits = myMembers.sumOf { it.shareHalfUnits }
+                        val myRemainingUnits = (committee.sharesHalfUnits - myUsedUnits).coerceAtLeast(0)
+                        Text("My turn numbers", style = MaterialTheme.typography.titleSmall)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (1..committee.totalInstallments).forEach { turnNumber ->
+                                val myMember = myMembers.firstOrNull { it.turnNumber == turnNumber }
+                                val isLegacyTurn = legacyTurn == turnNumber
+                                val selected = myMember != null || isLegacyTurn
+                                val occupiedUnits = ms.filter { it.turnNumber == turnNumber }.sumOf { it.shareHalfUnits }
+                                val roomUnits = 2 - occupiedUnits
+                                val hasReceipts = myMember != null && rs.any { it.memberId == myMember.id }
+                                val canSelect = !selected && mySelectedCount < myExpected && myRemainingUnits > 0 && roomUnits > 0
+                                val canUnselect = myMember != null && !myMember.received && !hasReceipts
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        if (selected) {
+                                            if (myMember != null) onDeleteMember(myMember)
+                                        } else {
+                                            myTurnScope.launch {
+                                                try {
+                                                    val drafts = mutableListOf<PersonalTurnDraft>()
+                                                    var remaining = myRemainingUnits
+                                                    if (legacyTurn != null) {
+                                                        val legacyUnits = minOf(2, remaining)
+                                                        drafts.add(PersonalTurnDraft("Me", "", "", legacyTurn, scheduledMonth(committee, legacyTurn), true, "", legacyUnits))
+                                                        remaining -= legacyUnits
+                                                    }
+                                                    val units = minOf(roomUnits, remaining)
+                                                    if (units <= 0) {
+                                                        undoBar.showSnackbar("No share left for another turn.")
+                                                    } else {
+                                                        drafts.add(PersonalTurnDraft("Me", "", "", turnNumber, scheduledMonth(committee, turnNumber), true, "", units))
+                                                        onAddMembers(committee.id, drafts, java.util.UUID.randomUUID().toString())
+                                                    }
+                                                } catch (e: Exception) {
+                                                    undoBar.showSnackbar(e.message ?: "Could not save turn.")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    label = { Text("#$turnNumber") },
+                                    modifier = Modifier.testTag("my-turn-chip-$turnNumber"),
+                                    enabled = canSelect || canUnselect,
+                                )
+                            }
+                        }
+                        if (legacyTurn != null) Text("Turn #$legacyTurn is already set.", style = MaterialTheme.typography.bodySmall)
+                        when {
+                            mySelectedCount >= myExpected -> Text("All your turns are set.", style = MaterialTheme.typography.bodySmall)
+                            mySelectedCount == 0 -> Text("No turn selected yet — tap your turn numbers.", style = MaterialTheme.typography.bodySmall)
+                            else -> Text("${myExpected - mySelectedCount} more turn${if (myExpected - mySelectedCount == 1) "" else "s"} to select.", style = MaterialTheme.typography.bodySmall)
                         }
 
                         if (committee.organizerPhone.isNotBlank()) {
@@ -300,7 +363,7 @@ fun CommitteeScreen(
                             ) { Text(if (balance.complete) "Received" else "Receive amount") }
                         }
 
-                        FilledTonalButton(onClick = { addMemberTo = committee }, modifier = Modifier.fillMaxWidth()) {
+                        FilledTonalButton(onClick = { addMemberAsMe = false; addMemberTo = committee }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Rounded.PersonAdd, null)
                             Spacer(Modifier.width(8.dp))
                             Text("Add member / turn")
@@ -398,7 +461,7 @@ fun CommitteeScreen(
     }
 
     addMemberTo?.let { committee ->
-        PersonalMemberBatchDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null }) { requestId, entries ->
+        PersonalMemberBatchDialog(committee, members.filter { it.committeeId == committee.id }, { addMemberTo = null; addMemberAsMe = false }, startAsMe = addMemberAsMe) { requestId, entries ->
             onAddMembers(committee.id, entries, requestId)
         }
     }

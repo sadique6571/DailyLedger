@@ -222,6 +222,73 @@ class LedgerScreensTest {
         compose.onAllNodesWithText("Received").filter(hasClickAction()).onFirst().assertIsNotEnabled()
     }
 
+    @Test fun myTurnChipsLetUserPickMultipleTurnNumbers() {
+        val added = mutableListOf<PersonalTurnDraft>()
+        val deleted = mutableListOf<CommitteeMemberEntity>()
+        val members = mutableStateOf(emptyList<CommitteeMemberEntity>())
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                CommitteeScreen(
+                    committees = listOf(kameti), payments = emptyList(), receipts = emptyList(), members = members.value,
+                    onAdd = { _, _, _, _, _, _, _, _ -> }, onPaid = { _, _, _, _ -> },
+                    onReceive = { _, _, _, _, _ -> },
+                    onDeleteReceipt = {}, onAddMembers = { _, rows, _ -> added.addAll(rows) }, onMemberReceived = { _, _ -> }, onDeleteMember = { deleted.add(it) }, onDelete = {})
+            }
+        }
+        // Fixture kameti: 12 installments, 2 shares -> 2 turns.
+        compose.onNodeWithTag("my-turn-chip-3").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(1, added.size)
+            assertEquals(3, added[0].turn)
+            assertTrue(added[0].isMe)
+            assertEquals(2, added[0].halfUnits)
+            assertEquals(YearMonth.parse(month).plusMonths(2).toString(), added[0].month)
+        }
+        compose.onNodeWithTag("my-turn-chip-5").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(2, added.size)
+            assertEquals(5, added[1].turn)
+            assertTrue(added[1].isMe)
+        }
+        // Show both as saved members: the count line lists all turns, and tapping a
+        // selected chip unmarks that turn.
+        val saved = listOf(
+            CommitteeMemberEntity(id = "m3", ownerId = "test", committeeId = "k", name = "Me", turnNumber = 3, turnMonth = month, isMe = true, createdAt = 1, shareHalfUnits = 2),
+            CommitteeMemberEntity(id = "m5", ownerId = "test", committeeId = "k", name = "Me", turnNumber = 5, turnMonth = month, isMe = true, createdAt = 2, shareHalfUnits = 2),
+        )
+        compose.runOnIdle { members.value = saved }
+        compose.onNodeWithText("My turns (2 of 2): #3, #5").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("my-turn-chip-3").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(listOf("m3"), deleted.map { it.id }) }
+    }
+
+    @Test fun myTurnChipsMigrateLegacyPayoutTurn() {
+        val added = mutableListOf<PersonalTurnDraft>()
+        val legacy = kameti.copy(payoutInstallment = 5)
+        compose.setContent {
+            DailyLedgerTheme("LIGHT") {
+                CommitteeScreen(
+                    committees = listOf(legacy), payments = emptyList(), receipts = emptyList(), members = emptyList(),
+                    onAdd = { _, _, _, _, _, _, _, _ -> }, onPaid = { _, _, _, _ -> },
+                    onReceive = { _, _, _, _, _ -> },
+                    onDeleteReceipt = {}, onAddMembers = { _, rows, _ -> added.addAll(rows) }, onMemberReceived = { _, _ -> }, onDeleteMember = {}, onDelete = {})
+            }
+        }
+        compose.onNodeWithText("My kameti turn: #5", substring = true).performScrollTo().assertExists()
+        // The old single turn stays selected but cannot be unmarked from here;
+        // tapping another number migrates it into member rows instead of losing it.
+        compose.onNodeWithTag("my-turn-chip-5").assertIsNotEnabled()
+        compose.onNodeWithTag("my-turn-chip-8").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(2, added.size)
+            assertEquals(listOf(5, 8), added.map { it.turn })
+            assertTrue(added.all { it.isMe })
+        }
+    }
+
     private fun screenshot(name: String) {
         compose.waitForIdle()
         // Keep previews outside app storage: Gradle removes the test app after the run.
