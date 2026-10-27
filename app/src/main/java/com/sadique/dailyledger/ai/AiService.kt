@@ -108,8 +108,8 @@ class AiService(private val context: Context, private val owner: String) {
                 // it did not compile. Same semantics as before: success with
                 // entries wins; any failure falls to the checks below, and a
                 // CancellationException still propagates immediately.
-                val repaired: AiDraftResult?
-                val repairedFailure: Throwable?
+                var repaired: AiDraftResult?
+                var repairedFailure: Throwable?
                 try {
                     repaired = normalize(AiProtocol.decodeDrafts(call(AiPrompts.draftsRepair(input, LocalDate.now(), catalog))))
                     repairedFailure = null
