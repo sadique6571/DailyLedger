@@ -78,7 +78,20 @@ class AiService(private val context: Context, private val owner: String) {
         val learnedLabels = learned.map { it.name }.toSet()
         fun normalize(result: AiDraftResult): AiDraftResult =
             CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
-        val first = normalize(AiProtocol.decodeDrafts(call(AiPrompts.drafts(input, LocalDate.now(), catalog))))
+        fun decodeOnce(request: AiModelRequest): AiDraftResult =
+            normalize(AiProtocol.decodeDrafts(call(request)))
+        // A decode failure is nondeterministic for reasoning models (truncated
+        // JSON, bare array, one bad row value): the same prompt usually lands
+        // on a fresh sample. Retry ONCE with the same prompt — costs one extra
+        // call ONLY when the first answer failed to decode, zero on success.
+        // Infrastructure failures are never retried here (the runner already
+        // retries those); dangerous keys are re-checked on the retry, so a
+        // smuggled key fails again instead of slipping through.
+        val first = try {
+            decodeOnce(AiPrompts.drafts(input, LocalDate.now(), catalog))
+        } catch (e: AiDecodeException) {
+            decodeOnce(AiPrompts.drafts(input, LocalDate.now(), catalog))
+        }
         val result = if (first.entries.isNotEmpty()) first else {
             // The model took the "return no transactions" escape hatch even
             // though the input may carry an amount: one stricter retry. The

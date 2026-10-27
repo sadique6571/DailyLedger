@@ -38,7 +38,7 @@ internal object AiPrompts {
      * invented amount. Only used when the input carries a digit. */
     fun draftsRepair(text: String, today: LocalDate, catalog: List<LedgerCategory>): AiModelRequest {
         val base = drafts(text, today, catalog)
-        return base.copy(instruction = base.instruction + "\nSecond attempt: the previous answer had no transactions. Return EXACTLY ONE transaction for the item and amount given — never an empty list. If unsure of the category, use Other. Use only the keys message and transactions; each transaction only type, amount_pkr, category, note, date.")
+        return base.copy(instruction = base.instruction + "\nSecond attempt: the previous answer had no transactions. Return one transaction for EACH item-and-amount in the input — never an empty list. If unsure of a category, use Other. Use only the keys message and transactions; each transaction only type, amount_pkr, category, note, date.")
     }
 
     fun insights(snapshot: SpendingSnapshot, catalog: List<LedgerCategory>): AiModelRequest {

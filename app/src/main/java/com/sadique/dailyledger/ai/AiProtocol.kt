@@ -8,6 +8,11 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 class AiException(message:String):Exception(message)
+/** A model answer that failed to decode (bad shape, truncated JSON, bad row
+ * value). Same user message as AiException; the distinct type lets the
+ * caller retry a decode failure once without also retrying infrastructure
+ * failures (network/limit), which the runner already handles. */
+class AiDecodeException(message:String):AiException(message)
 data class AiDraftResult(val message:String,val entries:List<TransactionDraft>, val reviewIssues: List<List<String>> = emptyList())
 object AiProtocol {
     const val MAX_INPUT=3000
@@ -104,13 +109,27 @@ object AiProtocol {
      * transactions list decodes to empty — AiService retries that once.
      */
     fun decodeDrafts(content:String):AiDraftResult=try {
-        val root=JSONObject(extractJsonObject(content))
-        require(!root.hasDangerousKey() && root.has("transactions"))
-        val message=root.optString("message").take(1000)
-        val rows=when (val tx=root.opt("transactions")) {
-            is JSONArray -> tx
-            is JSONObject -> JSONArray().put(tx)
-            else -> error("Expected transactions array")
+        val rootObj = runCatching { JSONObject(extractJsonObject(content)) }.getOrNull()
+        // A smuggled account-scoping key rejects the whole answer even if a
+        // transactions array is also present — the array fallback below must
+        // never bypass this check.
+        if (rootObj != null && rootObj.hasDangerousKey()) error("Dangerous key")
+        val message: String
+        val rows: JSONArray
+        if (rootObj != null && rootObj.has("transactions")) {
+            message = rootObj.optString("message").take(1000)
+            rows = when (val tx = rootObj.opt("transactions")) {
+                is JSONArray -> tx
+                is JSONObject -> JSONArray().put(tx)
+                else -> error("Expected transactions array")
+            }
+        } else {
+            // Bare-array answer: json_object mode was rejected (or ignored) and
+            // the model answered without the wrapper object. Insights already
+            // accept this shape; drafts did not, so a bare array failed the
+            // whole batch even though every row was fine.
+            message = ""
+            rows = extractJsonArray(content) ?: error("Expected transactions array")
         }
         val entries=mutableListOf<TransactionDraft>()
         for (i in 0 until rows.length()) {
@@ -126,7 +145,7 @@ object AiProtocol {
             entries += TransactionDraft(type,BigDecimal(amount).movePointRight(2).longValueExact(),category,note,date).validated()
         }
         AiDraftResult(message.ifBlank{"Entries check karke Save karein."},entries)
-    }catch(_:Exception){throw AiException("AI returned an invalid entry. Nothing was saved. Try a clearer description.")}
+    }catch(_:Exception){throw AiDecodeException("AI returned an invalid entry. Nothing was saved. Try a clearer description.")}
     /**
      * Suggestions used to be decoded strictly (exact keys, title 1..80,
      * detail 1..600, no fences) while the insights prompt never states those
