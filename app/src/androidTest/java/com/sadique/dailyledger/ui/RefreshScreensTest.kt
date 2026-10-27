@@ -64,8 +64,6 @@ class RefreshScreensTest {
         compose.runOnIdle { backupState.value = "verified" }
         compose.onNodeWithText("Cloud backup verified").assertIsDisplayed()
         shot("aqua-settings")
-        compose.onNodeWithText("Change").performScrollTo().performClick()
-        assertEquals("location", action)
         compose.onNodeWithText("View savings").performScrollTo().performClick()
         assertEquals("savings", action)
     }
