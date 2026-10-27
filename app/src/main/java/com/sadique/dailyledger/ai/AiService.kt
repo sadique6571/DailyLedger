@@ -78,7 +78,7 @@ class AiService(private val context: Context, private val owner: String) {
         val learnedLabels = learned.map { it.name }.toSet()
         fun normalize(result: AiDraftResult): AiDraftResult =
             CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
-        fun decodeOnce(request: AiModelRequest): AiDraftResult =
+        suspend fun decodeOnce(request: AiModelRequest): AiDraftResult =
             normalize(AiProtocol.decodeDrafts(call(request)))
         // A decode failure is nondeterministic for reasoning models (truncated
         // JSON, bare array, one bad row value): the same prompt usually lands
@@ -103,13 +103,26 @@ class AiService(private val context: Context, private val owner: String) {
             // the generic invalid-entry dead end, and never a silent switch
             // to offline.
             if (!input.any { it.isDigit() }) first else {
-                val repaired = runCatching {
-                    normalize(AiProtocol.decodeDrafts(call(AiPrompts.draftsRepair(input, LocalDate.now(), catalog))))
+                // Plain try/catch inside this suspend function: runCatching's
+                // lambda is not a coroutine body, so the suspend call() inside
+                // it did not compile. Same semantics as before: success with
+                // entries wins; any failure falls to the checks below, and a
+                // CancellationException still propagates immediately.
+                val repaired: AiDraftResult?
+                val repairedFailure: Throwable?
+                try {
+                    repaired = normalize(AiProtocol.decodeDrafts(call(AiPrompts.draftsRepair(input, LocalDate.now(), catalog))))
+                    repairedFailure = null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    repaired = null
+                    repairedFailure = e
                 }
-                val second = repaired.getOrNull()
+                val second = repaired
                 if (second != null && second.entries.isNotEmpty()) second
                 else {
-                    val failure = repaired.exceptionOrNull()
+                    val failure = repairedFailure
                     if (failure is CancellationException) throw failure
                     if (failure is AiException && isInfrastructure(failure)) throw failure
                     throw AiException("AI is jumlay se koi entry nahi bana saka. Item aur amount alag alag wazeh likh kar dobara koshish karein. Nothing was saved.")
@@ -168,3 +181,4 @@ class AiService(private val context: Context, private val owner: String) {
         return AiDraftResult("Statement se ${all.size} entries mili hain — check karke Save karein.", all.take(90))
     }
 }
+

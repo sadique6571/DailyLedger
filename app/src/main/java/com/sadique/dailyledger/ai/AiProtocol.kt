@@ -7,7 +7,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class AiException(message:String):Exception(message)
+open class AiException(message:String):Exception(message)
 /** A model answer that failed to decode (bad shape, truncated JSON, bad row
  * value). Same user message as AiException; the distinct type lets the
  * caller retry a decode failure once without also retrying infrastructure
@@ -180,3 +180,4 @@ object AiProtocol {
             .put("categories",JSONArray().apply{s.categories.take(12).forEach{(name,value)->put(JSONObject().put("name",name.take(60)).put("amount",money(value)))}})
     }
 }
+
