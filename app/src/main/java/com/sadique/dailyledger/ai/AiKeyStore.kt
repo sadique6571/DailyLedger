@@ -14,7 +14,7 @@ import com.sadique.dailyledger.security.SecureSecretStore
  * currently selected provider's slot, and then clears it. It is idempotent: a
  * second call finds the old slot empty and does nothing.
  */
-class AiKeyStore(context: Context, owner: String) {
+class AiKeyStore(private val context: Context, private val owner: String) {
     private val legacy = SecureSecretStore(context, "gemini-apikey:" + owner)
     private fun storeFor(providerId: String) =
         SecureSecretStore(context, "gemini-apikey:" + owner + ":" + providerId)
