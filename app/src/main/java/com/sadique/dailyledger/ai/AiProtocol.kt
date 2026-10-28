@@ -157,19 +157,48 @@ object AiProtocol {
     fun decodeInsights(content:String):List<SpendingTip> = try {
         val root=JSONObject(extractJsonObject(content))
         require(!root.hasDangerousKey())
+        // The prompt names "suggestions", but models often answer under
+        // "tips"/"insights"/"recommendations", as a bare array, or as one
+        // tip object. Accept all of those; the guards below (dangerous keys,
+        // blank titles skipped, at least one tip) still apply.
         val rows=when (val s=root.opt("suggestions")) {
             is JSONArray -> s
             is JSONObject -> JSONArray().put(s)
-            else -> extractJsonArray(content) ?: error("Expected suggestions array")
+            else -> {
+                var found: JSONArray? = null
+                for (key in arrayOf("tips", "insights", "recommendations")) {
+                    val v = root.opt(key)
+                    if (v is JSONArray) { found = v; break }
+                    if (v is JSONObject) { found = JSONArray().put(v); break }
+                }
+                found ?: extractJsonArray(content) ?: run {
+                    if (root.has("title") || root.has("tip") || root.has("suggestion") || root.has("heading")) JSONArray().put(root)
+                    else error("Expected suggestions array")
+                }
+            }
         }
         val tips=mutableListOf<SpendingTip>()
+        fun firstNonBlank(row: JSONObject, vararg keys: String): String {
+            for (k in keys) { val v = row.optString(k).trim(); if (v.isNotBlank()) return v }
+            return ""
+        }
         for (i in 0 until rows.length()) {
             if (tips.size >= 3) break
-            val row=rows.optJSONObject(i) ?: continue
+            val row=rows.optJSONObject(i)
+            if (row == null) {
+                // A plain string row is a tip with no detail.
+                val raw = rows.opt(i)
+                if (raw is String) {
+                    val text = raw.trim().take(80)
+                    if (text.isNotBlank()) tips += SpendingTip(text, "")
+                }
+                continue
+            }
             if (row.hasDangerousKey()) error("Dangerous key")
-            val title=row.optString("title").trim().take(80)
+            val title=firstNonBlank(row, "title", "tip", "suggestion", "heading").take(80)
             if (title.isBlank()) continue
-            tips += SpendingTip(title,row.optString("detail").trim().take(600))
+            val detail=firstNonBlank(row, "detail", "description", "text", "action", "advice").take(600)
+            tips += SpendingTip(title, detail)
         }
         require(tips.isNotEmpty())
         tips
