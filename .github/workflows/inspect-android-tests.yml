@@ -30,5 +30,14 @@ jobs:
             FAILED_RUN=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-apk.yml --status failure --limit 1 --json databaseId --jq '.[0].databaseId')
           fi
           test -n "$FAILED_RUN"
+          gh run view "$FAILED_RUN" --repo "$GITHUB_REPOSITORY" --log-failed > "$RUNNER_TEMP/failed-build.log"
+          python3 - "$RUNNER_TEMP/failed-build.log" <<'PYLOG'
+          import pathlib, sys
+          lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
+          errors = [line for line in lines if any(token in line for token in ('e: ', 'error:', 'What went wrong:', 'Execution failed for task', 'FAILURE:'))]
+          for line in errors[:40]:
+              safe = line.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print('::error title=Failed build log::' + safe)
+          PYLOG
           gh run download "$FAILED_RUN" --repo "$GITHUB_REPOSITORY" --name DailyLedger-test-reports --dir "$RUNNER_TEMP/prior-test-reports"
           python3 tests/report-device-failures.py "$RUNNER_TEMP/prior-test-reports"
