@@ -24,16 +24,24 @@ class AiService(private val context: Context, private val owner: String) {
         generate = { request -> route(request) },
     )
 
+    /** The current provider's saved key. Migrates the old single key slot
+     * once, so a key saved before per-provider storage still works. The key
+     * itself is never logged or exposed — only its presence is checked. */
+    private fun personalKey(): String {
+        keyStore.migrateLegacy(preferences.providerId)
+        preferences.migrateLegacy()
+        return keyStore.keyFor(preferences.providerId)
+    }
+
     /** True when this request would spend the shared built-in proxy quota. */
-    private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
+    private fun usesBuiltInProxy(): Boolean = personalKey().isBlank() && preferences.proxyBase.isBlank()
 
     /** True when the user saved their own API key in Settings. The entry AI must
-     * then use the online model via that key, not the offline fallback. The key
-     * itself is never logged or exposed — only its presence is checked. */
-    fun hasPersonalKey(): Boolean = keyStore.key.isNotBlank()
+     * then use the online model via that key, not the offline fallback. */
+    fun hasPersonalKey(): Boolean = personalKey().isNotBlank()
 
     private suspend fun route(request: AiModelRequest): String {
-        val key = keyStore.key
+        val key = personalKey()
         val provider = AiProviders.byId(preferences.providerId)
         // A stale built-in-proxy URL stored alongside a personal key must not
         // divert the request to an unauthenticated proxy call: treat it as blank
@@ -69,20 +77,88 @@ class AiService(private val context: Context, private val owner: String) {
     } catch (e: CancellationException) { throw e }
     catch (e: Exception) { throw AiFailures.describe(e) }
 
-    suspend fun drafts(input: String): AiDraftResult {
+    suspend fun drafts(input: String, learned: List<com.sadique.dailyledger.data.LearnedItem> = emptyList()): AiDraftResult {
         require(input.isNotBlank() && input.length <= AiProtocol.MAX_INPUT)
         val dates = EntryDateParser.extract(EntryText.normalize(input), LocalDate.now()).map { it.date.toString() }.toSet()
-        val request = AiPrompts.drafts(input, LocalDate.now(), CategoryCatalog.load(context))
-        val result = CategoryRules.normalizeResult(AiProtocol.decodeDrafts(call(request)))
+        val catalog = (CategoryCatalog.load(context) +
+            com.sadique.dailyledger.data.LearnedItems.toLedgerCategories(learned))
+            .distinctBy { it.type to it.label }
+        val learnedLabels = learned.map { it.name }.toSet()
+        fun normalize(result: AiDraftResult): AiDraftResult =
+            CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
+        suspend fun decodeOnce(request: AiModelRequest): AiDraftResult =
+            normalize(AiProtocol.decodeDrafts(call(request)))
+        // A decode failure is nondeterministic for reasoning models (truncated
+        // JSON, bare array, one bad row value): the same prompt usually lands
+        // on a fresh sample. Retry ONCE with the same prompt — costs one extra
+        // call ONLY when the first answer failed to decode, zero on success.
+        // Infrastructure failures are never retried here (the runner already
+        // retries those); dangerous keys are re-checked on the retry, so a
+        // smuggled key fails again instead of slipping through.
+        val first = try {
+            decodeOnce(AiPrompts.drafts(input, LocalDate.now(), catalog))
+        } catch (e: AiDecodeException) {
+            decodeOnce(AiPrompts.drafts(input, LocalDate.now(), catalog))
+        }
+        val result = if (first.entries.isNotEmpty()) first else {
+            // The model took the "return no transactions" escape hatch even
+            // though the input may carry an amount: one stricter retry. The
+            // retry is skipped when the input has no digit at all — then an
+            // empty answer is correct (the model must ask for the amount,
+            // never invent one) and the model's own message is shown.
+            // Infrastructure failures are rethrown as-is; only a second
+            // empty/shape failure becomes the specific error below — never
+            // the generic invalid-entry dead end, and never a silent switch
+            // to offline.
+            if (!input.any { it.isDigit() }) first else {
+                // Plain try/catch inside this suspend function: runCatching's
+                // lambda is not a coroutine body, so the suspend call() inside
+                // it did not compile. Same semantics as before: success with
+                // entries wins; any failure falls to the checks below, and a
+                // CancellationException still propagates immediately.
+                var repaired: AiDraftResult?
+                var repairedFailure: Throwable?
+                try {
+                    repaired = normalize(AiProtocol.decodeDrafts(call(AiPrompts.draftsRepair(input, LocalDate.now(), catalog))))
+                    repairedFailure = null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    repaired = null
+                    repairedFailure = e
+                }
+                val second = repaired
+                if (second != null && second.entries.isNotEmpty()) second
+                else {
+                    val failure = repairedFailure
+                    if (failure is CancellationException) throw failure
+                    if (failure is AiException && isInfrastructure(failure)) throw failure
+                    throw AiException("AI is jumlay se koi entry nahi bana saka. Item aur amount alag alag wazeh likh kar dobara koshish karein. Nothing was saved.")
+                }
+            }
+        }
         if (dates.isNotEmpty() && result.entries.any { it.date !in dates }) {
             throw AiException("AI did not preserve the dates you supplied. Nothing was saved. Please separate the entries or enter them manually.")
         }
         return result
     }
 
+    private fun isInfrastructure(e: AiException): Boolean {
+        val m = e.message.orEmpty()
+        return listOf("[AI_NETWORK]", "[AI_LIMIT]", "[AI_TIMEOUT]", "[AI_DEVICE_LIMIT]", "[AI_KEY]", "[AI_RESPONSE]", "[AI_REQUEST]").any { it in m }
+    }
+
     suspend fun insights(snapshot: SpendingSnapshot): List<SpendingTip> {
         val request = AiPrompts.insights(snapshot, CategoryCatalog.load(context))
-        return AiProtocol.decodeInsights(call(request))
+        // Same decode-retry as drafts(): qwen's first sample often fails to
+        // decode (truncated or variant JSON); a fresh sample usually lands.
+        // One extra call ONLY when the first answer failed to decode, zero
+        // on success. Infrastructure failures are never retried here.
+        return try {
+            AiProtocol.decodeInsights(call(request))
+        } catch (e: AiDecodeException) {
+            AiProtocol.decodeInsights(call(request))
+        }
     }
 
     /** Free-text AI answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
@@ -121,3 +197,4 @@ class AiService(private val context: Context, private val owner: String) {
         return AiDraftResult("Statement se ${all.size} entries mili hain — check karke Save karein.", all.take(90))
     }
 }
+

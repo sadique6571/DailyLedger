@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.testTag
 import com.sadique.dailyledger.ui.screens.CategoryOptions
 import com.sadique.dailyledger.ui.screens.AiChatScreen
 import com.sadique.dailyledger.ui.screens.LocalCategoryOptions
+import com.sadique.dailyledger.ui.screens.LocalIconVersion
 import androidx.compose.ui.Alignment
 import com.sadique.dailyledger.ui.screens.LocalCategoryHistory
 import com.sadique.dailyledger.ui.screens.SavingDialog
@@ -219,7 +220,11 @@ fun DailyLedgerApp(
     val categoryOptions = remember(user.id) { mutableStateOf<Map<String, CategoryOptions>?>(null) }
     val categoryStrings = com.sadique.dailyledger.i18n.LocalStrings.current
     val displayPrefs = LocalDisplayPreferences.current
-    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories) {
+    // Learned items join the picker as soon as the overlay refreshes, not
+    // only when the transaction list changes.
+    val learnedOverlayVersion by vm.learnedOverlayVersion.collectAsState()
+    val iconVersion by vm.iconVersion.collectAsState()
+    LaunchedEffect(user.id, tx, categoryStrings, displayPrefs?.customCategories, learnedOverlayVersion) {
         categoryOptions.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             CategoryOptions.build(com.sadique.dailyledger.data.CategoryCatalog.load(context), tx.filterNot { it.privateEntry }, categoryStrings::text, displayPrefs?.customCategories ?: emptyList())
         }
@@ -227,7 +232,7 @@ fun DailyLedgerApp(
     LaunchedEffect(planning.budgets, tx) {
         com.sadique.dailyledger.notifications.BudgetNotifier.check(context, user.id, planning.budgets, tx.filterNot { it.privateEntry })
     }
-    CompositionLocalProvider(LocalCategoryHistory provides tx.filterNot { it.privateEntry }, LocalCategoryOptions provides categoryOptions.value) {
+    CompositionLocalProvider(LocalCategoryHistory provides tx.filterNot { it.privateEntry }, LocalCategoryOptions provides categoryOptions.value, LocalIconVersion provides iconVersion) {
     val settingsOpen = tab == SETTINGS
     val settingsReturn = navigation.parent == SETTINGS
     val settingsState = rememberSaveableStateHolder()

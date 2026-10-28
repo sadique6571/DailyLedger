@@ -259,10 +259,16 @@ object CategoryRules {
         return fuzzy ?: if (type.equals("INCOME", ignoreCase = true)) "Other income" else "Other"
     }
 
-    fun normalize(type: String, proposed: String, sourceText: String): String {
+    fun normalize(type: String, proposed: String, sourceText: String, learnedLabels: Set<String> = emptySet()): String {
         val isIncome = type.equals("INCOME", ignoreCase = true)
         val canonical = if (isIncome) incomeCategories else expenseCategories
         val proposedClean = proposed.trim()
+
+        // A learned item label is a real category now: keep it verbatim
+        // instead of letting inference collapse it back to Other.
+        if (learnedLabels.any { it.equals(proposedClean, ignoreCase = true) }) {
+            return learnedLabels.first { it.equals(proposedClean, ignoreCase = true) }
+        }
 
         // Specific familiar food terms take precedence over a model's broad bucket.
         val specificFood = setOf("Salan", "Packaged milk", "Chocolate", "Toffee & candy", "Papar", "Biscuits", "Chips & nimko", "Chana breakfast", "Paratha", "Halwa puri")
@@ -296,11 +302,11 @@ object CategoryRules {
         return if (isIncome) "Other income" else "Other"
     }
 
-    fun normalizeDraft(draft: TransactionDraft): TransactionDraft =
-        draft.copy(category = normalize(draft.type, draft.category, draft.note)).validated()
+    fun normalizeDraft(draft: TransactionDraft, learnedLabels: Set<String> = emptySet()): TransactionDraft =
+        draft.copy(category = normalize(draft.type, draft.category, draft.note, learnedLabels)).validated()
 
-    fun normalizeResult(result: AiDraftResult): AiDraftResult =
-        result.copy(entries = result.entries.map(::normalizeDraft))
+    fun normalizeResult(result: AiDraftResult, learnedLabels: Set<String> = emptySet()): AiDraftResult =
+        result.copy(entries = result.entries.map { normalizeDraft(it, learnedLabels) })
 
     private fun normalizeText(text: String): String = OfflineVocabulary.normalize(text)
         .replace('&', ' ')

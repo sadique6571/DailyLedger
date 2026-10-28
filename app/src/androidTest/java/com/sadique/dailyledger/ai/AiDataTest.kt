@@ -23,6 +23,114 @@ import java.time.LocalDate
   assertEquals("Other",AiProtocol.decodeDrafts(single).entries.single().category)
   for(bad in listOf(valid.replace("1500.25","-1.5"),valid.replace("\"amount_pkr\":\"1500.25\"","\"amount_pkr\":1.001")))assertTrue(runCatching{AiProtocol.decodeDrafts(bad)}.exceptionOrNull() is AiException)
  }
+ @Test fun tolerantDraftShapesRound2(){
+  val extra="""{"message":"Ok","currency":"PKR","transactions":[{"type":"EXPENSE","amount_pkr":"3500","category":"Other","note":"Parday","date":"2026-10-27","confidence":0.9}]}"""
+  val e=AiProtocol.decodeDrafts(extra).entries.single();assertEquals(350000L,e.amountMinor);assertEquals("Other",e.category)
+  assertEquals(350000L,AiProtocol.decodeDrafts(valid.replace("1500.25","3500 PKR")).entries.single().amountMinor)
+  assertEquals(350000L,AiProtocol.decodeDrafts(valid.replace("1500.25","Rs. 3,500/-")).entries.single().amountMinor)
+  assertEquals("2026-10-27",AiProtocol.decodeDrafts(valid.replace("2026-10-06","27/10/2026")).entries.single().date)
+  assertEquals("2026-10-27",AiProtocol.decodeDrafts(valid.replace("2026-10-06","27 Oct 2026")).entries.single().date)
+  assertEquals("EXPENSE",AiProtocol.decodeDrafts(valid.replace("EXPENSE","debit")).entries.single().type)
+  for(bad in listOf(valid.replace("\"message\"","\"ownerId\":\"other\",\"message\""),valid.replace("\"type\":","\"accountId\":\"x\",\"type\":")))assertTrue(runCatching{AiProtocol.decodeDrafts(bad)}.exceptionOrNull() is AiException)
+  assertTrue(AiProtocol.decodeDrafts("""{"message":"?","transactions":[]}""").entries.isEmpty())
+  assertEquals(60,AiProtocol.decodeDrafts(valid.replace("Fuel","X".repeat(70))).entries.single().category.length)
+  val many="""{"message":"Ok","transactions":["""+ (1..31).joinToString(",") { """{"type":"EXPENSE","amount_pkr":"10","category":"Other","note":"x","date":"2026-10-06"}""" }+"]}"
+  assertEquals(30,AiProtocol.decodeDrafts(many).entries.size)
+ }
+ @Test fun tolerantInsightsShapes(){
+  val fenced="```json\n{\"message\":\"hi\",\"suggestions\":[{\"title\":\"${"T".repeat(90)}\",\"detail\":\"${"D".repeat(700)}\",\"extra\":1},{\"title\":\"\",\"detail\":\"blank\"},{\"title\":\"Short\",\"detail\":\"Ok\"},{\"title\":\"Fourth\",\"detail\":\"cut\"}]}```"
+  val tips=AiProtocol.decodeInsights(fenced);assertEquals(3,tips.size);assertEquals(80,tips[0].title.length);assertEquals(600,tips[0].detail.length);assertEquals("Short",tips[1].title);assertEquals("Fourth",tips[2].title)
+  assertTrue(runCatching{AiProtocol.decodeInsights("""{"suggestions":[]}""")}.exceptionOrNull() is AiException)
+ }
+ @Test fun exactItemNamePreservedThroughSave(){
+  // The review screen shows the draft note as its title, so the note IS the
+  // item name: it must survive normalization and learning untouched.
+  val draft=TransactionDraft("EXPENSE",350000,"Parday","Parday","2026-10-27")
+  val normalized=CategoryRules.normalizeResult(AiDraftResult("Ok",listOf(draft)),setOf("Parday"))
+  assertEquals("Parday",normalized.entries.single().category)
+  assertEquals("Parday",normalized.entries.single().note)
+  assertEquals("Parday",CategoryLearning.apply(draft,emptyList(),emptyList()).note)
+  val finalized=AiDraftResult("Ok",listOf(draft)).finalizeNames("Parday 3500")
+  assertEquals("Parday",finalized.entries.single().note)
+  // A generic model note falls back to the input's own item wording.
+  val generic=TransactionDraft("EXPENSE",3000,"Other","Other","2026-10-27")
+  assertEquals("Gachak",AiDraftResult("Ok",listOf(generic)).finalizeNames("Gachak 30").entries.single().note)
+  val blank=TransactionDraft("EXPENSE",3000,"Other","","2026-10-27")
+  assertEquals("Parday",AiDraftResult("Ok",listOf(blank)).finalizeNames("Parday 3500").entries.single().note)
+  // No usable wording at all: never invent a name.
+  assertEquals("",AiDraftResult("Ok",listOf(blank)).finalizeNames("3500").entries.single().note)
+ }
+ @Test fun learnedItemsAutoAddOnceAndDedupe(){
+  val catalog=CategoryCatalog.load(context)
+  // Variant spellings are ONE item through the existing alias logic.
+  assertTrue(LearnedItems.isKnown("sonf","EXPENSE",catalog,emptyList()))
+  assertTrue(LearnedItems.isKnown("laal march","EXPENSE",catalog,emptyList()))
+  assertTrue(LearnedItems.isKnown("surkh mirch","EXPENSE",catalog,emptyList()))
+  assertFalse(LearnedItems.isKnown("Parday","EXPENSE",catalog,emptyList()))
+  val learned=LearnedItems.add(emptyList(),LearnedItem("Parday","EXPENSE","Parday"))
+  assertEquals(1,learned.size)
+  assertEquals(learned,LearnedItems.add(learned,LearnedItem("parday","EXPENSE","Parday")))
+  assertTrue(LearnedItems.isKnown("parday","EXPENSE",catalog,learned))
+  val rows=LearnedItems.toLedgerCategories(learned)
+  assertEquals("My items",rows.single().group)
+  assertEquals("Parday",rows.single().label)
+  CategoryCatalog.setLearnedOverlay(learned)
+  try {
+    assertTrue(CategoryCatalog.load(context).any{it.label=="Parday" && it.group=="My items"})
+  } finally {
+    CategoryCatalog.setLearnedOverlay(emptyList())
+  }
+ }
+ @Test fun learningSnapshotItemsRoundTripAndBackup(){
+  val item=LearnedItem("Parday","EXPENSE","Parday","https://example.com/parday.png")
+  val snapshot=LearningSnapshot(items=listOf(item))
+  val json=snapshot.json()
+  assertEquals("Parday",json.getJSONArray("items").getJSONObject(0).getString("name"))
+  assertEquals("https://example.com/parday.png",json.getJSONArray("items").getJSONObject(0).getString("iconUrl"))
+  // This items array is exactly what exportJson embeds as aiLearning, so a
+  // restore that decodes the snapshot restores the learned items.
+  assertEquals(snapshot,LearningSnapshot.decode(json))
+  val v1=org.json.JSONObject().put("version",1).put("rules",org.json.JSONArray())
+    .put("suppressed",org.json.JSONArray()).put("dismissedTips",org.json.JSONArray())
+  assertTrue(LearningSnapshot.decode(v1).items.isEmpty())
+  val merged=snapshot.mergeOlder(LearningSnapshot(items=listOf(LearnedItem("Gachak","EXPENSE","Snacks"))))
+  assertEquals(2,merged.items.size)
+  val withIcon=LearningSnapshot(items=listOf(LearnedItem("Parday","EXPENSE","Parday")))
+    .withItemIcon("parday","EXPENSE","https://example.com/parday.png")
+  assertEquals("https://example.com/parday.png",withIcon.items.single().iconUrl)
+  assertTrue(runCatching{LearningSnapshot(items=listOf(LearnedItem("Parday","EXPENSE","Parday","http://insecure.example/x.png"))).validated()}.isFailure)
+ }
+ @Test fun iconFileNameAndUrlRules(){
+  assertEquals(LearnedItems.iconFileName("Parday"),LearnedItems.iconFileName("parday"))
+  assertTrue(LearnedItems.iconFileName("Parday").startsWith("item_"))
+  assertTrue(LearnedItems.iconFileName("Parday").endsWith(".webp"))
+  assertTrue(LearnedItems.isValidIconUrl("https://example.com/icon.png"))
+  assertFalse(LearnedItems.isValidIconUrl("http://example.com/icon.png"))
+  assertFalse(LearnedItems.isValidIconUrl(""))
+  assertFalse(LearnedItems.isValidIconUrl("https://"))
+  assertFalse(LearnedItems.isValidIconUrl("https://user:pass@example.com/icon.png"))
+  assertFalse(LearnedItems.isValidIconUrl(null))
+  assertEquals(128 to 64,ItemIconService.targetSize(400,200,128))
+  assertEquals(100 to 50,ItemIconService.targetSize(100,50,128))
+  assertEquals(64 to 128,ItemIconService.targetSize(200,400,128))
+ }
+ @Test fun learnedLabelsKeptAsCategories(){
+  val draft=TransactionDraft("EXPENSE",350000,"Parday","Parday","2026-10-27")
+  val kept=CategoryRules.normalizeResult(AiDraftResult("Ok",listOf(draft)),setOf("Parday"))
+  assertEquals("Parday",kept.entries.single().category)
+ }
+ @Test fun suggestionsPromptIsGrounded(){
+  val day=LocalDate.parse("2026-10-06")
+  val rows=listOf(TransactionEntity("s1","me","EXPENSE",240000,"Snacks","","2026-10-01",1,1))
+  val snapshot=SpendingInsights.calculate("me",rows,day)
+  val request=AiPrompts.insights(snapshot,CategoryCatalog.load(context))
+  assertTrue(request.instruction.contains("GROUND EVERY TIP IN THE SUPPLIED NUMBERS"))
+  assertTrue(request.instruction.contains("LARGEST OPTIONAL"))
+  assertTrue(request.instruction.contains("nothing optional left to cut"))
+  assertTrue(request.instruction.contains("actual amount"))
+  assertTrue(request.input.contains("Snacks"))
+  assertTrue(request.input.contains("2400.00"))
+ }
  @Test fun atomicIdempotentAccountScopedBatch()=runBlocking {
   val db=Room.inMemoryDatabaseBuilder(context,AppDatabase::class.java).build()
   try{val repo=LedgerRepository(db,"owner");LedgerRepository(db,"other").saveTransaction("EXPENSE",777,"Other","","2026-10-06");val first=AiProtocol.decodeDrafts(valid).entries.single();val batch="c98951b9-5f90-48a4-b1a3-433b80a47c1c";val drafts=listOf(first,first.copy(category="Milk",amountMinor=30000));repo.saveDraftBatch(drafts,batch);repo.saveDraftBatch(drafts,batch);assertEquals(2,db.ledgerDao().transactionsNow("owner").size);assertEquals(777L,db.ledgerDao().transactionsNow("other").single().amountMinor);assertTrue(runCatching{repo.saveDraftBatch(listOf(first.copy(amountMinor=999)),batch)}.isFailure)

@@ -22,14 +22,40 @@ class AiPreferences(context:Context,owner:String) {
     var providerId:String
         get()=prefs.getString(prefix+"provider","gemini").orEmpty().ifBlank{"gemini"}
         set(value){prefs.edit().putString(prefix+"provider",value.trim()).apply()}
-    /** Optional model override for the personal provider; blank = provider default. */
+    /** Per-provider model override; blank = provider default. */
+    fun modelFor(providerId: String): String =
+        prefs.getString(prefix + "pmodel:" + providerId, "").orEmpty()
+    fun setModel(providerId: String, value: String) {
+        prefs.edit().putString(prefix + "pmodel:" + providerId, value.trim()).apply()
+    }
+    /** Per-provider base URL override (only the "custom" provider uses one). */
+    fun baseFor(providerId: String): String =
+        prefs.getString(prefix + "pbase:" + providerId, "").orEmpty()
+    fun setBase(providerId: String, value: String) {
+        prefs.edit().putString(prefix + "pbase:" + providerId, value.trim()).apply()
+    }
+    /** Current provider's model/base, for AiService.route(). */
     var providerModel:String
-        get()=prefs.getString(prefix+"pmodel","").orEmpty()
-        set(value){prefs.edit().putString(prefix+"pmodel",value.trim()).apply()}
-    /** Base URL used only by the "custom" provider. */
+        get()=modelFor(providerId)
+        set(value){setModel(providerId,value)}
     var providerBase:String
-        get()=prefs.getString(prefix+"pbase","").orEmpty()
-        set(value){prefs.edit().putString(prefix+"pbase",value.trim()).apply()}
+        get()=baseFor(providerId)
+        set(value){setBase(providerId,value)}
+    /** One-time move of the old single model/base slots into the currently
+     * selected provider's slots. Idempotent: no-ops once the old slots are empty. */
+    fun migrateLegacy() {
+        val legacyModel = prefs.getString(prefix + "pmodel", "").orEmpty()
+        if (legacyModel.isNotBlank() && modelFor(providerId).isBlank()) {
+            setModel(providerId, legacyModel)
+        }
+        val legacyBase = prefs.getString(prefix + "pbase", "").orEmpty()
+        if (legacyBase.isNotBlank() && baseFor(providerId).isBlank()) {
+            setBase(providerId, legacyBase)
+        }
+        if (legacyModel.isNotBlank() || legacyBase.isNotBlank()) {
+            prefs.edit().remove(prefix + "pmodel").remove(prefix + "pbase").apply()
+        }
+    }
     /** AI entry engine choice (Online vs Offline). Null = never chosen; the
      * ViewModel then defaults to Online when Cloud AI is enabled, else Offline. */
     var entryEngine:AiEntryEngine?
