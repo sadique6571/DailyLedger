@@ -527,32 +527,65 @@ fun SettingsScreen(
                     Text("Optional Cloud AI", Modifier.weight(1f))
                     Switch(aiEnabled, onCheckedChange = { if (it) aiConsent = true else vm.setAiEnabled(false) })
                 }
-                var aiKeyText by remember { mutableStateOf(vm.aiKey()) }
+                var aiKeyText by remember { mutableStateOf(vm.aiKeyFor(vm.aiProvider())) }
                 var aiProxyText by remember { mutableStateOf(vm.aiProxy()) }
                 var aiProviderId by remember { mutableStateOf(vm.aiProvider()) }
-                var aiModelText by remember { mutableStateOf(vm.aiProviderModel().ifBlank { val p0 = com.sadique.dailyledger.ai.AiProviders.byId(vm.aiProvider()); if (p0.geminiNative || p0.id == "custom") "" else p0.defaultModel }) }
-                var aiBaseText by remember { mutableStateOf(vm.aiProviderBase()) }
+                var aiModelText by remember { mutableStateOf(vm.aiProviderModelFor(vm.aiProvider()).ifBlank { val p0 = com.sadique.dailyledger.ai.AiProviders.byId(vm.aiProvider()); if (p0.geminiNative || p0.id == "custom") "" else p0.defaultModel }) }
+                var aiBaseText by remember { mutableStateOf(vm.aiProviderBaseFor(vm.aiProvider())) }
+                var modelMenu by remember { mutableStateOf(false) }
+                var customModel by remember { val p0 = com.sadique.dailyledger.ai.AiProviders.byId(vm.aiProvider()); val m0 = vm.aiProviderModelFor(vm.aiProvider()); val l0 = com.sadique.dailyledger.ai.AiProviderModels.forProvider(vm.aiProvider()); mutableStateOf(m0.isNotBlank() && l0.isNotEmpty() && m0 !in l0) }
                 var aiKeyMsg by remember { mutableStateOf("") }
                 var aiTesting by remember { mutableStateOf(false) }
                 var providerMenu by remember { mutableStateOf(false) }
                 val aiProvider = com.sadique.dailyledger.ai.AiProviders.byId(aiProviderId)
-                fun saveAiFields() { vm.saveAiKey(aiKeyText); vm.saveAiProxy(aiProxyText); vm.saveAiProvider(aiProviderId); vm.saveAiProviderModel(aiModelText); vm.saveAiProviderBase(aiBaseText) }
+                fun saveAiFields() { vm.saveAiKeyFor(aiProviderId, aiKeyText); vm.saveAiProxy(aiProxyText); vm.saveAiProvider(aiProviderId); vm.saveAiProviderModelFor(aiProviderId, aiModelText); vm.saveAiProviderBaseFor(aiProviderId, aiBaseText) }
+                fun loadAiFields(id: String) {
+                    val p = com.sadique.dailyledger.ai.AiProviders.byId(id)
+                    aiKeyText = vm.aiKeyFor(id)
+                    aiBaseText = vm.aiProviderBaseFor(id)
+                    val saved = vm.aiProviderModelFor(id)
+                    val models = com.sadique.dailyledger.ai.AiProviderModels.forProvider(id)
+                    aiModelText = when {
+                        saved.isNotBlank() -> saved
+                        p.geminiNative || p.id == "custom" -> ""
+                        else -> p.defaultModel
+                    }
+                    customModel = saved.isNotBlank() && models.isNotEmpty() && saved !in models
+                }
                 Text("Personal AI provider (agar apni key lagani ho)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 androidx.compose.foundation.layout.Box {
                     OutlinedButton(onClick = { providerMenu = true }) { Text(aiProvider.label + "  ▾") }
                     androidx.compose.material3.DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
                         com.sadique.dailyledger.ai.AiProviders.ALL.forEach { p ->
-                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { aiProviderId = p.id; if (!p.geminiNative && p.id != "custom") aiModelText = p.defaultModel; providerMenu = false })
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(p.label) }, onClick = { saveAiFields(); aiProviderId = p.id; loadAiFields(p.id); providerMenu = false })
                         }
                     }
                 }
                 OutlinedTextField(aiKeyText, { aiKeyText = it }, label = { Text(aiProvider.label + " API key") }, singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                if (aiProvider.id == "custom") {
+                    OutlinedTextField(aiBaseText, { aiBaseText = it }, label = { Text("Base URL (masalan https://.../v1)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                } else {
+                    Text("Server: " + aiProvider.baseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (!aiProvider.geminiNative) {
-                    if (aiProvider.id == "custom") {
-                        OutlinedTextField(aiBaseText, { aiBaseText = it }, label = { Text("Base URL (masalan https://.../v1)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    val models = com.sadique.dailyledger.ai.AiProviderModels.forProvider(aiProviderId)
+                    if (models.isEmpty()) {
+                        OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    } else if (customModel) {
+                        OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Custom model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        TextButton(onClick = { customModel = false; aiModelText = aiProvider.defaultModel }) { Text("Model list se chunein") }
+                    } else {
+                        androidx.compose.foundation.layout.Box {
+                            OutlinedButton(onClick = { modelMenu = true }) { Text(aiModelText.ifBlank { aiProvider.defaultModel } + "  ▾") }
+                            androidx.compose.material3.DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
+                                models.forEach { m ->
+                                    androidx.compose.material3.DropdownMenuItem(text = { Text(m) }, onClick = { aiModelText = m; modelMenu = false })
+                                }
+                                androidx.compose.material3.DropdownMenuItem(text = { Text(com.sadique.dailyledger.ai.AiProviderModels.CUSTOM) }, onClick = { customModel = true; if (aiModelText in models) aiModelText = ""; modelMenu = false })
+                            }
+                        }
                     }
-                    OutlinedTextField(aiModelText, { aiModelText = it }, label = { Text("Model") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
                 Text("AI tayyar hai — app built-in proxy (Gemini) se chalti hai, key dalne ki zaroorat nahi. Chahein to apni personal API key laga sakte hain — Gemini, OpenAI, Groq, OpenRouter, DeepSeek, Mistral ya koi bhi OpenAI-compatible service. Personal key sirf is phone mein mehfooz rehti hai — aur personal key ke saath is phone wali rozana AI limit bhi nahi lagti.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(aiProxyText, { aiProxyText = it }, label = { Text("Proxy URL (optional — key ki jagah)") }, singleLine = true, modifier = Modifier.fillMaxWidth())

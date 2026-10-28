@@ -87,16 +87,25 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val aiPrefs=AiPreferences(app,ownerId)
     private val aiService=AiService(app,ownerId)
     private val aiKeyStore=AiKeyStore(app,ownerId)
-    fun aiKey():String=aiKeyStore.key
-    fun saveAiKey(value:String){aiKeyStore.key=value}
+    fun aiKey():String=aiKeyFor(aiPrefs.providerId)
+    fun saveAiKey(value:String){saveAiKeyFor(aiPrefs.providerId,value)}
+    fun aiKeyFor(providerId:String):String{
+        if (providerId == aiPrefs.providerId) aiKeyStore.migrateLegacy(providerId)
+        return aiKeyStore.keyFor(providerId)
+    }
+    fun saveAiKeyFor(providerId:String,value:String){aiKeyStore.setKey(providerId,value)}
     fun aiProxy():String=aiPrefs.proxyBase
     fun saveAiProxy(value:String){aiPrefs.proxyBase=value}
     fun aiProvider():String=aiPrefs.providerId
     fun saveAiProvider(value:String){aiPrefs.providerId=value}
     fun aiProviderModel():String=aiPrefs.providerModel
     fun saveAiProviderModel(value:String){aiPrefs.providerModel=value}
+    fun aiProviderModelFor(providerId:String):String=aiPrefs.modelFor(providerId)
+    fun saveAiProviderModelFor(providerId:String,value:String){aiPrefs.setModel(providerId,value)}
     fun aiProviderBase():String=aiPrefs.providerBase
     fun saveAiProviderBase(value:String){aiPrefs.providerBase=value}
+    fun aiProviderBaseFor(providerId:String):String=aiPrefs.baseFor(providerId)
+    fun saveAiProviderBaseFor(providerId:String,value:String){aiPrefs.setBase(providerId,value)}
     suspend fun testAiConnection():String{checkAccount();return aiService.testConnection().also{checkAccount()}}
     suspend fun aiAdvise(request:AiModelRequest):String{checkAccount();return aiService.advise(request).also{checkAccount()}}
     suspend fun importStatement(text:String):AiDraftResult = withContext(Dispatchers.Default) {

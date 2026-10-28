@@ -24,16 +24,24 @@ class AiService(private val context: Context, private val owner: String) {
         generate = { request -> route(request) },
     )
 
+    /** The current provider's saved key. Migrates the old single key slot
+     * once, so a key saved before per-provider storage still works. The key
+     * itself is never logged or exposed — only its presence is checked. */
+    private fun personalKey(): String {
+        keyStore.migrateLegacy(preferences.providerId)
+        preferences.migrateLegacy()
+        return keyStore.keyFor(preferences.providerId)
+    }
+
     /** True when this request would spend the shared built-in proxy quota. */
-    private fun usesBuiltInProxy(): Boolean = keyStore.key.isBlank() && preferences.proxyBase.isBlank()
+    private fun usesBuiltInProxy(): Boolean = personalKey().isBlank() && preferences.proxyBase.isBlank()
 
     /** True when the user saved their own API key in Settings. The entry AI must
-     * then use the online model via that key, not the offline fallback. The key
-     * itself is never logged or exposed — only its presence is checked. */
-    fun hasPersonalKey(): Boolean = keyStore.key.isNotBlank()
+     * then use the online model via that key, not the offline fallback. */
+    fun hasPersonalKey(): Boolean = personalKey().isNotBlank()
 
     private suspend fun route(request: AiModelRequest): String {
-        val key = keyStore.key
+        val key = personalKey()
         val provider = AiProviders.byId(preferences.providerId)
         // A stale built-in-proxy URL stored alongside a personal key must not
         // divert the request to an unauthenticated proxy call: treat it as blank
