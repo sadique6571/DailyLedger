@@ -55,7 +55,7 @@ internal object OpenAiGateway {
             ?: throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
         if (choices.length() < 1) throw AiException("AI returned an incomplete response. Nothing was saved. [AI_RESPONSE]")
         val content = choices.getJSONObject(0).optJSONObject("message")?.optString("content").orEmpty().stripFences()
-        if (content.isBlank()) throw AiException("AI returned no text. Nothing was saved. [AI_RESPONSE]")
+        if (content.isBlank()) throw AiDecodeException("AI returned no text. Nothing was saved. [AI_RESPONSE]")
         content
     }
 
