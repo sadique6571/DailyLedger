@@ -173,7 +173,7 @@ object AiProtocol {
         }
         require(tips.isNotEmpty())
         tips
-    }catch(_:Exception){throw AiException("AI suggestions are unavailable. Local insights still work.")}
+    }catch(_:Exception){throw AiDecodeException("AI suggestions are unavailable. Local insights still work.")}
     fun context(s:SpendingSnapshot):JSONObject {
         fun money(v:Long)=BigDecimal.valueOf(v,2).toPlainString()
         return JSONObject().put("month",s.month).put("through",s.through).put("salary",money(s.summary.salary)).put("opening_balance",money(s.summary.openingBalanceMinor)).put("expenses",money(s.summary.expenses)).put("kameti_contributions",money(s.summary.committeeContributions)).put("savings_contributions",money(s.summary.savingsContributions)).put("udhar_payments",money(s.summary.udharPayments)).put("remaining",money(s.summary.remaining)).put("other_income",money(s.summary.otherIncome)).put("comparison_days",s.comparisonDays).put("previous_comparable",money(s.previousComparable)).put("current_comparable",money(s.currentComparable)).put("record_count",s.count).put("saved_this_month",money(s.savedThisMonth)).put("potential_saving",money(s.potentialSaving)).put("saving_rate_percent",s.savingRatePercent).put("health_score",s.healthScore)

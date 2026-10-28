@@ -142,7 +142,15 @@ class AiService(private val context: Context, private val owner: String) {
 
     suspend fun insights(snapshot: SpendingSnapshot): List<SpendingTip> {
         val request = AiPrompts.insights(snapshot, CategoryCatalog.load(context))
-        return AiProtocol.decodeInsights(call(request))
+        // Same decode-retry as drafts(): qwen's first sample often fails to
+        // decode (truncated or variant JSON); a fresh sample usually lands.
+        // One extra call ONLY when the first answer failed to decode, zero
+        // on success. Infrastructure failures are never retried here.
+        return try {
+            AiProtocol.decodeInsights(call(request))
+        } catch (e: AiDecodeException) {
+            AiProtocol.decodeInsights(call(request))
+        }
     }
 
     /** Free-text AI answer (chat, reports, plans, reminder drafts). Nothing is saved by this call. */
