@@ -23,9 +23,15 @@ class RefreshScreensTest {
     @Test fun creditDraftDateCanBeCorrectedBeforeAnySave() {
         var saved = emptyList<CreditDraft>()
         compose.setContent { DailyLedgerTheme("AQUA") { CreditAiDialog({}, { rows, _ -> saved = rows }) } }
-        compose.onNodeWithTag("credit-ai-input").performTextInput("1 Oct 2026 rashan 5000 Aslam Store se udhar, due 15 Oct 2026")
+        val text = "1 Oct 2026 rashan 5000 Aslam Store se udhar, due 15 Oct 2026"
+        compose.onNodeWithTag("credit-ai-input").performTextReplacement(text).assertTextContains(text)
         compose.onNodeWithTag("credit-ai-prepare").performScrollTo().performClick()
         assertTrue(saved.isEmpty())
+        // The save button is outside the lazy list. Wait for the prepared draft
+        // state before asking the list's key-index semantics to locate credit-0.
+        compose.waitUntil(5_000) {
+            runCatching { compose.onNodeWithTag("credit-ai-save").assertIsEnabled() }.isSuccess
+        }
         compose.onNodeWithTag("credit-ai-list").performScrollToKey("credit-0")
         compose.onNodeWithTag("credit-edit-0").performScrollTo().performClick()
         compose.onNodeWithText("Purchase date").performScrollTo().performTextReplacement("2026-10-02")
