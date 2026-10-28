@@ -24,7 +24,8 @@ class RefreshScreensTest {
         var saved = emptyList<CreditDraft>()
         compose.setContent { DailyLedgerTheme("AQUA") { CreditAiDialog({}, { rows, _ -> saved = rows }) } }
         val text = "1 Oct 2026 rashan 5000 Aslam Store se udhar, due 15 Oct 2026"
-        compose.onNodeWithTag("credit-ai-input").performTextReplacement(text).assertTextContains(text)
+        compose.onNodeWithTag("credit-ai-input").performTextReplacement(text)
+        compose.onNodeWithTag("credit-ai-input").assertTextContains(text)
         compose.onNodeWithTag("credit-ai-prepare").performScrollTo().performClick()
         assertTrue(saved.isEmpty())
         // The save button is outside the lazy list. Wait for the prepared draft
