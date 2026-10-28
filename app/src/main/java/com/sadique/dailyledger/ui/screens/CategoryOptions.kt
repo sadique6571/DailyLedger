@@ -6,6 +6,25 @@ import com.sadique.dailyledger.data.LedgerCategory
 import com.sadique.dailyledger.data.TransactionEntity
 
 data class CategoryOptions(val indexed: List<Pair<LedgerCategory, String>>, val frequent: List<String>) {
+    /** Exact names and aliases must stay visible above broader substring matches. */
+    fun search(query: String): List<LedgerCategory> {
+        val normalized = OfflineVocabulary.normalize(query).trim()
+        if (normalized.isBlank()) return indexed.map { it.first }
+        val words = normalized.split(Regex("\\s+")).filter { it.isNotBlank() }
+        return indexed.filter { (_, text) -> words.all { it in text } }
+            .sortedBy { (category, _) ->
+                val label = OfflineVocabulary.normalize(category.label).trim()
+                val aliases = category.aliases.map { OfflineVocabulary.normalize(it).trim() }
+                when {
+                    label == normalized -> 0
+                    normalized in aliases -> 1
+                    label.startsWith(normalized) -> 2
+                    aliases.any { it.startsWith(normalized) } -> 3
+                    else -> 4
+                }
+            }.map { it.first }
+    }
+
     companion object {
         fun build(catalog: List<LedgerCategory>, history: List<TransactionEntity>, translate: (String) -> String, customs: List<String> = emptyList()): Map<String, CategoryOptions> =
             listOf("INCOME", "EXPENSE").associateWith { type ->

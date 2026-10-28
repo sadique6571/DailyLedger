@@ -98,8 +98,7 @@ fun CategoryDropdown(
     }
     fun choose(label: String) { onSelect(label); editing = false; query = ""; expanded = false; focus.clearFocus() }
     val filtered = remember(options, query) {
-        val words = OfflineVocabulary.normalize(query).trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        options.indexed.filter { (_, text) -> words.all { it in text } }.map { it.first }
+        options.search(query)
     }
     val results: @Composable (Modifier) -> Unit = { resultsModifier ->
             // Bound the inner lazy viewport; all matches remain reachable without composing the catalog at once.

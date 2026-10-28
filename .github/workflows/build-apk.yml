@@ -71,6 +71,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Test data, restore review, AI review and UI on Android
+        id: device-tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
@@ -83,6 +84,10 @@ jobs:
           heap-size: 256M
           pre-emulator-launch-script: python3 tests/configure-emulator.py
           script: bash tests/run-device-tests.sh
+
+      - name: Report failed Android assertions
+        if: failure() && steps.device-tests.outcome == 'failure'
+        run: python3 tests/report-device-failures.py
 
       - name: Upload test reports
         if: always()
