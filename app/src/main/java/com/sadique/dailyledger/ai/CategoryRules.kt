@@ -1,6 +1,7 @@
 package com.sadique.dailyledger.ai
 
 import com.sadique.dailyledger.data.TransactionDraft
+import com.sadique.dailyledger.data.ExpandedItemCategories
 import com.sadique.dailyledger.data.ItemCategories
 import java.util.Locale
 
@@ -269,6 +270,14 @@ object CategoryRules {
         if (learnedLabels.any { it.equals(proposedClean, ignoreCase = true) }) {
             return learnedLabels.first { it.equals(proposedClean, ignoreCase = true) }
         }
+
+        // Prefer the concrete item the user named over a broad model-made bucket.
+        val concrete = infer(type, sourceText)
+        val broadBuckets = setOf("other", "furniture", "home supplies", "dry fruits", "toiletries", "oral care",
+            "soap & body care", "shampoo & hair care", "kitchen utensils", "appliances", "electronics", "stationery",
+            "fruit", "vegetables", "condiments & sauces", "snacks", "cake & sweets", "juice & shakes")
+        if (!isIncome && proposedClean.lowercase(Locale.ROOT) in broadBuckets &&
+            ExpandedItemCategories.entries.any { it.label == concrete }) return concrete
 
         // Specific familiar food terms take precedence over a model's broad bucket.
         val specificFood = setOf("Salan", "Packaged milk", "Chocolate", "Toffee & candy", "Papar", "Biscuits", "Chips & nimko", "Chana breakfast", "Paratha", "Halwa puri")

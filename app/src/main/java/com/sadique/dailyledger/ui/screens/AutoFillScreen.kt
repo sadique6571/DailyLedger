@@ -179,7 +179,6 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                     }
                 }
                 itemsIndexed(entries, key = { i, _ -> "draft-$i" }) { i, entry ->
-                    val visual = rememberCategoryVisual(entry.category, entry.type)
                     val issues = warnings(i, entry)
                     val reviewed = DraftReviewPolicy.signature(entry) in checked
                     LedgerCard(Modifier.fillMaxWidth().then(if (issues.isNotEmpty() && !reviewed)
@@ -196,7 +195,7 @@ fun AutoFillScreen(enabled: Boolean, onEnable: () -> Unit, onBack: () -> Unit,
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                            GlowIcon(visual.icon, visual.color, size = 43.dp)
+                            ItemCategoryIcon(entry.category, entry.type, size = 43.dp, itemName = entry.note)
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.Top) {
                                     Column(Modifier.weight(1f).clickable(enabled = !busy) { editing = i }.testTag("draft-edit-$i")) {

@@ -66,17 +66,18 @@ import java.time.LocalDate
   assertTrue(LearnedItems.isKnown("sonf","EXPENSE",catalog,emptyList()))
   assertTrue(LearnedItems.isKnown("laal march","EXPENSE",catalog,emptyList()))
   assertTrue(LearnedItems.isKnown("surkh mirch","EXPENSE",catalog,emptyList()))
-  assertFalse(LearnedItems.isKnown("Parday","EXPENSE",catalog,emptyList()))
-  val learned=LearnedItems.add(emptyList(),LearnedItem("Parday","EXPENSE","Parday"))
+  assertFalse(LearnedItems.isKnown("Handmade wall hanging","EXPENSE",catalog,emptyList()))
+  assertTrue(LearnedItems.isKnown("Parday","EXPENSE",catalog,emptyList()))
+  val learned=LearnedItems.add(emptyList(),LearnedItem("Handmade wall hanging","EXPENSE","Handmade wall hanging"))
   assertEquals(1,learned.size)
-  assertEquals(learned,LearnedItems.add(learned,LearnedItem("parday","EXPENSE","Parday")))
-  assertTrue(LearnedItems.isKnown("parday","EXPENSE",catalog,learned))
+  assertEquals(learned,LearnedItems.add(learned,LearnedItem("handmade wall hanging","EXPENSE","Handmade wall hanging")))
+  assertTrue(LearnedItems.isKnown("handmade wall hanging","EXPENSE",catalog,learned))
   val rows=LearnedItems.toLedgerCategories(learned)
   assertEquals("My items",rows.single().group)
-  assertEquals("Parday",rows.single().label)
+  assertEquals("Handmade wall hanging",rows.single().label)
   CategoryCatalog.setLearnedOverlay(learned)
   try {
-    assertTrue(CategoryCatalog.load(context).any{it.label=="Parday" && it.group=="My items"})
+    assertTrue(CategoryCatalog.load(context).any{it.label=="Handmade wall hanging" && it.group=="My items"})
   } finally {
     CategoryCatalog.setLearnedOverlay(emptyList())
   }
@@ -118,6 +119,16 @@ import java.time.LocalDate
   val draft=TransactionDraft("EXPENSE",350000,"Parday","Parday","2026-10-27")
   val kept=CategoryRules.normalizeResult(AiDraftResult("Ok",listOf(draft)),setOf("Parday"))
   assertEquals("Parday",kept.entries.single().category)
+ }
+ @Test fun expandedOnlinePromptIncludesConcreteItemsAndTheirAliases(){
+  val catalog=CategoryCatalog.load(context)
+  val request=AiPrompts.drafts("parday 3500, badam 400",LocalDate.parse("2026-10-28"),catalog)
+  assertTrue(request.instruction.contains("EXPENSE:Curtains"))
+  assertTrue(request.instruction.contains("EXPENSE:Almonds"))
+  assertTrue(request.instruction.contains("Curtains = curtain / parda / پردہ"))
+  assertTrue(request.instruction.contains("Almonds = almond / badam / بادام"))
+  assertTrue(request.instruction.contains("most specific matching item"))
+  assertEquals("curtains",ItemArtwork.key("پردے"))
  }
  @Test fun suggestionsPromptIsGrounded(){
   val day=LocalDate.parse("2026-10-06")

@@ -5,7 +5,7 @@ object ItemCategories {
     private fun item(group: String, label: String, vararg words: String) =
         LedgerCategory(group, label, "EXPENSE", words.toList())
 
-    val entries = listOf(
+    val entries = (ExpandedItemCategories.entries + listOf(
         item("Prepared food", "Salan", "salan", "saalan", "salaan", "curry", "cooked curry", "chicken salan", "murghi salan", "daal salan", "dal salan", "sabzi salan", "chicken curry", "meat curry", "beef curry", "mutton curry", "سالن"),
         item("Breakfast & dairy", "Packaged milk", "milk pak", "milkpak", "milk pack", "milkpack", "packaged milk", "tetra pack milk", "olpers", "olper", "ملک پیک", "پیکٹ دودھ", "ڈبے کا دودھ"),
         item("Snacks & treats", "Chocolate", "chocolate", "chocolates", "choclate", "choklet", "چاکلیٹ"),
@@ -163,5 +163,5 @@ object ItemCategories {
         item("Cleaning items", "Cleaning supplies", "jharu", "pocha", "broom", "mop", "cleaning supplies", "bleach", "cleaning", "detergent", "floor cleaner", "harpic", "phenyl", "safai", "toilet cleaner"),
         item("Home supplies", "Kitchen utensils", "bartan", "bartan khareeday", "kitchen utensils", "cooking utensils", "برتن"),
         item("Baby care", "Diapers & baby care", "diaper", "diapers", "pampers", "baby wipes", "baby", "baby care", "wipes"),
-    )
+    )).distinctBy { it.type to it.label }
 }

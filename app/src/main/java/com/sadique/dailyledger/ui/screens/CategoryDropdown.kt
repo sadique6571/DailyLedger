@@ -39,16 +39,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import com.sadique.dailyledger.ui.rememberItemIconBitmap
 import com.sadique.dailyledger.ai.OfflineVocabulary
 import com.sadique.dailyledger.data.CategoryCatalog
 import com.sadique.dailyledger.data.LedgerCategory
 import com.sadique.dailyledger.data.TransactionEntity
-import com.sadique.dailyledger.ui.GlowIcon
-import com.sadique.dailyledger.ui.rememberCategoryVisual
 
 // Supplied from the signed-in owner's observable ledger. No separate cache/account mixing.
 val LocalCategoryHistory = staticCompositionLocalOf { emptyList<TransactionEntity>() }
@@ -121,17 +115,8 @@ fun CategoryDropdown(
                             style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                     items(rows, key = { "category-${it.type}-${it.label}" }) { category ->
-                        val visual = rememberCategoryVisual(category.label, type)
-                        // A downloaded original icon wins; otherwise the
-                        // default category visual. Covers learned items and
-                        // backfilled built-ins through the same file lookup.
-                        val downloaded = rememberItemIconBitmap(category.label, LocalIconVersion.current)
                         DropdownMenuItem(text = { Text(category.label) },
-                            leadingIcon = {
-                                if (downloaded != null) Image(downloaded, null,
-                                    Modifier.size(30.dp).clip(CircleShape))
-                                else GlowIcon(visual.icon, visual.color, size = 30.dp)
-                            },
+                            leadingIcon = { CategoryLeadingIcon(category.label, type) },
                             onClick = { choose(category.label) })
                     }
                 }

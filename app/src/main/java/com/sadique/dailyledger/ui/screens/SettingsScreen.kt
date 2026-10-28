@@ -738,6 +738,8 @@ fun SettingsScreen(
             SectionCard("App info", "Version ${com.sadique.dailyledger.BuildConfig.VERSION_NAME} (code ${com.sadique.dailyledger.BuildConfig.VERSION_CODE})") {
                 Text("Optimized for quick local data loading, backup safety and household money tracking.", style = MaterialTheme.typography.bodySmall)
                 Text("Records stay on this phone unless you use cloud backup, export, or optional Cloud AI.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Item illustrations: Twemoji 14.0.2 by Twitter, Inc. and contributors (CC BY 4.0), plus original DailyLedger artwork.", translate = false, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("twemoji.twitter.com • creativecommons.org/licenses/by/4.0/", translate = false, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = { showWhatsNew = true }, modifier = Modifier.fillMaxWidth().testTag("whats-new")) { Text("What's New") }
             }
         }

@@ -4,7 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 class EverydayFoodTest {
  @Test fun familiarFoodsAndSpellingAliasesHaveSpecificCategories(){
-  mapOf("subah bahir se salan" to "Salan","saalan" to "Salan","chicken salan" to "Salan","chicken curry" to "Salan","سالن" to "Salan","milk pack" to "Packaged milk","milkpak" to "Packaged milk","olpers" to "Packaged milk","ملک پیک" to "Packaged milk","choclate" to "Chocolate","tofi" to "Toffee & candy","ٹافی" to "Toffee & candy","papad" to "Papar","پاپڑ" to "Papar","biskut" to "Biscuits","gachak" to "Snacks").forEach{(item,expected)->assertEquals(item,expected,CategoryRules.infer("EXPENSE",item))}
+  mapOf("subah bahir se salan" to "Salan","saalan" to "Salan","chicken salan" to "Salan","chicken curry" to "Salan","سالن" to "Salan","milk pack" to "Packaged milk","milkpak" to "Packaged milk","olpers" to "Packaged milk","ملک پیک" to "Packaged milk","choclate" to "Chocolate","tofi" to "Toffee & candy","ٹافی" to "Toffee & candy","papad" to "Papar","پاپڑ" to "Papar","biskut" to "Biscuits","gachak" to "Peanut brittle").forEach{(item,expected)->assertEquals(item,expected,CategoryRules.infer("EXPENSE",item))}
   assertEquals("Milk",CategoryRules.infer("EXPENSE","doodh"))
  }
  @Test fun mixedBatchKeepsAmountsAndYesterdayDates(){

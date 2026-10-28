@@ -301,7 +301,7 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
                     val key = LearnedItems.normalizeName(label)
                     if (key.isBlank() || key in seen) return
                     seen += key
-                    if (!ItemIconService.hasIcon(app, label)) queue += label to url
+                    if (ItemArtwork.asset(label) == null && !ItemIconService.hasIcon(app, label)) queue += label to url
                 }
                 newItems.forEach { offer(it.name, it.iconUrl) }
                 fresh.items.forEach { offer(it.name, it.iconUrl) }

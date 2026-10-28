@@ -62,8 +62,6 @@ internal fun DashboardFrequentSection(
             exit = shrinkVertically(tween(260)) + fadeOut(tween(260))) {
         Column(verticalArrangement = Arrangement.spacedBy(LedgerTokens.Space16)) {
         items.forEachIndexed { index, (label, total) ->
-            val accent = listOf(LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Purple)[index % 4]
-            val visual = rememberCategoryVisual(label, "EXPENSE")
             CardEntrance(index = index, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.fillMaxWidth()) {
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("frequent:$label"),
@@ -75,7 +73,7 @@ internal fun DashboardFrequentSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(LedgerTokens.Space8),
                 ) {
-                    GlowIcon(visual.icon, accent, size = 35.dp)
+                    com.sadique.dailyledger.ui.ItemCategoryIcon(label, "EXPENSE", size = 35.dp)
                     Text(label.ifBlank { "Other" }, modifier = Modifier.weight(1f), fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(money(total), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -117,7 +115,6 @@ internal fun DashboardRecentSection(
                 TextButton(onClick = onAddSalary) { Text("Add salary") }
             }
         } else recent.forEachIndexed { index, entry ->
-            val visual = rememberCategoryVisual(entry.category, entry.type)
             CardEntrance(index = index, delayMs = entranceBaseDelayMs + LedgerTokens.EntranceDurationMs, modifier = Modifier.fillMaxWidth()) {
             LedgerCard(
                 accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${entry.id}"),
@@ -129,7 +126,7 @@ internal fun DashboardRecentSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
-                    GlowIcon(visual.icon, visual.color, size = 35.dp)
+                    com.sadique.dailyledger.ui.ItemCategoryIcon(entry.category, entry.type, size = 35.dp, itemName = entry.note)
                     Column(Modifier.weight(1f)) {
                         Text(if (entry.note.isBlank()) com.sadique.dailyledger.i18n.LocalStrings.current.text(entry.category) else entry.note, translate = false, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)

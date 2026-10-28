@@ -17,10 +17,17 @@ internal object AiPrompts {
             Kal raat/last night means yesterday; aaj subah/this morning means today. Invalid dates must return no transactions.
             amount_pkr is a positive rupee decimal STRING with at most two decimal places, no commas, at most 10000000000.
             It must be a bare number string like "30" or "30.50" — never with Rs, commas, units, or extra text.
-            Salary/tankhwah is INCOME with category Salary. Choose a matching category from this built-in list:
+            Salary/tankhwah is INCOME with category Salary. Choose the most specific matching item from this catalog; a concrete item such as Toothbrush, Almonds or Curtains takes priority over Oral care, Dry fruits or Furniture. Urdu and Roman Urdu names refer to the same item. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.
+            Known item aliases (all refer to the same canonical category; never create duplicate rows for translations):
+            ${catalog.mapNotNull { row ->
+                val aliases = row.aliases.filterNot { it.equals(row.label, ignoreCase = true) }.distinct()
+                val urdu = aliases.firstOrNull { word -> word.any { it.code in 0x0600..0x06ff } }
+                val hints = (aliases.take(2) + listOfNotNull(urdu)).distinct()
+                if (hints.isEmpty()) null else "${row.label} = ${hints.joinToString(" / ")}"
+            }.joinToString("; ")}.
             Use Salan for purchased cooked curry; Packaged milk for Milk Pak/Milk Pack/Olpers (plain doodh stays Milk).
-            Pakistani Roman-Urdu meanings — never guess these from spelling: Parday means curtains (window curtains). If 'curtains' is in the list, use it; otherwise use Furniture — never Other for curtains. Mong phali, mongphali and moong phali all mean peanuts — use Peanuts, never Moong dal (moong dal is a lentil, not peanuts).
+            Pakistani Roman-Urdu meanings — never guess these from spelling: Parday/parde/parda/پردے means window curtains: use Curtains, not Furniture or Other. Mong phali, mongphali and moong phali all mean peanuts — use Peanuts, never Moong dal (moong dal is a lentil, not peanuts).
             Chocolate, Toffee & candy, Papar, Biscuits, and Chips & nimko have separate categories; do not collapse them into Other or generic Snacks.
             Maximum ${AiProtocol.MAX_DRAFTS} drafts. Each category max 60 characters, note max 500, date YYYY-MM-DD.
             NOTE IS THE EXACT ITEM NAME ONLY. Write the real item exactly as named in the input or answer — for example Parday, Gachak, Doodh. Never put the category, the amount, or a sentence in note. If the item wording is unclear, use the input's own words for the item. A generic note such as "expense", "item" or "Other" is never acceptable when a real item name exists.

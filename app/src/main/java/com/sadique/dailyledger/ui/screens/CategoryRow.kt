@@ -13,14 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.sadique.dailyledger.ui.GlowIcon
-import com.sadique.dailyledger.ui.rememberCategoryVisual
 
-/** Shared leading icon for category rows: themed glow icon from the category visual. */
+/** Shared item artwork and user-selected overrides for every category row. */
 @Composable
 fun CategoryLeadingIcon(label: String, type: String, size: Dp = 30.dp) {
-    val visual = rememberCategoryVisual(label, type)
-    GlowIcon(visual.icon, visual.color, size = size)
+    com.sadique.dailyledger.ui.ItemCategoryIcon(label, type, size)
 }
 
 /** Category row for the dropdown menu (shared with the dialog picker styling). */

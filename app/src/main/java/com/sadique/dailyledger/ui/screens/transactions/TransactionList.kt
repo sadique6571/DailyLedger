@@ -117,6 +117,8 @@ internal fun TransactionRow(
         accent = com.sadique.dailyledger.ui.ledgerCardAccent("transaction:${x.id}"),
     ) {
         Row(Modifier.fillMaxWidth().padding(if (compact) 0.dp else 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            com.sadique.dailyledger.ui.ItemCategoryIcon(x.category, x.type, size = 36.dp, itemName = x.note)
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(x.category, style = MaterialTheme.typography.titleMedium)
                  Text(x.type.lowercase().replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.labelSmall,

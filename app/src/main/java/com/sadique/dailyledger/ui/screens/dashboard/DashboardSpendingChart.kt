@@ -59,17 +59,11 @@ internal fun SpendingDonutCard(categories: List<Pair<String, Long>>, total: Long
     var barMode by rememberSaveable { mutableStateOf(false) }
     val privacyEnabled = LocalDisplayPreferences.current?.privateAmounts == true
     val scheme = MaterialTheme.colorScheme
-    // Keep neighboring slices distinguishable; a four-color theme palette caused repeated hues.
-    val categoryTones = listOf(
-        LedgerColors.Teal, LedgerColors.Amber, LedgerColors.Blue, LedgerColors.Green,
-        LedgerColors.Purple, LedgerColors.Red, Color(0xFFDE639D), Color(0xFF6683B7),
-    )
-    val colorFor: (Int) -> Color = { index ->
-        androidx.compose.ui.graphics.lerp(
-            categoryTones[index % categoryTones.size],
-            scheme.primary, 0.10f,
-        )
+    val labels = categories.map { it.first }
+    val tones = remember(labels) {
+        com.sadique.dailyledger.ui.CategoryChartColors.colors(labels)
     }
+    val colorFor: (Int) -> Color = { index -> tones.getValue(categories[index].first) }
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
     // Sweep-in animation (Round 2): segments fill one after another whenever the data changes.
     val sweepAnim = remember { Animatable(0f) }

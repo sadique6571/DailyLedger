@@ -55,9 +55,9 @@ class DatedAiTest {
     }
     @Test fun specificCategoriesBeatBroadAliases() {
         val cases = mapOf(
-            "formula milk" to "Baby food & formula",
+            "formula milk" to "Baby formula",
             "school shoes" to "School uniform",
-            "hair oil" to "Shampoo & hair care",
+            "hair oil" to "Hair oil",
             "bartan soap" to "Dishwashing",
             "oil change" to "Vehicle service",
             "admission fee" to "Admission & exam fees",

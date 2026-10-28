@@ -14,7 +14,7 @@ class CategoryRulesTest {
     @Test fun recognizesSpecificSpicesAndLaundryItems() {
         assertEquals("Garam masala", CategoryRules.infer("EXPENSE", "garam masala 80"))
         assertEquals("Ground coriander", CategoryRules.infer("EXPENSE", "sukha dhaniya 50"))
-        assertEquals("Laundry detergent", CategoryRules.infer("EXPENSE", "surf 250"))
+        assertEquals("Washing powder", CategoryRules.infer("EXPENSE", "surf 250"))
     }
 
     @Test fun keepsMedicalEducationAndDaughterTravelCostsSeparate() {

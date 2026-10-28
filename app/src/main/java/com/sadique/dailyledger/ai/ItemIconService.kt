@@ -13,8 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Original item icons, downloaded on demand — never bundled in the APK, so
- * the APK size does not change. Files live in filesDir (permanent app
+ * Fallback icons for unknown/custom items. Known categories use curated
+ * bundled ItemArtwork instead. Downloaded files live in filesDir (permanent app
  * storage: they survive offline use, app restarts and app updates; only an
  * uninstall removes them, and then a restore re-downloads them).
  *
