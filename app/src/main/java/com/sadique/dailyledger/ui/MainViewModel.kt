@@ -50,18 +50,6 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
     fun clearError() { _error.value = null }
-    init { viewModelScope.launch(Dispatchers.IO) {
-        try {
-            if (!dao.hasProfileBackup(ownerId)) repo.profileSnapshot()
-            repo.ensureLedgerCycle(); repo.learningSnapshot()
-            // Learned items join the picker from the first frame, and any
-            // icons lost to a restore are re-downloaded while online.
-            refreshLearnedOverlay(repo.learningSnapshot().items)
-            backfillIcons()
-        }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) { _error.value = e.message ?: "Saved data could not be loaded." }
-    } }
     fun launch(
         onSuccess: () -> Unit = {},
         block: suspend LedgerRepository.() -> Unit,
@@ -335,5 +323,19 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
     }
     suspend fun saveCreditDrafts(drafts:List<CreditDraft>,batchId:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.saveCreditDrafts(drafts,batchId)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
     suspend fun saveCreditPayment(id:String,amount:Long,date:String,note:String,method:String){BackupLock.mutex.withLock{checkAccount();SettingsStore(getApplication<Application>()).markDrivePending(ownerId);repo.addCreditPayment(id,amount,date,note,method)};runCatching{SyncScheduler.syncNow(getApplication<Application>(), ownerId)}}
+    // Keep startup after every property initializer. A warm Room read can finish
+    // while the constructor is still creating the category/icon StateFlows.
+    init { viewModelScope.launch(Dispatchers.IO) {
+        try {
+            if (!dao.hasProfileBackup(ownerId)) repo.profileSnapshot()
+            repo.ensureLedgerCycle(); repo.learningSnapshot()
+            // Learned items join the picker from the first frame, and any
+            // icons lost to a restore are re-downloaded while online.
+            refreshLearnedOverlay(repo.learningSnapshot().items)
+            backfillIcons()
+        }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { _error.value = e.message ?: "Saved data could not be loaded." }
+    } }
     class Factory(private val app:Application,private val owner:String):ViewModelProvider.Factory{override fun <T:ViewModel> create(modelClass:Class<T>):T=MainViewModel(app,owner) as T}
 }
