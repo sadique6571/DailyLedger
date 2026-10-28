@@ -1,0 +1,34 @@
+name: Inspect Android test failure
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Failed APK workflow run ID (blank selects the latest failure)
+        required: false
+        type: string
+  push:
+    branches: [codex/inspect-android-tests]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read saved Android test reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_RUN: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FAILED_RUN" ]; then
+            FAILED_RUN=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-apk.yml --status failure --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          test -n "$FAILED_RUN"
+          gh run download "$FAILED_RUN" --repo "$GITHUB_REPOSITORY" --name DailyLedger-test-reports --dir "$RUNNER_TEMP/prior-test-reports"
+          python3 tests/report-device-failures.py "$RUNNER_TEMP/prior-test-reports"
