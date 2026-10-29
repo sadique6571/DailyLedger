@@ -80,6 +80,17 @@ class ExpandedItemsTest {
         assertEquals("Other income", CategoryRules.infer("INCOME", "toothbrush"))
     }
 
+    @Test fun expandedItemLabelsAndGroupsHaveUrduDisplayTranslations() {
+        val translations = Regex("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"")
+            .findAll(File("src/main/assets/urdu-ui.json").readText())
+            .associate { it.groupValues[1] to it.groupValues[2] }
+        ItemCategories.entries.forEach { item ->
+            for (key in listOf(item.label, item.group)) {
+                assertTrue("Missing Urdu: $key", translations[key]?.any { it in '\u0600'..'\u06ff' } == true)
+            }
+        }
+    }
+
     @Test fun everyCatalogItemHasRealDecodableOfflineArtwork() {
         assertTrue(ExpandedItemCategories.entries.size >= 200)
         assertEquals(ItemCategories.entries.size, ItemCategories.entries.map { it.type to it.label }.toSet().size)
