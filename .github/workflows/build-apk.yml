@@ -31,7 +31,10 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
+      - name: Restore google-services.json from secret
+        env:
+          GOOGLE_SERVICES_B64: ${{ secrets.DAILYLEDGER_GOOGLE_SERVICES_JSON_B64 }}
+        run: echo "$GOOGLE_SERVICES_B64" | base64 -d > app/google-services.json
       - name: Clear Actions caches
         env:
           GH_TOKEN: ${{ github.token }}
