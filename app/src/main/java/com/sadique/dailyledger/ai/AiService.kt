@@ -84,8 +84,18 @@ class AiService(private val context: Context, private val owner: String) {
             com.sadique.dailyledger.data.LearnedItems.toLedgerCategories(learned))
             .distinctBy { it.type to it.label }
         val learnedLabels = learned.map { it.name }.toSet()
-        fun normalize(result: AiDraftResult): AiDraftResult =
-            CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
+        fun normalize(result: AiDraftResult): AiDraftResult {
+            val normalized = CategoryRules.normalizeResult(result, learnedLabels).finalizeNames(input)
+            // Sadique's rule (2026-10-29): when the draft's category is a catalog
+            // item, the entry shows the catalog's canonical name instead of his
+            // typed wording ("gass bill" -> "Gas", "bijli bill" -> "Electricity").
+            // Items without a catalog match keep his wording.
+            val labels = catalog.map { it.label }.toSet()
+            return normalized.copy(entries = normalized.entries.map { draft ->
+                val canonical = labels.firstOrNull { it.equals(draft.category.trim(), ignoreCase = true) }
+                if (canonical != null) draft.copy(note = canonical) else draft
+            })
+        }
         suspend fun decodeOnce(request: AiModelRequest): AiDraftResult =
             normalize(AiProtocol.decodeDrafts(call(request)))
         // A decode failure is nondeterministic for reasoning models (truncated
