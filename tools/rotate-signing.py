@@ -47,7 +47,7 @@ def signer_digest(output):
     values = set()
     certificate_lines = []
     for line in output.decode().splitlines():
-        if not re.match(r"^\s*Signer\b", line) or "lineage" in line.lower():
+        if not re.match(r"^\s*(?:V\d+(?:\.\d+)*\s+)?Signer\b", line) or "lineage" in line.lower():
             continue
         if "certificate SHA-256 digest:" not in line:
             continue

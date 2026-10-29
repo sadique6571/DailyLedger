@@ -32,6 +32,11 @@ class RotateSigningTest(unittest.TestCase):
                   f'Signer (minSdkVersion=33, maxSdkVersion=37) #1 certificate SHA-256 digest: {rotate.PRIVATE_SHA256}\r\n').encode()
         self.assertEqual(rotate.PRIVATE_SHA256, rotate.signer_digest(output))
 
+    def test_current_runner_v3_signer_labels_are_supported(self):
+        output = (f'V3.0 Signer: certificate SHA-256 digest: {rotate.PRIVATE_SHA256}\n'
+                  f'V3.1 Signer: certificate SHA-256 digest: {rotate.PRIVATE_SHA256}\n').encode()
+        self.assertEqual(rotate.PRIVATE_SHA256, rotate.signer_digest(output))
+
     def test_source_stamp_does_not_replace_the_app_signer(self):
         output = report(rotate.PRIVATE_SHA256) + (
             f'Source Stamp Signer certificate SHA-256 digest: {rotate.LEGACY_SHA256}\n').encode()
