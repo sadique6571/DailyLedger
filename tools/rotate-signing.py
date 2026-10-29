@@ -41,11 +41,26 @@ def find_apksigner():
 
 
 def signer_digest(output):
-    values = re.findall(r'^Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)$',
-                        output.decode(), re.MULTILINE)
+    # Recent build-tools annotate signers with SDK ranges and may repeat the
+    # same certificate for different ranges. Compare the unique certificate
+    # identities, not a particular version's display label or line endings.
+    values = set()
+    certificate_lines = []
+    for line in output.decode().splitlines():
+        if not re.match(r"^\s*Signer\b", line) or "lineage" in line.lower():
+            continue
+        if "certificate SHA-256 digest:" not in line:
+            continue
+        certificate_lines.append(line.strip())
+        match = re.search(r"certificate SHA-256 digest:\s*([0-9a-fA-F]{64})\s*$", line)
+        if match:
+            values.add(match.group(1).lower())
     if len(values) != 1:
-        raise ValueError('Expected exactly one platform-selected APK signing certificate')
-    return values[0].lower()
+        # Certificate fingerprints are public; include only these report lines
+        # when diagnosing unsupported formats, never signing-key values.
+        raise ValueError('Expected exactly one platform-selected APK signing certificate; '
+                         + repr(certificate_lines))
+    return values.pop()
 
 
 def verify_platforms(apksigner, apk):

@@ -27,6 +27,16 @@ class RotateSigningTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '28-32'):
                 rotate.verify_platforms(Path('/sdk/apksigner'), Path('/apk/release.apk'))
 
+    def test_sdk_targeted_signer_reports_and_crlf_are_supported(self):
+        output = (f'Signer (minSdkVersion=28, maxSdkVersion=32) #1 certificate SHA-256 digest: {rotate.PRIVATE_SHA256}\r\n'
+                  f'Signer (minSdkVersion=33, maxSdkVersion=37) #1 certificate SHA-256 digest: {rotate.PRIVATE_SHA256}\r\n').encode()
+        self.assertEqual(rotate.PRIVATE_SHA256, rotate.signer_digest(output))
+
+    def test_source_stamp_does_not_replace_the_app_signer(self):
+        output = report(rotate.PRIVATE_SHA256) + (
+            f'Source Stamp Signer certificate SHA-256 digest: {rotate.LEGACY_SHA256}\n').encode()
+        self.assertEqual(rotate.PRIVATE_SHA256, rotate.signer_digest(output))
+
     def test_multiple_unrelated_signers_are_rejected(self):
         with self.assertRaisesRegex(ValueError, 'exactly one'):
             rotate.signer_digest(report(rotate.LEGACY_SHA256) +
