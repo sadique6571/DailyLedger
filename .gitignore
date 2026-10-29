@@ -12,7 +12,9 @@ app/build
 *.keystore
 google-services.json
 
-!app/dailyledger-debug.keystore
+*.p12
+*.pfx
+/signing-material/
 node_modules/
 .wrangler/
 .dev.vars
@@ -21,3 +23,5 @@ node_modules/
 .env
 .env.*
 !functions/.env.example
+
+__pycache__/

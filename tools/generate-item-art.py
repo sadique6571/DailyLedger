@@ -5,6 +5,7 @@ Twemoji PNGs are separate CC-BY-4.0 assets; see assets/ITEM-ART-LICENSE.md.
 from pathlib import Path
 import math
 from PIL import Image, ImageDraw
+from item_art_everyday import KEYS as EVERYDAY_KEYS, render as render_everyday
 
 DEST = Path(__file__).resolve().parents[1] / 'app/src/main/assets/item-art'
 S = 3
@@ -53,6 +54,8 @@ def render(key):
             x=15+(i*13%43);y=25+(i*7%11)
             if kind in ['fennel','cumin','carom']:oval((x,y,x+5,y+2),c)
             else:oval((x,y,x+3,y+3),c)
+    if key in EVERYDAY_KEYS:
+        return render_everyday(key)
     if key=='curtains':
         box((12,10,60,61),'#D5EFF8','#6A8493');line((36,11,36,60),'#FFFFFF',2);line((13,35,59,35),'#FFFFFF',2)
         line((6,8,66,8),'#725542',4)
