@@ -23,7 +23,7 @@ An Android personal finance app for income, expenses, savings, loans, udhar (cre
 
 ## Building
 
-Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit tests and 155 emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. The signing certificate is stable across builds, so new APKs install as in-place updates.
+Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit tests and 155 emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. The signing certificate is stable across builds, so new APKs install as in-place updates. Signing material is supplied through GitHub Actions secrets; see [private signing setup](docs/PRIVATE_SIGNING.md).
 
 ## Privacy
 

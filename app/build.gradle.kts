@@ -15,6 +15,23 @@ val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", "")
 val firebaseConfigured = file("google-services.json").isFile
 if (firebaseConfigured) apply(plugin = "com.google.gms.google-services")
 
+// Signing credentials are injected by CI, never packaged into BuildConfig or resources.
+val signingPath = providers.environmentVariable("DAILYLEDGER_SIGNING_KEYSTORE_PATH").orNull
+val signingStorePassword = providers.environmentVariable("DAILYLEDGER_SIGNING_STORE_PASSWORD").orNull
+val signingAlias = providers.environmentVariable("DAILYLEDGER_SIGNING_KEY_ALIAS").orNull
+val signingKeyPassword = providers.environmentVariable("DAILYLEDGER_SIGNING_KEY_PASSWORD").orNull
+val privateSigningConfigured = listOf(signingPath, signingStorePassword, signingAlias, signingKeyPassword)
+    .all { !it.isNullOrBlank() }
+
+// Debug-only work remains available without release credentials. Release builds fail closed.
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.project == project && it.name in setOf("assembleRelease", "bundleRelease", "packageRelease") }) {
+        check(privateSigningConfigured && file(signingPath!!).isFile) {
+            "Release signing is not configured. Supply the DAILYLEDGER_SIGNING_* environment variables."
+        }
+    }
+}
+
 android {
     namespace = "com.sadique.dailyledger"
     compileSdk = 37
@@ -30,20 +47,29 @@ android {
         buildConfigField("boolean", "FIREBASE_CONFIGURED", firebaseConfigured.toString())
     }
 
-    // Fixed debug key so the SHA-1 stays the same on every machine / CI run (needed for Google sign-in).
     signingConfigs {
-        getByName("debug") {
-            storeFile = file("dailyledger-debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        if (privateSigningConfigured) {
+            create("privateRelease") {
+                storeFile = file(signingPath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingAlias
+                keyPassword = signingKeyPassword
+            }
+            // CI's emulator installs the release over debug to verify upgrade compatibility.
+            getByName("debug") {
+                storeFile = file(signingPath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingAlias
+                keyPassword = signingKeyPassword
+            }
         }
     }
 
     buildTypes {
         getByName("release") {
-            // Keep the existing certificate for in-place upgrades. See FIREBASE-AI-SETUP.md.
-            signingConfig = signingConfigs.getByName("debug")
+            // Keep the current app certificate while moving its private material out of Git.
+            // A different certificate requires the documented rotation and Firebase migration.
+            signingConfig = if (privateSigningConfigured) signingConfigs.getByName("privateRelease") else null
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
