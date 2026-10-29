@@ -88,3 +88,32 @@ The current workflow does not read them or rotate signing automatically.
 
 This change does not rotate AI/provider tokens, change Firebase client configuration,
 or deploy a Cloudflare worker.
+
+## Managed GitHub integration cannot write secrets
+
+When the cloud proxy forces the managed GitHub integration identity, a PAT in
+cloud environment variables may not control the outgoing Authorization header.
+Do not repeatedly regenerate the owner's token to work around that behavior.
+The owner can instead add the existing fine-grained PAT directly in GitHub:
+repository Settings → Secrets and variables → Actions → New repository secret,
+with name `DAILYLEDGER_SIGNING_BOOTSTRAP_TOKEN`.
+
+Re-run the **Import private DailyLedger signing secrets** workflow for the
+`codex/private-app-keys` branch. Its GitHub-hosted runner authenticates with the
+owner-supplied repository secret and imports the prepared current and future
+signing secrets, then dispatches a separate APK verification workflow. The future
+key remains inactive; current certificate checks still protect installed updates.
+
+`signing/bootstrap.enc.json` contains only an AES-256-GCM authenticated encrypted
+bundle. HKDF-SHA256 derives a domain-separated wrapping key from the existing
+high-entropy fine-grained PAT, with a random 32-byte salt and 12-byte nonce.
+The private keys are the same already prepared for the published fingerprints;
+the workflow does not generate replacement certificates. Decryption and bundle
+validation occur before any remote mutation. Wrong tokens or altered ciphertext
+are rejected. Plaintext payloads go to `gh secret set` over stdin, not logs,
+command-line arguments, Git, or Actions artifacts. Do not enable shell tracing.
+The bootstrap secret must contain that exact existing PAT, not a regenerated one.
+
+After a successful import and APK verification, remove the temporary bootstrap
+PAT secret from repository settings and revoke the PAT if no longer needed.
+Retain an owner-controlled encrypted backup of the signing keystores and passwords.
