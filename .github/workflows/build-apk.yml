@@ -32,6 +32,9 @@ jobs:
       DAILYLEDGER_SIGNING_STORE_PASSWORD: ${{ secrets.DAILYLEDGER_SIGNING_STORE_PASSWORD }}
       DAILYLEDGER_SIGNING_KEY_ALIAS: ${{ secrets.DAILYLEDGER_SIGNING_KEY_ALIAS }}
       DAILYLEDGER_SIGNING_KEY_PASSWORD: ${{ secrets.DAILYLEDGER_SIGNING_KEY_PASSWORD }}
+      DAILYLEDGER_NEXT_SIGNING_STORE_PASSWORD: ${{ secrets.DAILYLEDGER_NEXT_SIGNING_STORE_PASSWORD }}
+      DAILYLEDGER_NEXT_SIGNING_KEY_ALIAS: ${{ secrets.DAILYLEDGER_NEXT_SIGNING_KEY_ALIAS }}
+      DAILYLEDGER_NEXT_SIGNING_KEY_PASSWORD: ${{ secrets.DAILYLEDGER_NEXT_SIGNING_KEY_PASSWORD }}
 
     steps:
       - name: Checkout project
@@ -61,7 +64,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Test private signing key restore
-        run: python3 -m unittest discover -s tests -p 'test_restore_signing.py'
+        run: |
+          python3 -m unittest discover -s tests -p 'test_restore_signing.py'
+          python3 -m unittest discover -s tests -p 'test_rotate_signing.py'
 
       - name: Restore private app signing key
         env:
@@ -76,6 +81,12 @@ jobs:
 
       - name: Build and unit test APK
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleDebugAndroidTest assembleRelease
+
+      - name: Rotate APK to the private app key with legacy update compatibility
+        env:
+          DAILYLEDGER_NEXT_SIGNING_KEYSTORE_BASE64: ${{ secrets.DAILYLEDGER_NEXT_SIGNING_KEYSTORE_BASE64 }}
+          DAILYLEDGER_SIGNING_LINEAGE_BASE64: ${{ secrets.DAILYLEDGER_SIGNING_LINEAGE_BASE64 }}
+        run: python3 tools/rotate-signing.py --apk app/build/outputs/apk/release/app-release.apk
 
       - name: Enable emulator acceleration
         run: |
@@ -124,8 +135,9 @@ jobs:
           versions = sorted((sdk / 'build-tools').glob('*'), key=lambda p: [int(n) for n in re.findall(r'\d+', p.name)])
           build_tools = next(p for p in reversed(versions) if (p / 'apksigner').exists())
           signature = subprocess.check_output([str(build_tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True)
-          expected_sha1 = 'c6e19da96097e5424a34766e15746edca7c0f707'
+          expected_sha1 = '454f9c244050722bb0a29be1d2df214409fb5bf6'
           assert expected_sha1 in signature.lower().replace(':', ''), 'Signing certificate differs from Firebase configuration'
+          subprocess.run(['python3', 'tools/rotate-signing.py', '--verify-only', '--apk', str(apk)], check=True)
           badging = subprocess.check_output([str(build_tools / 'aapt'), 'dump', 'badging', str(apk)], text=True)
           assert "package: name='com.sadique.dailyledger'" in badging, 'Unexpected application ID'
           assert 'application-debuggable' not in badging, 'Distributed APK must not be debuggable'

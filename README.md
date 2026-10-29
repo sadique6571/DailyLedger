@@ -2,7 +2,7 @@
 
 An Android personal finance app for income, expenses, savings, loans, udhar (credit) and kameti (committee savings) — built for everyday use in Pakistan, with Urdu and English interfaces. Records live on the phone and stay fully usable offline.
 
-**Current version: 2.0.0 · build 51** · Package: `com.sadique.dailyledger` · Minimum Android: 8.0 (API 26)
+**Current version: 2.0.0 · build 51** · Package: `com.sadique.dailyledger` · Minimum Android: 9.0 (API 28)
 
 **Status: feature-complete (final).** The core ledger, AI features, encrypted cloud backup and the full animation pass are all merged to `main`.
 
@@ -23,7 +23,7 @@ An Android personal finance app for income, expenses, savings, loans, udhar (cre
 
 ## Building
 
-Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit tests and 155 emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. The signing certificate is stable across builds, so new APKs install as in-place updates. Signing material is supplied through GitHub Actions secrets; see [private signing setup](docs/PRIVATE_SIGNING.md).
+Builds run on **GitHub Actions** (`.github/workflows/build-apk.yml`): every push to a pull request compiles the app, runs unit tests and 155 emulator UI tests, verifies the release APK signature, and uploads the installable APK as the `DailyLedger-APK` artifact. Each build first purges stale Actions caches. Release APKs use DailyLedger’s private signing key with an authorized certificate lineage so existing Android 9+ installations can update in place. Signing material is supplied through GitHub Actions secrets; see [private signing setup](docs/PRIVATE_SIGNING.md).
 
 ## Privacy
 

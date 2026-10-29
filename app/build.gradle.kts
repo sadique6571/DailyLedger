@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         applicationId = "com.sadique.dailyledger"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 36
         versionCode = 51
         versionName = "2.0.0"
