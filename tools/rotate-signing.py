@@ -24,7 +24,12 @@ REQUIRED = (
 def command(*args):
     result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode:
-        raise RuntimeError(f'{Path(args[0]).name} failed; no signing credentials were logged')
+        message = result.stderr.decode(errors='replace') or result.stdout.decode(errors='replace')
+        for name in REQUIRED:
+            value = os.environ.get(name)
+            if value:
+                message = message.replace(value, '<REDACTED>')
+        raise RuntimeError(f'{Path(args[0]).name} failed: {message[:4000]}')
     return result.stdout
 
 
