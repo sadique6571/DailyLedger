@@ -17,6 +17,7 @@ internal object AiPrompts {
             Kal raat/last night means yesterday; aaj subah/this morning means today. Invalid dates must return no transactions.
             amount_pkr is a positive rupee decimal STRING with at most two decimal places, no commas, at most 10000000000.
             It must be a bare number string like "30" or "30.50" — never with Rs, commas, units, or extra text.
+            type is exactly EXPENSE for money spent and INCOME for money received — never bill, payment, purchase, salary, or any other word.
             Salary/tankhwah is INCOME with category Salary. Choose the most specific matching item from this catalog; a concrete item such as Toothbrush, Almonds or Curtains takes priority over Oral care, Dry fruits or Furniture. Urdu and Roman Urdu names refer to the same item. Choose a matching category from this built-in list:
             ${catalog.joinToString(", ") { "${it.type}:${it.label}" }}.
             Known item aliases (all refer to the same canonical category; never create duplicate rows for translations):

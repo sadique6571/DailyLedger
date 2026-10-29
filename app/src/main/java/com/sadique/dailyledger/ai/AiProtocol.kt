@@ -79,10 +79,18 @@ object AiProtocol {
         }
         return text.takeIf { Regex("[0-9]{1,11}(\\.[0-9]{1,2})?").matches(it) }
     }
-    private fun normalizeType(raw:String):String = when (raw.trim().uppercase()) {
-        "DEBIT","OUTFLOW","SPENDING","SPENT" -> "EXPENSE"
-        "CREDIT","INFLOW","EARNING","EARNED" -> "INCOME"
-        else -> raw.trim().uppercase()
+    private fun normalizeType(raw:String):String {
+        val t = raw.trim().uppercase()
+        // The model sometimes echoes the input's own noun ("bill", "purchase")
+        // instead of EXPENSE/INCOME, and validated() only accepts those two —
+        // one wrong word used to kill the whole batch. Coerce the common
+        // variants; every draft still lands on the review screen before save.
+        if (t in setOf("INCOME","CREDIT","INFLOW","EARNING","EARNED","SALARY","TANKHWAH","TANKHA","PAY","WAGE","WAGES","PROFIT","MUNAFA","AMDAN")) return "INCOME"
+        if (t in setOf("EXPENSE","DEBIT","OUTFLOW","SPENDING","SPENT","BILL","BILLS","PAYMENT","PAID","PURCHASE","PURCHASED","SHOPPING","KHARCHA","KHARCH","KHARCHAY","COST","COSTS","FEE","FEES","CHARGE","CHARGES","EMI","RENT","KIRAYA","UTILITY","UTILITIES","GROCERY","GROCERIES","FOOD","DINING")) return "EXPENSE"
+        // Transfers, loans, kameti and savings cannot be created by this
+        // feature — leave them unmapped so validated() rejects as before.
+        if (t.contains("TRANSFER") || t.contains("LOAN") || t.contains("UDHAR") || t.contains("UDHAAR") || t.contains("KAMETI") || t.contains("COMMITTEE") || t.contains("SAVING") || t.contains("BACHAT")) return t
+        return "EXPENSE"
     }
     private fun normalizeDate(raw:String):String {
         val t = raw.trim()
@@ -103,7 +111,8 @@ object AiProtocol {
      * Real model answers are rarely as tidy as the schema promises. Harmless
      * shape differences are normalized; what stays strictly rejected (tested
      * in AiDataTest): account-scoping keys, negative amounts, more than two
-     * decimals, unparseable dates, unknown types, and non-JSON output. Money
+     * decimals, unparseable dates, transfer/loan/kameti/saving types, and
+     * non-JSON output. Money
      * and dates are never invented: a missing date falls back to today (as
      * the prompt says), a missing amount or type still fails, and an empty
      * transactions list decodes to empty — AiService retries that once.
