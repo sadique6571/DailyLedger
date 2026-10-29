@@ -1,15 +1,20 @@
 # Item artwork and category colors
 
-The catalog now contains 498 built-in labels, including 211 additional everyday
+The catalog now contains 609 built-in labels, including 322 additional everyday
 items. `ExpandedItemCategories` adds concrete products with English, Roman Urdu
 and Urdu aliases. The picker, offline AI rules, online prompt and validation share
 these categories. Existing transactions are not migrated or renamed.
+Door/darwaza/دروازہ, Rickshaw/rikshaw/رکشہ and Conveyance now have dedicated
+artwork, alongside 108 other additions covering fittings, transport, hardware,
+electrical parts, bathroom and kitchen tools, sewing supplies, stationery and
+gardening. Recognized existing entry notes use the same bundled images.
 
-`ItemArtwork` assigns the catalog 348 offline pictograms: 163 unmodified Twemoji
-14.0.2 illustrations and 185 original DailyLedger illustrations. Assets total
-about 600 KiB before APK compression. Aliases such as Peanuts/moongphali/مونگ پھلی
+`ItemArtwork` assigns the catalog 451 offline pictograms: 180 unmodified Twemoji
+14.0.2 illustrations and 271 original DailyLedger illustrations. Assets total
+about 831 KiB before APK compression. Aliases such as Peanuts/moongphali/مونگ پھلی
 and Curtains/parday/پردے use the same picture. `tools/generate-item-art.py`
-recreates the original art with Pillow; downloaded Twemoji originals and their
+and `tools/item_art_everyday.py` recreate the original art with Pillow;
+downloaded Twemoji originals and their
 CC BY 4.0 license are retained in assets. Attribution is visible in App info.
 
 `ItemCategoryIcon` is shared by category dropdowns/dialogs, AI draft review,

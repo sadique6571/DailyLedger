@@ -25,6 +25,35 @@ class ExpandedItemsTest {
         assertNotEquals(ItemArtwork.key("Peanuts"), ItemArtwork.key("Moong dal"))
     }
 
+    @Test fun commonFittingsTransportAndSmallItemsResolveToTheirOwnArtwork() {
+        val examples = mapOf(
+            "door" to "Door", "darwaza" to "Door", "دروازہ" to "Door",
+            "door handle" to "Door handle", "qabza" to "Door hinges", "چٹخنی" to "Door latch",
+            "rickshaw" to "Rickshaw", "rikshaw" to "Rickshaw", "رکشہ" to "Rickshaw",
+            "chingchi" to "Rickshaw", "conveyance" to "Conveyance", "آمدورفت" to "Conveyance",
+            "bus kiraya" to "Bus fare", "train ticket" to "Train ticket",
+            "keel" to "Nails", "پیچ" to "Screws", "nut bolt" to "Nuts & bolts",
+            "belan" to "Rolling pin", "چمٹا" to "Kitchen tongs", "nalka" to "Water tap",
+            "safety pin" to "Safety pins", "dhaga" to "Sewing thread",
+            "stapler pins" to "Staples", "lifafa" to "Envelopes")
+        examples.forEach { (alias, label) ->
+            assertEquals(alias, label, CategoryRules.infer("EXPENSE", "$alias 250"))
+            assertNotNull(label, ItemArtwork.asset(label))
+            assertEquals(alias, ItemArtwork.key(label), ItemArtwork.key(alias))
+            val original = com.sadique.dailyledger.data.TransactionDraft(
+                "EXPENSE", 25000, "Other", alias, "2026-10-29")
+            assertEquals(original.copy(category = label), CategoryRules.normalizeDraft(original))
+        }
+        // Existing notes get the item image even when the stored category remains broad.
+        assertEquals("item-art/door.png", ItemArtwork.asset("Door"))
+        assertEquals("item-art/door.png", ItemArtwork.asset("darwaza"))
+        assertEquals("item-art/rickshaw.png", ItemArtwork.asset("Rickshaw"))
+        assertNotEquals(ItemArtwork.key("Door"), ItemArtwork.key("Door mat"))
+        assertNotEquals(ItemArtwork.key("Door"), ItemArtwork.key("Door handle"))
+        assertNotEquals(ItemArtwork.key("Rickshaw"), ItemArtwork.key("Taxi & rides"))
+        assertNotEquals(ItemArtwork.key("Conveyance"), ItemArtwork.key("Rickshaw"))
+    }
+
     @Test fun everyNewItemNameIsRecognizedByBothCategoryValidationPaths() {
         ExpandedItemCategories.entries.forEach { item ->
             assertEquals(item.label, item.label, CategoryRules.infer("EXPENSE", item.label))
