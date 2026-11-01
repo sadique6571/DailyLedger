@@ -234,8 +234,12 @@ class MainViewModel(app:Application,val ownerId:String):AndroidViewModel(app){
         val history = historyRules.value.filter { "${it.type}:${it.phrase}" !in learned.suppressed }
         val publicLearned=publicLearningRules(learned.rules,repo.transactions.first(),repo.profileSnapshot().workspace.revisions)
         val entries = result.entries.map { CategoryLearning.apply(it, publicLearned, history) }
+        // Sadique's rule (2026-11-01): offline AI entries keep no notes — the entry
+        // stays, like the online AI. Blanking happens AFTER learning, which matches
+        // on the note text.
+        val finalEntries = if (usedCloud) entries else entries.map { it.copy(note = "") }
         val learnedCount = entries.zip(result.entries).count { (updated, original) -> updated.category != original.category }
-        result.copy(entries = entries, reviewIssues = entries.map { DraftReviewPolicy.issues(input, it, cloud = usedCloud) },
+        result.copy(entries = finalEntries, reviewIssues = finalEntries.map { DraftReviewPolicy.issues(input, it, cloud = usedCloud) },
             message = result.message + if (learnedCount > 0) " $learnedCount categories matched your saved learning." else "")
     }
     suspend fun rememberCategory(type:String,phrase:String,category:String):String? =
